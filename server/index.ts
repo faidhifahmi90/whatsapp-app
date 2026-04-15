@@ -41,7 +41,9 @@ import {
   updateMessageStatus,
   updateTemplateTwilioSid,
   upsertContact,
-  getUserByEmail
+  getUserByEmail,
+  updateTemplate,
+  deleteTemplate
 } from "./db.js";
 import {
   buildContentVariables,
@@ -555,6 +557,32 @@ app.post("/api/templates", requireAuth, (req: SessionRequest, res) => {
   });
   refreshClients("templates");
   res.json({ template });
+});
+
+app.put("/api/templates/:id", requireAuth, (req: SessionRequest, res) => {
+  const templateId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  if (!findTemplate(templateId)) return res.status(404).json({ error: "Template not found" });
+  
+  const template = updateTemplate(templateId, {
+    name: req.body.name,
+    category: req.body.category,
+    body: req.body.body,
+    placeholders: Array.isArray(req.body.placeholders) ? req.body.placeholders : [],
+    mediaUrl: req.body.mediaUrl,
+    ctaLabel: req.body.ctaLabel,
+    ctaUrl: req.body.ctaUrl
+  });
+  refreshClients("templates");
+  res.json({ template });
+});
+
+app.delete("/api/templates/:id", requireAuth, (req: SessionRequest, res) => {
+  const templateId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  if (!findTemplate(templateId)) return res.status(404).json({ error: "Template not found" });
+  
+  deleteTemplate(templateId);
+  refreshClients("templates");
+  res.json({ ok: true });
 });
 
 app.post("/api/templates/:id/sync", requireAuth, async (req: SessionRequest, res) => {

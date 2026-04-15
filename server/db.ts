@@ -545,6 +545,42 @@ export function updateTemplateTwilioSid(templateId: string, sid: string) {
   return findTemplate(templateId);
 }
 
+export function updateTemplate(id: string, input: {
+  name: string;
+  category: string;
+  body: string;
+  placeholders: string[];
+  mediaUrl?: string | null;
+  ctaLabel?: string | null;
+  ctaUrl?: string | null;
+}) {
+  db.prepare(
+    `update templates
+        set name = ?,
+            category = ?,
+            body = ?,
+            placeholders_json = ?,
+            media_url = ?,
+            cta_label = ?,
+            cta_url = ?
+      where id = ?`
+  ).run(
+    input.name,
+    input.category,
+    input.body,
+    JSON.stringify(input.placeholders),
+    input.mediaUrl ?? null,
+    input.ctaLabel ?? null,
+    input.ctaUrl ?? null,
+    id
+  );
+  return findTemplate(id);
+}
+
+export function deleteTemplate(id: string) {
+  db.prepare("delete from templates where id = ?").run(id);
+}
+
 export function openConversation(contactId: string, channelId: string) {
   const existing = db
     .prepare("select * from conversations where contact_id = ? and channel_id = ?")

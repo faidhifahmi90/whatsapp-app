@@ -1556,6 +1556,7 @@ function AnalyticsPage(props: { data: BootstrapData }) {
 
 function TemplatesStudioPage(props: { data: BootstrapData; onRefresh: (preferredConversationId?: string | null) => Promise<void> }) {
   const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({
     name: "",
     category: "utility",
@@ -1571,14 +1572,14 @@ function TemplatesStudioPage(props: { data: BootstrapData; onRefresh: (preferred
 
   async function saveTemplate(event: FormEvent) {
     event.preventDefault();
-    await api("/api/templates", {
-      method: "POST",
+    await api(`/api/templates${editingId ? `/${editingId}` : ""}`, {
+      method: editingId ? "PUT" : "POST",
       body: JSON.stringify({
         ...form,
         placeholders: form.placeholders.split(",").map((item) => item.trim()).filter(Boolean)
       })
     });
-    setStatus("Template created.");
+    setStatus(`Template ${editingId ? "updated" : "created"}.`);
     setForm({
       name: "",
       category: "utility",
@@ -1588,7 +1589,20 @@ function TemplatesStudioPage(props: { data: BootstrapData; onRefresh: (preferred
       ctaLabel: "",
       ctaUrl: ""
     });
+    setEditingId(null);
+    setShowForm(false);
     await props.onRefresh();
+  }
+
+  async function deleteTemplate(template: Template) {
+    if (!confirm(`Are you sure you want to delete template "${template.name}"?`)) return;
+    try {
+      await api(`/api/templates/${template.id}`, { method: "DELETE" });
+      setStatus(`Template "${template.name}" deleted.`);
+      await props.onRefresh();
+    } catch (err) {
+      setStatus("Failed to delete template");
+    }
   }
 
   async function syncApprovedTemplates() {
@@ -1635,10 +1649,26 @@ function TemplatesStudioPage(props: { data: BootstrapData; onRefresh: (preferred
           </button>
           <button
             className="inline-flex items-center justify-center rounded-xl bg-primary px-5 py-3 text-sm font-bold text-on-primary shadow-lg shadow-primary/20 transition-all hover:opacity-90"
-            onClick={() => setShowForm(!showForm)}
+            onClick={() => {
+              if (showForm) {
+                setShowForm(false);
+                setEditingId(null);
+              } else {
+                setForm({
+                  name: "",
+                  category: "utility",
+                  body: "",
+                  placeholders: "",
+                  mediaUrl: "",
+                  ctaLabel: "",
+                  ctaUrl: ""
+                });
+                setShowForm(true);
+              }
+            }}
           >
             <Icon name={showForm ? "close" : "add"} className="mr-2" />
-            {showForm ? "Close Form" : "New Template"}
+            {showForm ? "Cancel" : "New Template"}
           </button>
         </div>
       </div>
@@ -1673,7 +1703,9 @@ function TemplatesStudioPage(props: { data: BootstrapData; onRefresh: (preferred
                 <input className="atrium-input" value={form.ctaUrl} onChange={(event) => setForm((current) => ({ ...current, ctaUrl: event.target.value }))} />
               </Field>
             </div>
-            <button className="w-full rounded-xl bg-primary px-5 py-3 text-sm font-bold text-on-primary">Save template</button>
+            <button type="submit" className="w-full rounded-xl bg-primary px-5 py-3 text-sm font-bold text-on-primary">
+              {editingId ? "Update template" : "Save template"}
+            </button>
             {status ? <div className="rounded-2xl bg-primary-fixed/20 px-4 py-3 text-sm font-semibold text-primary">{status}</div> : null}
           </form>
         </div>
@@ -1756,10 +1788,31 @@ function TemplatesStudioPage(props: { data: BootstrapData; onRefresh: (preferred
                         >
                           <Icon name="cloud_upload" className="text-lg" />
                         </button>
-                        <button className="mr-3 text-outline hover:text-primary transition-colors" title="Edit Template">
+                        <button 
+                          className="mr-3 text-outline hover:text-primary transition-colors" 
+                          title="Edit Template"
+                          onClick={() => {
+                            setEditingId(template.id);
+                            setForm({
+                              name: template.name,
+                              category: template.category,
+                              body: template.body,
+                              placeholders: template.placeholders.join(", "),
+                              mediaUrl: template.mediaUrl || "",
+                              ctaLabel: template.ctaLabel || "",
+                              ctaUrl: template.ctaUrl || ""
+                            });
+                            setShowForm(true);
+                            window.scrollTo({ top: 0, behavior: 'smooth' });
+                          }}
+                        >
                           <Icon name="edit" className="text-lg" />
                         </button>
-                        <button className="text-error hover:text-error/80 transition-colors" title="Delete Template">
+                        <button 
+                          className="text-error hover:text-error/80 transition-colors" 
+                          title="Delete Template"
+                          onClick={() => void deleteTemplate(template)}
+                        >
                           <Icon name="delete" className="text-lg" />
                         </button>
                       </td>
