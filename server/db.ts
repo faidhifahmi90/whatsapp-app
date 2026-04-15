@@ -31,6 +31,7 @@ type DbContactRow = {
   company: string | null;
   labels_json: string | null;
   custom_fields_json: string | null;
+  created_at: string;
 };
 
 type DbTemplateRow = {

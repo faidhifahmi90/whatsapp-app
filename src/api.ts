@@ -20,11 +20,14 @@ export async function api<T>(url: string, options: RequestInit = {}) {
 
   if (!response.ok) {
     let message = "Request failed";
+    const textBody = await response.text();
     try {
-      const json = (await response.json()) as { error?: string };
-      message = json.error ?? message;
+      if (textBody) {
+        const json = JSON.parse(textBody) as { error?: string };
+        message = json.error ?? textBody;
+      }
     } catch {
-      message = await response.text();
+      message = textBody || message;
     }
     throw new ApiError(message, response.status);
   }
