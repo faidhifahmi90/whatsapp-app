@@ -83,7 +83,8 @@ function mapSegment(row: any): Segment {
   return {
     id: row.id,
     name: row.name,
-    color: row.color
+    color: row.color,
+    createdAt: row.created_at
   };
 }
 
@@ -118,7 +119,8 @@ function mapContact(row: DbContactRow): Contact {
     company: row.company,
     labels: parseJson<string[]>(row.labels_json, []),
     customFields: parseJson<Record<string, string>>(row.custom_fields_json, {}),
-    segmentIds: segmentRows.map((segment) => segment.segment_id)
+    segmentIds: segmentRows.map((segment) => segment.segment_id),
+    createdAt: row.created_at
   };
 }
 
@@ -738,7 +740,8 @@ export function listCampaigns(): Campaign[] {
     scheduledAt: row.scheduled_at,
     stats: parseJson(row.stats_json, { attempted: 0, delivered: 0, failed: 0 }),
     recurringInterval: row.recurring_interval,
-    recurringUntil: row.recurring_until
+    recurringUntil: row.recurring_until,
+    createdAt: row.created_at
   }));
 }
 

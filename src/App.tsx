@@ -1756,39 +1756,166 @@ function ContactsPage(props: {
 }
 
 function AnalyticsPage(props: { data: BootstrapData }) {
-  const analytics = useMemo(() => buildAnalyticsSummary(props.data), [props.data]);
+  // --- Date Range Filtering State ---
+  const [dateRange, setDateRange] = useState<"all" | "1month" | "3month" | "9month" | "custom">("1month");
+  const [customStart, setCustomStart] = useState("");
+  const [customEnd, setCustomEnd] = useState("");
+
+  const filteredData = useMemo(() => {
+    let start = 0;
+    let end = Date.now();
+    
+    if (dateRange === "1month") start = Date.now() - 30 * 24 * 60 * 60 * 1000;
+    else if (dateRange === "3month") start = Date.now() - 90 * 24 * 60 * 60 * 1000;
+    else if (dateRange === "9month") start = Date.now() - 270 * 24 * 60 * 60 * 1000;
+    else if (dateRange === "custom") {
+      start = customStart ? new Date(customStart).getTime() : 0;
+      end = customEnd ? new Date(customEnd).getTime() + 86400000 : Date.now();
+    }
+
+    if (dateRange === "all") return props.data;
+
+    const filterObj = <T extends { createdAt?: string; scheduledAt?: string | null; lastMessageAt?: string }>(item: T) => {
+      const timeStr = item.createdAt || item.scheduledAt || item.lastMessageAt;
+      if (!timeStr) return true;
+      const t = new Date(timeStr).getTime();
+      return t >= start && t <= end;
+    };
+
+    return {
+      ...props.data,
+      contacts: props.data.contacts.filter(filterObj),
+      campaigns: props.data.campaigns.filter(filterObj),
+      conversations: props.data.conversations.filter(filterObj),
+    } as BootstrapData;
+  }, [props.data, dateRange, customStart, customEnd]);
+
+  const analytics = useMemo(() => buildAnalyticsSummary(filteredData), [filteredData]);
   
+  // --- Standard Widget State ---
   const availableWidgets = [
     { id: "overview", label: "Metrics Overview" },
     { id: "funnel", label: "Conversion Funnel" },
     { id: "trends", label: "Engagement Trends" },
-    { id: "campaigns", label: "Active Campaigns" }
+    { id: "campaigns", label: "Active Campaigns" },
+    { id: "explorer", label: "BI Dynamic Explorer" }
   ];
-  const [visibleWidgets, setVisibleWidgets] = useState(["overview", "funnel", "trends", "campaigns"]);
+  const [visibleWidgets, setVisibleWidgets] = useState(["overview", "funnel", "explorer", "campaigns"]);
   const [isEditing, setIsEditing] = useState(false);
+
+  // --- Dynamic BI Explorer State ---
+  const [biSource, setBiSource] = useState<"contacts" | "campaigns">("contacts");
+  const [biYAxis, setBiYAxis] = useState<string>("");
+  const [biAggregation, setBiAggregation] = useState<"count" | "sum" | "min" | "max" | "median">("count");
+  const [biXAxis, setBiXAxis] = useState<string>("");
 
   const toggleWidget = (id: string) => {
     setVisibleWidgets(prev => prev.includes(id) ? prev.filter(w => w !== id) : [...prev, id]);
   };
+
+  const biFields = useMemo(() => {
+    const keys = new Set<string>();
+    if (biSource === "contacts") {
+      filteredData.contacts.forEach(c => {
+        if (c.company) keys.add("company");
+        Object.keys(c.customFields).forEach(k => keys.add(`var:${k}`));
+      });
+    } else {
+      keys.add("attempted");
+      keys.add("delivered");
+      keys.add("failed");
+      filteredData.campaigns.forEach(c => {
+        keys.add("templateId");
+        keys.add("status");
+      });
+    }
+    return Array.from(keys);
+  }, [filteredData, biSource]);
+
+  useEffect(() => {
+    if (!biFields.includes(biYAxis)) setBiYAxis(biFields[0] || "");
+  }, [biFields, biYAxis]);
+
+  const biResult = useMemo(() => {
+    if (!biYAxis) return null;
+    
+    // Map
+    const dataset = (biSource === "contacts" ? filteredData.contacts : filteredData.campaigns).map(item => {
+      let yVal: any = null;
+      let xVal: any = "All";
+
+      if (biSource === "contacts") {
+        const c = item as Contact;
+        yVal = biYAxis === "company" ? c.company : biYAxis.startsWith("var:") ? c.customFields[biYAxis.slice(4)] : null;
+        xVal = biXAxis ? (biXAxis === "company" ? c.company : biXAxis.startsWith("var:") ? c.customFields[biXAxis.slice(4)] : "All") : "All";
+      } else {
+        const camp = item as Campaign;
+        yVal = biYAxis === "attempted" ? camp.stats.attempted : biYAxis === "delivered" ? camp.stats.delivered : biYAxis === "failed" ? camp.stats.failed : biYAxis === "templateId" ? camp.templateId : camp.status;
+        xVal = biXAxis ? (biXAxis === "attempted" ? camp.stats.attempted : biXAxis === "delivered" ? camp.stats.delivered : biXAxis === "failed" ? camp.stats.failed : biXAxis === "templateId" ? camp.templateId : camp.status) : "All";
+      }
+
+      const nY = Number(yVal);
+      return { x: String(xVal || "Unknown"), y: isNaN(nY) ? yVal : nY, isNum: !isNaN(nY) };
+    });
+
+    // Group
+    const groups: Record<string, typeof dataset> = {};
+    dataset.forEach(row => {
+      if (!groups[row.x]) groups[row.x] = [];
+      groups[row.x].push(row);
+    });
+
+    // Aggregate
+    const aggregated = Object.entries(groups).map(([xKey, rows]) => {
+      let finalVal = 0;
+      if (biAggregation === "count") {
+        finalVal = rows.length;
+      } else {
+        const nums = rows.filter(r => r.isNum).map(r => r.y as number).sort((a,b)=>a-b);
+        if (nums.length === 0) finalVal = 0;
+        else if (biAggregation === "sum") finalVal = nums.reduce((a,b)=>a+b,0);
+        else if (biAggregation === "max") finalVal = nums[nums.length-1];
+        else if (biAggregation === "min") finalVal = nums[0];
+        else if (biAggregation === "median") finalVal = nums[Math.floor(nums.length/2)];
+      }
+      return { x: xKey, y: finalVal };
+    }).sort((a,b) => b.y - a.y);
+    
+    return aggregated;
+  }, [filteredData, biSource, biYAxis, biXAxis, biAggregation]);
 
   return (
     <div className="px-8 pb-12 pt-8">
       <div className="mb-10 flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between border-b border-outline-variant/20 pb-6">
         <div className="space-y-1">
           <h1 className="font-headline text-[2.75rem] font-medium leading-none tracking-tight text-on-surface">Analytics</h1>
-          <p className="font-medium text-on-surface-variant">Real-time performance metrics</p>
+          <p className="font-medium text-on-surface-variant">Real-time performance & BI metrics</p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <div className="flex items-center gap-2 rounded-lg bg-surface-container-lowest p-1 shadow-sm border border-outline-variant/30 flex-wrap">
+            {["all", "1month", "3month", "9month", "custom"].map(rng => (
+              <button 
+                key={rng}
+                onClick={() => setDateRange(rng as any)}
+                className={`px-3 py-1.5 text-xs font-bold rounded-md transition-colors ${dateRange === rng ? 'bg-primary text-on-primary' : 'text-on-surface-variant hover:bg-surface-container'}`}
+              >
+                {rng === "all" ? "All Time" : rng === "1month" ? "1 Month" : rng === "3month" ? "3 Months" : rng === "9month" ? "9 Months" : "Custom"}
+              </button>
+            ))}
+          </div>
+          {dateRange === "custom" && (
+            <div className="flex items-center gap-2 bg-surface-container-lowest p-1 rounded-lg border border-outline-variant/30">
+              <input type="date" className="atrium-input border-0 py-1 text-xs" value={customStart} onChange={e => setCustomStart(e.target.value)} />
+              <span className="text-on-surface-variant text-xs">-</span>
+              <input type="date" className="atrium-input border-0 py-1 text-xs" value={customEnd} onChange={e => setCustomEnd(e.target.value)} />
+            </div>
+          )}
           <button 
             onClick={() => setIsEditing(!isEditing)}
-            className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-all ${isEditing ? 'bg-primary text-on-primary' : 'bg-surface-container-low text-on-surface hover:bg-surface-container'}`}
+            className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-all ${isEditing ? 'bg-primary text-on-primary' : 'bg-surface-container-low text-on-surface border border-outline-variant/30 hover:bg-surface-container'}`}
           >
             <Icon className="text-lg" name="dashboard_customize" />
-            {isEditing ? "Done Editing" : "Customize Widgets"}
-          </button>
-          <button className="flex items-center gap-2 rounded-lg bg-surface-container-lowest px-4 py-2 text-sm font-semibold text-on-surface border border-outline-variant/30 transition-all hover:bg-surface-container-low">
-            <Icon className="text-lg" name="calendar_today" />
-            Last 30 Days
+            {isEditing ? "Done Editing" : "Customize"}
           </button>
         </div>
       </div>
@@ -1829,6 +1956,78 @@ function AnalyticsPage(props: { data: BootstrapData }) {
               <FunnelStep label="Delivered" value={analytics.delivered} max={analytics.totalSent} color="bg-primary/40" />
               <FunnelStep label="Read" value={analytics.readEstimate} max={analytics.totalSent} color="bg-primary/70" />
               <FunnelStep label="Replied" value={analytics.replyEstimate} max={analytics.totalSent} color="bg-primary" />
+            </div>
+          </div>
+        )}
+        
+        {visibleWidgets.includes("explorer") && (
+          <div className="rounded-2xl border border-outline-variant/20 bg-surface-container-lowest p-8 shadow-sm">
+            <h2 className="mb-6 font-headline text-lg font-semibold text-on-surface flex items-center gap-2">
+              <Icon name="explore" className="text-primary" />
+              Dynamic BI Explorer
+            </h2>
+            
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8 bg-surface-container-low p-5 rounded-xl border border-outline-variant/10">
+              <Field label="Data Source">
+                <select className="atrium-input bg-surface-container-lowest text-sm py-2 px-3" value={biSource} onChange={e => {setBiSource(e.target.value as any); setBiXAxis("");}}>
+                  <option value="contacts">Contacts Registry</option>
+                  <option value="campaigns">Campaigns Database</option>
+                </select>
+              </Field>
+              <Field label="Metric (Target Variable)">
+                <select className="atrium-input bg-surface-container-lowest text-sm py-2 px-3" value={biYAxis} onChange={e => setBiYAxis(e.target.value)}>
+                  {biFields.map(f => <option key={f} value={f}>{f.replace("var:", "(Custom) ")}</option>)}
+                </select>
+              </Field>
+              <Field label="Operation">
+                <select className="atrium-input bg-surface-container-lowest text-sm py-2 px-3" value={biAggregation} onChange={e => setBiAggregation(e.target.value as any)}>
+                  <option value="count">Count (Incidences)</option>
+                  <option value="sum">Sum (Mathematical Add)</option>
+                  <option value="max">Max (Peak Value)</option>
+                  <option value="min">Min (Lowest Value)</option>
+                  <option value="median">Median (Distribution curve midpoint)</option>
+                </select>
+              </Field>
+              <Field label="Group By (Comparison X-Axis)">
+                <select className="atrium-input bg-surface-container-lowest text-sm py-2 px-3" value={biXAxis} onChange={e => setBiXAxis(e.target.value)}>
+                  <option value="">None (Global Calculation)</option>
+                  {biFields.map(f => <option key={f} value={f}>{f.replace("var:", "(Custom) ")}</option>)}
+                </select>
+              </Field>
+            </div>
+
+            <div className="min-h-[220px] flex flex-col justify-end pt-4 border-t border-outline-variant/10 mt-6 relative">
+              {!biResult || biResult.length === 0 ? (
+                <div className="flex h-40 w-full flex-col items-center justify-center rounded-2xl border-2 border-dashed border-outline-variant/30 text-slate-400">
+                  <Icon name="monitoring" className="mb-2 text-3xl opacity-50" />
+                  <span className="text-sm font-medium">No valid mathematical slices found for the current configuration.</span>
+                </div>
+              ) : !biXAxis || (biResult.length === 1 && biResult[0].x === "All") ? (
+                <div className="flex w-full items-center justify-center p-8">
+                  <div className="flex flex-col items-center justify-center px-16 py-12 bg-primary-fixed/30 border-2 border-primary/20 rounded-[2rem] min-w-[340px] shadow-sm transform transition-all hover:scale-105">
+                    <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary/80 mb-3">{biAggregation} of {biYAxis.replace("var:", "")}</p>
+                    <h1 className="font-headline text-[4rem] font-extrabold text-primary leading-none">{biResult[0].y.toLocaleString()}</h1>
+                  </div>
+                </div>
+              ) : (
+                <div className="relative w-full flex items-end justify-around gap-2 h-[260px] px-4">
+                  {biResult.slice(0, 20).map((row, i) => { 
+                    const maxVal = Math.max(...biResult.map(r => r.y)) || 1;
+                    const heightPct = Math.max(2, (row.y / maxVal) * 100);
+                    return (
+                      <div key={i} className="group relative flex-1 h-full flex flex-col justify-end items-center transition-all px-1 hover:z-10">
+                        <div className="absolute -top-12 opacity-0 group-hover:opacity-100 transition-opacity bg-surface-container-highest text-on-surface text-[11px] py-2 px-3 rounded-xl font-bold whitespace-nowrap shadow-lg">
+                          <span className="text-on-surface-variant font-medium mr-1">{row.x}:</span> {row.y.toLocaleString()}
+                        </div>
+                        <div className="w-full max-w-[64px] min-w-[20px] rounded-t-lg bg-primary hover:bg-primary-fixed shadow-[0_-4px_12px_rgba(var(--color-primary),0.2)] transition-all" style={{ height: `${heightPct}%` }} />
+                        <div className="h-[40px] mt-2 w-full max-w-[64px] overflow-hidden">
+                          <span className="text-[10px] text-on-surface font-semibold truncate w-full block text-center break-words leading-tight" title={row.x}>{row.x === "All" ? "Total" : row.x}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -1882,7 +2081,7 @@ function AnalyticsPage(props: { data: BootstrapData }) {
                   </tr>
                 </thead>
                 <tbody className="text-sm">
-                  {props.data.campaigns.map((campaign, index) => {
+                  {filteredData.campaigns.map((campaign, index) => {
                     const sent = campaign.stats.attempted || campaign.stats.delivered || (index + 1) * 1200;
                     const rate = sent ? Math.round((campaign.stats.delivered / Math.max(1, sent)) * 100) : 0;
                     const roi = (campaign.stats.delivered * 0.09 + 1).toFixed(1);

@@ -17,6 +17,7 @@ export type Segment = {
   id: string;
   name: string;
   color: string;
+  createdAt: string;
 };
 
 export type Contact = {
@@ -29,6 +30,7 @@ export type Contact = {
   labels: string[];
   customFields: Record<string, string>;
   segmentIds: string[];
+  createdAt: string;
 };
 
 export type Template = {
@@ -86,6 +88,7 @@ export type Campaign = {
     delivered: number;
     failed: number;
   };
+  createdAt: string;
 };
 
 export type Automation = {
