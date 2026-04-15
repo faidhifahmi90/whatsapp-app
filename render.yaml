@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: whatsapp-center
+    runtime: docker
+    plan: starter
+    autoDeploy: true
+    disk:
+      name: whatsapp-center-data
+      mountPath: /app/data
+      sizeGB: 1
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3001
+      - key: TRUST_PROXY
+        value: "true"
+      - key: SESSION_COOKIE_SECURE
+        value: "true"
+      - key: TWILIO_WEBHOOK_VALIDATE
+        value: "true"

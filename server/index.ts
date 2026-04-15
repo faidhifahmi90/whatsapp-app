@@ -9,6 +9,7 @@ import { parse } from "csv-parse/sync";
 import { createServer } from "node:http";
 import { resolve } from "node:path";
 import { Server } from "socket.io";
+import twilio from "twilio";
 import {
   addMessage,
   createAutomation,
@@ -42,6 +43,7 @@ import {
   verifyPassword
 } from "./db.js";
 import { buildContentVariables, renderTemplate, sendWhatsAppMessage, syncTemplateToTwilioContent } from "./twilio.js";
+import { SqliteSessionStore } from "./session-store.js";
 
 type SessionRequest = Request & {
   session: session.Session &
@@ -62,17 +64,33 @@ const io = new Server(server, {
 const upload = multer({ storage: multer.memoryStorage() });
 const port = Number(process.env.PORT ?? 3001);
 const isProduction = process.env.NODE_ENV === "production";
+const trustProxy = process.env.TRUST_PROXY === "true";
+const secureCookie =
+  process.env.SESSION_COOKIE_SECURE === "true"
+    ? true
+    : process.env.SESSION_COOKIE_SECURE === "false"
+      ? false
+      : isProduction;
+const validateTwilioWebhooks = process.env.TWILIO_WEBHOOK_VALIDATE === "true";
+const publicBaseUrl = process.env.PUBLIC_BASE_URL;
+const twilioAuthToken = process.env.TWILIO_AUTH_TOKEN;
+
+if (trustProxy) {
+  app.set("trust proxy", 1);
+}
 
 initDb();
 
 const sessionMiddleware = session({
   secret: process.env.SESSION_SECRET ?? "local-dev-secret",
+  store: new SqliteSessionStore(),
   resave: false,
   saveUninitialized: false,
   cookie: {
     httpOnly: true,
     sameSite: "lax",
-    secure: false
+    secure: secureCookie,
+    maxAge: 1000 * 60 * 60 * 24 * 7
   }
 });
 
@@ -104,6 +122,31 @@ function requireAuth(req: SessionRequest, res: Response, next: NextFunction) {
 
 function refreshClients(type: string, payload?: Record<string, unknown>) {
   io.emit("data:refresh", { type, ...payload, timestamp: new Date().toISOString() });
+}
+
+function validateTwilioSignature(req: Request, res: Response, next: NextFunction) {
+  if (!validateTwilioWebhooks || !twilioAuthToken) {
+    next();
+    return;
+  }
+
+  const signature = req.header("X-Twilio-Signature");
+  if (!signature) {
+    res.status(403).send("Missing Twilio signature");
+    return;
+  }
+
+  const requestUrl = publicBaseUrl
+    ? new URL(req.originalUrl, publicBaseUrl).toString()
+    : `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+  const isValid = twilio.validateRequest(twilioAuthToken, signature, requestUrl, req.body as Record<string, string>);
+
+  if (!isValid) {
+    res.status(403).send("Invalid Twilio signature");
+    return;
+  }
+
+  next();
 }
 
 async function sendTemplateMessage(input: {
@@ -291,9 +334,15 @@ async function processQueuedCampaigns() {
   }
 }
 
+let backgroundLoopRunning = false;
 setInterval(() => {
-  void processAutomationJobs();
-  void processQueuedCampaigns();
+  if (backgroundLoopRunning) {
+    return;
+  }
+  backgroundLoopRunning = true;
+  void Promise.all([processAutomationJobs(), processQueuedCampaigns()]).finally(() => {
+    backgroundLoopRunning = false;
+  });
 }, 5000);
 
 app.get("/api/health", (_req, res) => {
@@ -580,7 +629,7 @@ app.post("/api/users", requireAuth, (req: SessionRequest, res) => {
   res.json({ user });
 });
 
-app.post("/api/webhooks/twilio/incoming", async (req, res) => {
+app.post("/api/webhooks/twilio/incoming", validateTwilioSignature, async (req, res) => {
   const from = typeof req.body.From === "string" ? req.body.From : "";
   const to = typeof req.body.To === "string" ? req.body.To : "";
   const body = typeof req.body.Body === "string" ? req.body.Body : "";
@@ -641,7 +690,7 @@ app.post("/api/webhooks/twilio/incoming", async (req, res) => {
   return res.type("text/xml").send("<Response></Response>");
 });
 
-app.post("/api/webhooks/twilio/status", (req, res) => {
+app.post("/api/webhooks/twilio/status", validateTwilioSignature, (req, res) => {
   const messageSid = typeof req.body.MessageSid === "string" ? req.body.MessageSid : null;
   const status = typeof req.body.MessageStatus === "string" ? req.body.MessageStatus : null;
   if (messageSid && status) {

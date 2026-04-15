@@ -104,7 +104,34 @@ docker build -t whatsapp-center .
 docker run -p 3001:3001 --env-file .env whatsapp-center
 ```
 
+Or with Compose:
+
+```bash
+docker compose up --build -d
+```
+
+## Public deployment
+
+This repo now includes:
+
+- `Dockerfile` for container deployment
+- `docker-compose.yml` for single-host deployment
+- `render.yaml` for Render blueprint deployment
+
+Recommended production env:
+
+- `PUBLIC_BASE_URL=https://your-domain`
+- `TRUST_PROXY=true` when behind a load balancer or managed host
+- `SESSION_COOKIE_SECURE=true`
+- `TWILIO_WEBHOOK_VALIDATE=true`
+
+Twilio console webhook URLs should point to:
+
+- `https://your-domain/api/webhooks/twilio/incoming`
+- `https://your-domain/api/webhooks/twilio/status`
+
 ## Notes
 
-- Sessions use the default memory store right now, which is fine for local development but should be replaced with Redis or a database-backed store for real production scaling.
+- Sessions are persisted in SQLite now, so restarts do not immediately log every user out on a single-node deployment.
+- For multi-instance production scaling, move sessions and app data to a shared external store.
 - The database lives at `data/whatsapp-center.sqlite`.

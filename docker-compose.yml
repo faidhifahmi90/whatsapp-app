@@ -1,0 +1,17 @@
+services:
+  whatsapp-center:
+    build: .
+    ports:
+      - "3001:3001"
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      TRUST_PROXY: "true"
+      SESSION_COOKIE_SECURE: "false"
+    volumes:
+      - whatsapp-center-data:/app/data
+    restart: unless-stopped
+
+volumes:
+  whatsapp-center-data:
