@@ -1080,7 +1080,6 @@ function CampaignsPage(props: { data: BootstrapData; onRefresh: (preferredConver
           </div>
         </div>
       </div>
-      </div>
 
       <div className="mt-8 w-full max-w-5xl mx-auto md:px-0">
         <div className="flex flex-col gap-4 rounded-2xl border border-outline-variant/30 bg-surface-container-lowest p-6 shadow-sm md:flex-row md:items-center md:justify-between">
