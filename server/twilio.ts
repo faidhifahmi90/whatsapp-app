@@ -129,9 +129,10 @@ export function renderTemplate(
     const defaultVal = resolvePlaceholderValue(template, key, values);
     if (!customVariables || customVariables.length === 0) return defaultVal;
 
-    // Typically placeholders in Twilio are "1", "2", or named.
-    // If customVariables is mapped, we match by array index relative to placeholders sequence.
-    const index = template.placeholders.indexOf(key);
+    let index = template.placeholders.indexOf(key);
+    if (index === -1 && /^\d+$/.test(key)) {
+      index = Number(key) - 1;
+    }
     return index >= 0 && customVariables[index] ? customVariables[index] : defaultVal;
   });
 }
@@ -151,7 +152,10 @@ export function buildContentVariables(
         const defaultVal = resolvePlaceholderValue(template, placeholder, values);
         if (!customVariables || customVariables.length === 0) return [placeholder, defaultVal];
 
-        const index = template.placeholders.indexOf(placeholder);
+        let index = template.placeholders.indexOf(placeholder);
+        if (index === -1 && /^\d+$/.test(placeholder)) {
+          index = Number(placeholder) - 1;
+        }
         return [placeholder, index >= 0 && customVariables[index] ? customVariables[index] : defaultVal];
       })
     )

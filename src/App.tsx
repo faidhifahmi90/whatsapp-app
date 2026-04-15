@@ -215,13 +215,14 @@ function TemplateLivePreview(props: { template?: Template; variables: string[] }
     );
   }
 
-  let renderedBody = props.template.body;
-  if (Array.isArray(props.template.placeholders)) {
-    props.template.placeholders.forEach((_, idx) => {
-      const val = props.variables[idx] || `{{${idx + 1}}}`;
-      renderedBody = renderedBody.replace(`{{${idx + 1}}}`, val);
-    });
-  }
+  const renderedBody = props.template.body.replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (_, key) => {
+    const trimmed = String(key).trim();
+    let idx = props.template?.placeholders?.indexOf(trimmed) ?? -1;
+    if (idx === -1 && /^\d+$/.test(trimmed)) {
+      idx = Number(trimmed) - 1;
+    }
+    return idx >= 0 && props.variables[idx] ? props.variables[idx] : `{{${trimmed}}}`;
+  });
 
   return (
     <div className="relative w-full max-w-[320px] shrink-0 overflow-hidden bg-[#EFEAE2] p-4 font-sans text-[15px] shadow-sm ring-1 ring-black/5 sm:rounded-[24px]">
