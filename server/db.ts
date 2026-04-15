@@ -379,7 +379,8 @@ export function upsertContact(input: {
   segmentIds?: string[];
   segmentMode?: "add" | "replace" | "remove";
 }) {
-  const existing = db.prepare("select id from contacts where phone = ?").get(input.phone) as { id: string } | undefined;
+  const existingRaw = db.prepare("select * from contacts where phone = ?").get(input.phone) as any;
+  const existing = existingRaw ? mapContact(existingRaw) : null;
   const id = input.id ?? existing?.id ?? randomUUID();
   const timestamp = now();
 
@@ -389,12 +390,12 @@ export function upsertContact(input: {
        set first_name = ?, last_name = ?, email = ?, company = ?, labels_json = ?, custom_fields_json = ?, updated_at = ?
        where id = ?`
     ).run(
-      input.firstName,
-      input.lastName,
-      input.email ?? null,
-      input.company ?? null,
-      JSON.stringify(input.labels ?? []),
-      JSON.stringify(input.customFields ?? {}),
+      existing.firstName || input.firstName,
+      existing.lastName || input.lastName,
+      existing.email || input.email || null,
+      existing.company || input.company || null,
+      JSON.stringify([ ...new Set([...existing.labels, ...(input.labels ?? [])]) ]),
+      JSON.stringify({ ...(input.customFields ?? {}), ...existing.customFields }),
       timestamp,
       id
     );

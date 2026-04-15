@@ -450,6 +450,21 @@ app.post("/api/contacts", requireAuth, async (req: SessionRequest, res) => {
   refreshClients("contacts");
   res.json({ contact });
 });
+app.post("/api/contacts/import/preview", requireAuth, upload.single("file"), (req: SessionRequest, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: "CSV file is required" });
+  }
+
+  const records = parse(req.file.buffer.toString("utf-8"), {
+    columns: true,
+    skip_empty_lines: true
+  }) as Record<string, string>[];
+
+  const headers = records.length > 0 ? Object.keys(records[0]) : [];
+  const previewRows = records.slice(0, 3);
+
+  return res.json({ headers, previewRows });
+});
 
 app.post("/api/contacts/import", requireAuth, upload.single("file"), (req: SessionRequest, res) => {
   if (!req.file) {
@@ -461,21 +476,38 @@ app.post("/api/contacts/import", requireAuth, upload.single("file"), (req: Sessi
     skip_empty_lines: true
   }) as Record<string, string>[];
 
+  let mapping: Record<string, string> = {};
+  if (req.body.mapping) {
+    try {
+      mapping = JSON.parse(req.body.mapping);
+    } catch {}
+  }
+
   const parsedContacts = records.map((row) => {
-    const knownKeys = new Set(["firstName", "lastName", "phone", "email", "company", "labels"]);
-    const customFields = Object.fromEntries(
-      Object.entries(row).filter(([key]) => !knownKeys.has(key) && row[key as keyof typeof row])
-    );
+    const customFields: Record<string, string> = {};
+    const translated: Record<string, string> = {};
+
+    for (const [originalHeader, val] of Object.entries(row)) {
+      const targetHeader = mapping[originalHeader] || originalHeader;
+      if (targetHeader === "ignore" || !val) continue;
+
+      if (["firstName", "lastName", "phone", "email", "company", "labels"].includes(targetHeader)) {
+        translated[targetHeader] = val;
+      } else {
+        customFields[targetHeader] = val;
+      }
+    }
+
     return {
-      firstName: row.firstName ?? "",
-      lastName: row.lastName ?? "",
-      phone: row.phone ?? "",
-      email: row.email ?? "",
-      company: row.company ?? "",
-      labels: row.labels ? row.labels.split("|").map((label) => label.trim()).filter(Boolean) : [],
+      firstName: translated.firstName ?? "",
+      lastName: translated.lastName ?? "",
+      phone: translated.phone ?? "",
+      email: translated.email ?? "",
+      company: translated.company ?? "",
+      labels: translated.labels ? translated.labels.split("|").map((label) => label.trim()).filter(Boolean) : [],
       customFields
     };
-  });
+  }).filter((c) => c.phone);
 
   const segmentIds = typeof req.body.segmentIds === "string" ? req.body.segmentIds.split(",").filter(Boolean) : [];
   const imported = importContacts(parsedContacts, segmentIds, req.body.segmentMode ?? "add");

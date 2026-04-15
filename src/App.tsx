@@ -1161,6 +1161,12 @@ function ContactsPage(props: {
   const [segmentName, setSegmentName] = useState("");
   const [segmentColor, setSegmentColor] = useState("#7ae582");
   const [csvFile, setCsvFile] = useState<File | null>(null);
+  const [mappingState, setMappingState] = useState<{
+    headers: string[];
+    previewRows: Record<string, string>[];
+    map: Record<string, string>;
+    customFieldNames: Record<string, string>;
+  } | null>(null);
 
   async function saveContact(event: FormEvent) {
     event.preventDefault();
@@ -1209,15 +1215,50 @@ function ContactsPage(props: {
     if (!csvFile) {
       return;
     }
+    
+    if (!mappingState) {
+      const formData = new FormData();
+      formData.append("file", csvFile);
+      const res = await api("/api/contacts/import/preview", { method: "POST", body: formData });
+      const { headers, previewRows } = (await res.json()) as { headers: string[]; previewRows: Record<string, string>[] };
+      
+      const initialMap: Record<string, string> = {};
+      for (const h of headers) {
+        const lh = h.toLowerCase().replace(/[^a-z0-9]/g, "");
+        if (lh.includes("first")) initialMap[h] = "firstName";
+        else if (lh.includes("last")) initialMap[h] = "lastName";
+        else if (lh.includes("phone") || lh.includes("mobile")) initialMap[h] = "phone";
+        else if (lh.includes("email")) initialMap[h] = "email";
+        else if (lh.includes("company")) initialMap[h] = "company";
+        else if (lh.includes("identification") || lh.includes("id")) initialMap[h] = "identification_number";
+        else if (lh.includes("tag") || lh.includes("label")) initialMap[h] = "labels";
+        else initialMap[h] = "ignore";
+      }
+      setMappingState({ headers, previewRows, map: initialMap, customFieldNames: {} });
+      return;
+    }
+
+    const finalMapping: Record<string, string> = {};
+    for (const h of mappingState.headers) {
+      if (mappingState.map[h] === "custom") {
+        finalMapping[h] = mappingState.customFieldNames[h] || h;
+      } else {
+        finalMapping[h] = mappingState.map[h];
+      }
+    }
+
     const formData = new FormData();
     formData.append("file", csvFile);
     formData.append("segmentIds", selectedSegments.join(","));
     formData.append("segmentMode", form.segmentMode);
+    formData.append("mapping", JSON.stringify(finalMapping));
+    
     await api("/api/contacts/import", {
       method: "POST",
       body: formData
     });
     setCsvFile(null);
+    setMappingState(null);
     await props.onRefresh();
   }
 
@@ -1467,6 +1508,82 @@ function ContactsPage(props: {
           </table>
         </div>
       </section>
+
+      {mappingState !== null && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#091b18]/60 p-6 backdrop-blur-sm">
+          <div className="flex max-h-full w-full max-w-3xl flex-col overflow-hidden rounded-3xl bg-surface-container-lowest shadow-[0_40px_120px_-48px_rgba(0,69,61,0.5)]">
+            <div className="flex items-center justify-between border-b border-outline-variant/20 px-8 py-6">
+              <div>
+                <h2 className="font-headline text-2xl font-bold text-primary">Map CSV Columns</h2>
+                <p className="text-sm text-on-surface-variant">Review header mappings before executing import.</p>
+              </div>
+              <button
+                className="rounded-full p-2 text-on-surface-variant transition-colors hover:bg-surface-container"
+                onClick={() => {
+                  setMappingState(null);
+                  setCsvFile(null);
+                }}
+              >
+                <Icon name="close" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto px-8 py-6">
+              <div className="grid gap-6 md:grid-cols-2">
+                {mappingState.headers.map((h) => (
+                  <div className="flex flex-col gap-2 rounded-xl border border-outline-variant/30 bg-surface-container-low p-4" key={h}>
+                    <p className="text-xs font-bold uppercase tracking-wider text-outline">{h}</p>
+                    <select
+                      className="atrium-input bg-surface-container-lowest py-2"
+                      value={mappingState.map[h]}
+                      onChange={(e) => setMappingState((prev) => (prev ? { ...prev, map: { ...prev.map, [h]: e.target.value } } : null))}
+                    >
+                      <option value="ignore">Skip / Ignore</option>
+                      <option value="firstName">First Name</option>
+                      <option value="lastName">Last Name</option>
+                      <option value="phone">Phone Number (Required)</option>
+                      <option value="email">Email Address</option>
+                      <option value="company">Company</option>
+                      <option value="identification_number">Identification Number (Custom Field)</option>
+                      <option value="labels">Tags / Labels</option>
+                      <option value="custom">Create Custom Field...</option>
+                    </select>
+                    {mappingState.map[h] === "custom" && (
+                      <input
+                        className="atrium-input mt-2 py-2"
+                        placeholder="Type custom JSON key"
+                        value={mappingState.customFieldNames[h] || ""}
+                        onChange={(e) =>
+                          setMappingState((prev) =>
+                            prev ? { ...prev, customFieldNames: { ...prev.customFieldNames, [h]: e.target.value } } : null
+                          )
+                        }
+                      />
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-3 border-t border-outline-variant/20 bg-surface-container-low px-8 py-6">
+              <button
+                className="rounded-xl px-6 py-3 font-bold text-primary transition-colors hover:bg-primary/5"
+                onClick={() => {
+                  setMappingState(null);
+                  setCsvFile(null);
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                className="flex items-center gap-2 rounded-xl bg-primary px-8 py-3 font-bold text-on-primary transition-transform hover:scale-[1.02]"
+                onClick={(e) => void importCsv(e)}
+              >
+                Execute Import
+                <Icon name="check_circle" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
