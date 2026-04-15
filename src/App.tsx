@@ -206,7 +206,7 @@ function LoginPage(props: { onLogin: (credential: CredentialResponse) => Promise
   );
 }
 
-function TemplateLivePreview(props: { template?: Template; variables: string[] }) {
+function TemplateLivePreview(props: { template?: Template; variables: string[]; overrideMediaUrl?: string }) {
   if (!props.template) {
     return (
       <div className="flex h-64 w-full items-center justify-center rounded-2xl border border-dashed border-outline-variant/30 text-sm font-medium text-slate-400">
@@ -224,6 +224,8 @@ function TemplateLivePreview(props: { template?: Template; variables: string[] }
     return idx >= 0 && props.variables[idx] ? props.variables[idx] : `{{${trimmed}}}`;
   });
 
+  const mediaSource = props.overrideMediaUrl || props.template.mediaUrl;
+
   return (
     <div className="relative w-full max-w-[320px] shrink-0 overflow-hidden bg-[#EFEAE2] p-4 font-sans text-[15px] shadow-sm ring-1 ring-black/5 sm:rounded-[24px]">
       <div className="mb-4 flex items-center justify-between opacity-80">
@@ -233,9 +235,9 @@ function TemplateLivePreview(props: { template?: Template; variables: string[] }
       
       <div className="relative max-w-[90%] rounded-2xl rounded-tl-none bg-white p-2 shadow-[0_1px_0.5px_rgba(11,20,26,.13)] sm:p-2.5">
         <svg viewBox="0 0 8 13" width="8" height="13" className="absolute -left-2 top-0 text-white"><path opacity=".13" fill="#0000000" d="M1.533 3.568 8 12.193V1H2.812C1.042 1 .474 2.156 1.533 3.568z"></path><path fill="currentColor" d="M1.533 2.568 8 11.193V0H2.812C1.042 0 .474 1.156 1.533 2.568z"></path></svg>
-        {props.template.mediaUrl && (
+        {mediaSource && (
           <div className="mb-2 shrink-0 overflow-hidden rounded-xl bg-black/5">
-            <img src={props.template.mediaUrl} alt="Attached Media" className="h-auto w-full object-cover" />
+            <img src={mediaSource} alt="Attached Media" className="h-auto w-full object-cover" />
           </div>
         )}
         <div className="whitespace-pre-wrap text-[#111b21] leading-[22px]">
@@ -248,9 +250,12 @@ function TemplateLivePreview(props: { template?: Template; variables: string[] }
       
       {props.template.ctaLabel && (
         <div className="mt-2 max-w-[90%]">
-          <button className="flex w-full items-center justify-center gap-2 rounded-xl bg-white p-3 font-semibold text-[#00a884] shadow-[0_1px_0.5px_rgba(11,20,26,.13)]">
-            <Icon name={props.template.ctaUrl ? "open_in_new" : "call"} className="text-[18px]" />
-            {props.template.ctaLabel}
+          <button className="flex w-full flex-col items-center justify-center gap-1 rounded-xl bg-white p-3 font-semibold text-[#00a884] shadow-[0_1px_0.5px_rgba(11,20,26,.13)]">
+            <div className="flex items-center gap-2">
+              <Icon name={props.template.ctaUrl ? "open_in_new" : "call"} className="text-[18px]" />
+              {props.template.ctaLabel}
+            </div>
+            {props.template.ctaUrl && <span className="text-[10px] opacity-70 underline truncate max-w-full">{props.template.ctaUrl}</span>}
           </button>
         </div>
       )}
@@ -833,6 +838,7 @@ function CampaignsPage(props: { data: BootstrapData; onRefresh: (preferredConver
   const [recurringInterval, setRecurringInterval] = useState<Campaign["recurringInterval"]>("none");
   const [recurringUntil, setRecurringUntil] = useState("");
   const [templateVariables, setTemplateVariables] = useState<string[]>([]);
+  const [headerMediaUrl, setHeaderMediaUrl] = useState("");
   const [feedback, setFeedback] = useState<string | null>(null);
 
   const selectedTemplate = approvedTemplates.find((template) => template.id === templateId) ?? approvedTemplates[0];
@@ -902,7 +908,7 @@ function CampaignsPage(props: { data: BootstrapData; onRefresh: (preferredConver
       </div>
 
       <div className="grid grid-cols-12 gap-8">
-        <div className="col-span-12 xl:col-span-12 space-y-6">
+        <div className="col-span-12 xl:col-span-7 space-y-6">
           {currentStep === 1 && (
             <>
               <div className="rounded-xl bg-surface-container-low p-6">
@@ -923,49 +929,28 @@ function CampaignsPage(props: { data: BootstrapData; onRefresh: (preferredConver
                 </div>
               </div>
               <div className="rounded-xl bg-surface-container-low p-6">
-            <SectionTitle icon="grid_view" title="Select Approved Template" />
-            
-            {approvedTemplates.length === 0 ? (
-              <div className="rounded-xl border border-warning/20 bg-warning-container p-4 text-sm font-medium text-on-warning-container">
-                You have no approved Twilio templates synced. Go to Templates to sync from Twilio.
+                <SectionTitle icon="grid_view" title="Select Approved Template" />
+                {approvedTemplates.length === 0 ? (
+                  <div className="rounded-xl border border-warning/20 bg-warning-container p-4 text-sm font-medium text-on-warning-container">
+                    You have no approved Twilio templates synced. Go to Templates to sync from Twilio.
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <Field label="Template format">
+                      <select className="atrium-input" value={templateId} onChange={(e) => setTemplateId(e.target.value)}>
+                        {approvedTemplates.map(t => (
+                          <option key={t.id} value={t.id}>{t.name} ({t.category})</option>
+                        ))}
+                      </select>
+                    </Field>
+                    {selectedTemplate?.mediaUrl && (
+                      <Field label="Dynamic Web Image Link (Optional, overrides template header)">
+                        <input className="atrium-input" placeholder="https://example.com/image.png" value={headerMediaUrl} onChange={(e) => setHeaderMediaUrl(e.target.value)} />
+                      </Field>
+                    )}
+                  </div>
+                )}
               </div>
-            ) : (
-              <div className="space-y-3">
-                {approvedTemplates.map((template) => {
-                  const active = template.id === templateId;
-                  return (
-                    <button
-                      className={`flex w-full items-center justify-between rounded-xl p-4 text-left transition-all ${
-                      active
-                        ? "border-l-4 border-primary bg-surface-container-lowest shadow-sm"
-                        : "bg-surface-container hover:bg-surface-container-high"
-                    }`}
-                    key={template.id}
-                    onClick={() => setTemplateId(template.id)}
-                    type="button"
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className={`flex h-12 w-12 items-center justify-center rounded-lg ${active ? "bg-primary-fixed/30 text-primary" : "bg-surface-variant text-on-surface-variant"}`}>
-                        <Icon name={active ? "campaign" : "description"} />
-                      </div>
-                      <div>
-                        <h4 className="font-bold text-on-surface">{template.name}</h4>
-                        <div className="mt-1 flex items-center gap-2">
-                          <span className="inline-flex items-center rounded-full bg-secondary-fixed px-2 py-0.5 text-[10px] font-bold text-on-secondary-fixed">
-                            <span className="mr-1.5 h-1 w-1 rounded-full bg-on-secondary-fixed" />
-                            APPROVED
-                          </span>
-                          <span className="text-[10px] text-outline-variant">• {template.category}</span>
-                        </div>
-                      </div>
-                    </div>
-                    {active ? <Icon fill className="text-primary" name="check_circle" /> : null}
-                  </button>
-                );
-              })}
-              </div>
-            )}
-            </div>
             </>
           )}
 
@@ -1059,44 +1044,41 @@ function CampaignsPage(props: { data: BootstrapData; onRefresh: (preferredConver
           )}
 
           {currentStep === 3 && (
-            <div className="grid grid-cols-12 gap-6">
-              <div className="col-span-12 xl:col-span-7 space-y-6">
-                <div className="rounded-xl bg-surface-container-low p-6">
-            <SectionTitle icon="data_object" title="Template Variables" />
-            <div className="space-y-4 max-h-[280px] overflow-y-auto pr-2 custom-scrollbar">
-              {Array.isArray(selectedTemplate?.placeholders) && selectedTemplate.placeholders.length > 0 ? (
-                selectedTemplate.placeholders.map((ph, idx) => (
-                  <Field key={idx} label={`Variable {{${idx + 1}}} (${ph})`}>
-                    <input
-                      className="atrium-input"
-                      placeholder={`Dynamic value for ${ph}`}
-                      value={templateVariables[idx] || ""}
-                      onChange={(e) => {
-                        const newVars = [...templateVariables];
-                        newVars[idx] = e.target.value;
-                        setTemplateVariables(newVars);
-                      }}
-                    />
-                  </Field>
-                ))
-              ) : (
-                <div className="rounded-xl bg-surface-container-lowest p-4 text-sm text-on-surface-variant">
-                  This template does not require any dynamic variables.
-                </div>
-              )}
+            <div className="rounded-xl bg-surface-container-low p-6">
+              <SectionTitle icon="data_object" title="Template Variables" />
+              <div className="space-y-4 max-h-[280px] overflow-y-auto pr-2 custom-scrollbar">
+                {Array.isArray(selectedTemplate?.placeholders) && selectedTemplate.placeholders.length > 0 ? (
+                  selectedTemplate.placeholders.map((ph, idx) => (
+                    <Field key={idx} label={`Variable {{${idx + 1}}} (${ph})`}>
+                      <input
+                        className="atrium-input"
+                        placeholder={`Dynamic value for ${ph}`}
+                        value={templateVariables[idx] || ""}
+                        onChange={(e) => {
+                          const newVars = [...templateVariables];
+                          newVars[idx] = e.target.value;
+                          setTemplateVariables(newVars);
+                        }}
+                      />
+                    </Field>
+                  ))
+                ) : (
+                  <div className="rounded-xl bg-surface-container-lowest p-4 text-sm text-on-surface-variant">
+                    This template does not require any dynamic variables.
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
-        <div className="col-span-12 xl:col-span-5">
-          <div className="sticky top-24 mx-auto w-full max-w-sm">
+        <div className="col-span-12 xl:col-span-5 relative mt-4 xl:mt-0">
+          <div className="sticky top-10 mx-auto w-full max-w-sm">
             <div className="rounded-[3rem] border-4 border-surface-dim bg-surface-container-highest p-4 shadow-2xl">
-              <TemplateLivePreview template={selectedTemplate} variables={templateVariables} />
+              <TemplateLivePreview template={selectedTemplate} variables={templateVariables} overrideMediaUrl={headerMediaUrl} />
             </div>
           </div>
         </div>
-      </div>
-      )}
       </div>
       </div>
 
