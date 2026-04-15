@@ -1577,6 +1577,7 @@ function AnalyticsPage(props: { data: BootstrapData }) {
 }
 
 function TemplatesStudioPage(props: { data: BootstrapData; onRefresh: (preferredConversationId?: string | null) => Promise<void> }) {
+  const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({
     name: "",
     category: "utility",
@@ -1639,9 +1640,33 @@ function TemplatesStudioPage(props: { data: BootstrapData; onRefresh: (preferred
   }
 
   return (
-    <StudioPageShell title="Template Studio" subtitle="Create placeholder-driven WhatsApp templates with media and CTA actions.">
-      <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
-        <div className="rounded-[2rem] bg-surface-container-lowest p-6 shadow-sm">
+    <div className="mx-auto max-w-7xl px-8 pb-12 pt-8">
+      <div className="sm:flex sm:items-center sm:justify-between">
+        <div className="sm:flex-auto">
+          <h1 className="font-headline text-[2.5rem] font-extrabold tracking-tight text-primary">Message Templates</h1>
+          <p className="mt-2 text-on-surface-variant">Manage your WhatsApp message templates synced from Twilio Content API.</p>
+        </div>
+        <div className="mt-4 flex items-center space-x-3 sm:ml-16 sm:mt-0 sm:flex-none">
+          <button
+            className="inline-flex items-center justify-center rounded-xl border border-outline-variant/30 bg-white px-5 py-3 text-sm font-bold text-primary shadow-sm transition-all hover:bg-surface-container disabled:opacity-50"
+            disabled={syncingApproved}
+            onClick={() => void syncApprovedTemplates()}
+          >
+            <Icon name="sync" className={`mr-2 ${syncingApproved ? "animate-spin" : ""}`} />
+            {syncingApproved ? "Syncing..." : "Sync Twilio"}
+          </button>
+          <button
+            className="inline-flex items-center justify-center rounded-xl bg-primary px-5 py-3 text-sm font-bold text-on-primary shadow-lg shadow-primary/20 transition-all hover:opacity-90"
+            onClick={() => setShowForm(!showForm)}
+          >
+            <Icon name={showForm ? "close" : "add"} className="mr-2" />
+            {showForm ? "Close Form" : "New Template"}
+          </button>
+        </div>
+      </div>
+
+      {showForm ? (
+        <div className="mt-8 rounded-[2rem] bg-surface-container-lowest p-6 shadow-sm lg:w-1/2">
           <form className="space-y-4" onSubmit={saveTemplate}>
             <Field label="Template name">
               <input className="atrium-input" value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} />
@@ -1654,7 +1679,7 @@ function TemplatesStudioPage(props: { data: BootstrapData; onRefresh: (preferred
               </select>
             </Field>
             <Field label="Body">
-              <textarea className="atrium-input min-h-[160px]" value={form.body} onChange={(event) => setForm((current) => ({ ...current, body: event.target.value }))} />
+              <textarea className="atrium-input min-h-[120px]" value={form.body} onChange={(event) => setForm((current) => ({ ...current, body: event.target.value }))} />
             </Field>
             <Field label="Placeholders">
               <input className="atrium-input" placeholder="first_name, company, city" value={form.placeholders} onChange={(event) => setForm((current) => ({ ...current, placeholders: event.target.value }))} />
@@ -1674,110 +1699,104 @@ function TemplatesStudioPage(props: { data: BootstrapData; onRefresh: (preferred
             {status ? <div className="rounded-2xl bg-primary-fixed/20 px-4 py-3 text-sm font-semibold text-primary">{status}</div> : null}
           </form>
         </div>
+      ) : null}
 
-        <div className="grid gap-4">
-          <div className="rounded-[2rem] bg-primary p-6 text-on-primary shadow-sm">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-              <div>
-                <p className="text-xs font-bold uppercase tracking-[0.24em] text-primary-fixed">Approved Catalog</p>
-                <h3 className="mt-2 font-headline text-2xl font-bold">Sync all approved Twilio templates</h3>
-                <p className="mt-2 max-w-xl text-sm text-primary-fixed/80">
-                  Pull every WhatsApp-approved template into this workspace with its placeholders, media preview, CTA action, and Content SID.
-                </p>
-              </div>
-              <button
-                className="rounded-xl bg-white px-5 py-3 text-sm font-bold text-primary disabled:cursor-not-allowed disabled:opacity-60"
-                disabled={syncingApproved}
-                onClick={() => void syncApprovedTemplates()}
-              >
-                {syncingApproved ? "Syncing approved templates..." : "Sync approved from Twilio"}
-              </button>
+      {!showForm && status ? (
+        <div className="mt-4 inline-flex items-center rounded-2xl bg-primary-fixed/20 px-4 py-3 text-sm font-semibold text-primary">{status}</div>
+      ) : null}
+
+      <div className="mt-8 flex flex-col">
+        <div className="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
+          <div className="inline-block min-w-full py-2 align-middle md:px-6 lg:px-8">
+            <div className="overflow-hidden rounded-2xl shadow ring-1 ring-outline-variant/10">
+              <table className="min-w-full divide-y divide-outline-variant/10">
+                <thead className="bg-surface-container-low">
+                  <tr>
+                    <th scope="col" className="py-4 pl-4 pr-3 text-left text-[11px] font-bold uppercase tracking-wider text-on-surface-variant sm:pl-6">Name / SID</th>
+                    <th scope="col" className="px-3 py-4 text-left text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">Body Preview</th>
+                    <th scope="col" className="px-3 py-4 text-left text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">Variables</th>
+                    <th scope="col" className="px-3 py-4 text-left text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">Category</th>
+                    <th scope="col" className="relative py-4 pl-3 pr-4 sm:pr-6">
+                      <span className="sr-only">Actions</span>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-outline-variant/10 bg-white">
+                  {!props.data.templates.length ? (
+                    <tr>
+                      <td colSpan={5} className="py-10 text-center text-sm text-on-surface-variant">No templates found. Create one or sync.</td>
+                    </tr>
+                  ) : props.data.templates.map((template) => (
+                    <tr key={template.id} className="transition-colors hover:bg-surface-bright">
+                      <td className="whitespace-nowrap py-5 pl-4 pr-3 text-sm font-bold text-primary sm:pl-6 align-top">
+                        {template.name}
+                        <div className="mt-1 text-xs font-mono font-medium text-on-surface-variant">
+                          {template.twilioContentSid || "Local Draft"}
+                        </div>
+                      </td>
+                      <td className="px-3 py-5 max-w-sm align-top">
+                        <div className="flex flex-col space-y-2">
+                          {template.mediaUrl && (
+                            <div className="flex w-fit items-center rounded bg-primary-fixed/30 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-primary">
+                              <Icon name="image" className="mr-1.5 text-xs" />
+                              Media Attached
+                            </div>
+                          )}
+                          <div className="whitespace-pre-wrap text-sm text-on-surface line-clamp-3" title={template.body}>
+                            {template.body}
+                          </div>
+                          {(template.ctaLabel || template.ctaUrl) && (
+                            <div className="mt-2 flex flex-wrap gap-2">
+                              <div className="flex items-center rounded border border-outline-variant/20 bg-surface-container-low px-2 py-1 text-xs font-bold text-primary">
+                                <Icon name={template.ctaUrl?.startsWith("tel:") ? "call" : "open_in_new"} className="mr-1.5 text-xs" />
+                                {template.ctaLabel || "Button"}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-5 text-sm text-on-surface-variant align-top">
+                        {template.placeholders && template.placeholders.length > 0 ? (
+                          <span className="inline-flex items-center rounded-full bg-secondary-fixed px-2.5 py-0.5 text-xs font-bold text-on-secondary-fixed">
+                            {template.placeholders.length} vars
+                          </span>
+                        ) : (
+                          <span className="text-outline">None</span>
+                        )}
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-5 align-top">
+                        <span className="inline-flex rounded-full bg-surface-container-highest px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-on-surface">
+                          {template.category}
+                        </span>
+                      </td>
+                      <td className="relative whitespace-nowrap py-5 pl-3 pr-4 text-right text-sm font-medium sm:pr-6 align-top">
+                        <button
+                          className="mr-3 text-primary hover:text-primary/80 disabled:opacity-50 transition-colors"
+                          disabled={syncingTemplateId === template.id}
+                          onClick={() => void syncTemplate(template)}
+                          title="Push local changes to Twilio"
+                        >
+                          <Icon name="cloud_upload" className="text-lg" />
+                        </button>
+                        <button className="mr-3 text-outline hover:text-primary transition-colors" title="Edit Template">
+                          <Icon name="edit" className="text-lg" />
+                        </button>
+                        <button className="text-error hover:text-error/80 transition-colors" title="Delete Template">
+                          <Icon name="delete" className="text-lg" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
-
-          {props.data.templates.map((template) => (
-            <div className="rounded-[2rem] bg-surface-container-low overflow-hidden shadow-sm transition-shadow hover:shadow-md" key={template.id}>
-              <div className="p-6">
-                <div className="mb-4 flex items-start justify-between gap-4">
-                  <div>
-                    <h3 className="font-headline text-xl font-bold text-primary">{template.name}</h3>
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      <span className="rounded-full bg-primary-fixed/30 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-primary">
-                        {template.category}
-                      </span>
-                      {template.twilioContentSid ? (
-                        <span className="rounded-full bg-secondary/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-secondary">
-                          Approved in Twilio
-                        </span>
-                      ) : (
-                        <span className="rounded-full bg-surface-container-high px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-on-surface-variant">
-                          Local Draft
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  <button
-                    className="rounded-xl border border-outline-variant/20 bg-white px-4 py-2 text-sm font-bold text-primary disabled:cursor-not-allowed disabled:opacity-60"
-                    disabled={syncingTemplateId === template.id}
-                    onClick={() => void syncTemplate(template)}
-                  >
-                    {syncingTemplateId === template.id ? "Syncing..." : "Push local changes"}
-                  </button>
-                </div>
-
-                <div className="mb-6">
-                  {template.twilioContentSid ? (
-                    <p className="mb-3 text-xs font-semibold text-on-surface-variant">Content SID: {template.twilioContentSid}</p>
-                  ) : null}
-                  {template.placeholders.length > 0 ? (
-                    <div className="flex flex-wrap gap-2">
-                      {template.placeholders.map((placeholder) => (
-                        <span className="rounded-full bg-surface-container-highest px-3 py-1 text-xs font-bold text-on-surface-variant" key={placeholder}>
-                          {placeholder}
-                        </span>
-                      ))}
-                    </div>
-                  ) : null}
-                </div>
-
-                <div className="relative flex flex-col overflow-hidden rounded-[1.5rem] bg-background shadow-inner">
-                  <div className="flex flex-1 flex-col justify-end space-y-4 bg-[radial-gradient(circle_at_top_left,rgba(168,240,227,0.25),transparent_32%),linear-gradient(180deg,#f7f9fc_0%,#eef3f5_100%)] p-4 sm:p-6">
-                    <div className="relative self-end max-w-[90%] sm:max-w-[80%]">
-                      <div className="relative z-10 rounded-xl rounded-br-sm bg-primary-container p-3 text-on-primary-container shadow-sm sm:p-4">
-                        {template.mediaUrl ? (
-                          <div className="mb-3 h-40 w-full overflow-hidden rounded-lg bg-white/10">
-                            <img alt={template.name} className="h-full w-full object-cover" src={template.mediaUrl} />
-                          </div>
-                        ) : null}
-                        <h5 className="mb-1 text-sm font-bold leading-tight">{template.name}</h5>
-                        <p className="whitespace-pre-wrap text-sm leading-relaxed opacity-90">{renderTemplatePreview(template, undefined)}</p>
-                        <div className="mt-2 flex justify-end gap-1">
-                          <span className="text-[10px] opacity-70">10:42 AM</span>
-                          <Icon className="text-[14px] text-primary-fixed" fill name="done_all" />
-                        </div>
-                      </div>
-                      <div className="absolute -bottom-0 -right-1 h-3 w-3 bg-primary-container [clip-path:polygon(0_0,100%_0,100%_100%)]" />
-
-                      {template.ctaLabel || template.ctaUrl ? (
-                        <div className="mt-2 space-y-1">
-                          <button className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-outline-variant/10 bg-white/90 py-2.5 text-xs font-bold text-primary shadow-sm transition-colors hover:bg-white">
-                            <Icon className="text-sm" name={template.ctaUrl?.startsWith("tel:") ? "call" : "open_in_new"} />
-                            {template.ctaLabel ?? "Open Link"}
-                          </button>
-                        </div>
-                      ) : null}
-                    </div>
-                  </div>
-                </div>
-
-              </div>
-            </div>
-          ))}
         </div>
       </div>
-    </StudioPageShell>
+    </div>
   );
 }
+
 
 function AutomationsStudioPage(props: { data: BootstrapData; onRefresh: (preferredConversationId?: string | null) => Promise<void> }) {
   const [form, setForm] = useState({
