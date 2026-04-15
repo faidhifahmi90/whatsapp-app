@@ -1168,6 +1168,43 @@ function ContactsPage(props: {
     customFieldNames: Record<string, string>;
   } | null>(null);
 
+  const [searchQuery, setSearchQuery] = useState("");
+  const [page, setPage] = useState(1);
+  const [visibleColumns, setVisibleColumns] = useState<string[]>(["profile", "phone", "segments", "activity", "optIn"]);
+  const [isColumnDropdownOpen, setIsColumnDropdownOpen] = useState(false);
+
+  const customFieldKeys = useMemo(() => {
+    const keys = new Set<string>();
+    props.data.contacts.forEach((c) => Object.keys(c.customFields).forEach((k) => keys.add(k)));
+    return Array.from(keys);
+  }, [props.data.contacts]);
+
+  const filteredContacts = useMemo(() => {
+    if (!searchQuery.trim()) return props.data.contacts;
+    const lowerQuery = searchQuery.toLowerCase();
+    return props.data.contacts.filter((c) => {
+      if (c.firstName.toLowerCase().includes(lowerQuery)) return true;
+      if (c.lastName.toLowerCase().includes(lowerQuery)) return true;
+      if (c.phone.includes(lowerQuery)) return true;
+      if (c.email?.toLowerCase().includes(lowerQuery)) return true;
+      if (c.company?.toLowerCase().includes(lowerQuery)) return true;
+      if (Object.values(c.customFields).some((val) => String(val).toLowerCase().includes(lowerQuery))) return true;
+      return false;
+    });
+  }, [searchQuery, props.data.contacts]);
+
+  const itemsPerPage = 15;
+  const totalPages = Math.ceil(filteredContacts.length / itemsPerPage) || 1;
+  const paginatedContacts = filteredContacts.slice((page - 1) * itemsPerPage, page * itemsPerPage);
+
+  useEffect(() => {
+    setPage(1);
+  }, [searchQuery]);
+
+  function toggleColumn(key: string) {
+    setVisibleColumns((prev) => (prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]));
+  }
+
   async function saveContact(event: FormEvent) {
     event.preventDefault();
     const customFields = Object.fromEntries(
@@ -1425,12 +1462,61 @@ function ContactsPage(props: {
       <section className="overflow-hidden rounded-[2rem] border border-outline-variant/20 bg-surface-container-lowest">
         <div className="flex flex-col gap-4 border-b border-outline-variant/10 px-8 py-6 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex flex-wrap items-center gap-3">
-            <FilterPill label="Status: All" />
-            <FilterPill label="Tag: Enterprise" />
-            <FilterPill label="Last Active" />
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Search contacts..."
+                className="atrium-input bg-surface-container-lowest py-2 text-sm w-64"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+              <Icon className="absolute right-3 top-2.5 text-on-surface-variant pointer-events-none" name="search" />
+            </div>
+            
+            <div className="relative">
+              <button
+                className="flex cursor-pointer items-center gap-2 rounded-full border border-outline-variant/30 bg-surface-container-low px-4 py-2 hover:bg-surface-container"
+                onClick={() => setIsColumnDropdownOpen(!isColumnDropdownOpen)}
+              >
+                <span className="text-xs font-bold text-on-surface">Columns</span>
+                <Icon className="text-sm" name="view_column" />
+              </button>
+              {isColumnDropdownOpen && (
+                <div className="absolute top-12 left-0 z-10 w-56 rounded-xl border border-outline-variant/20 bg-surface-container-lowest p-2 shadow-lg">
+                  <div className="mb-2 px-2 pb-2 text-xs font-bold text-on-surface-variant border-b border-outline-variant/10">Standard</div>
+                  {[
+                    { id: "profile", label: "Contact Profile" },
+                    { id: "phone", label: "Phone Number" },
+                    { id: "segments", label: "Segments & Tags" },
+                    { id: "activity", label: "Last Activity" },
+                    { id: "optIn", label: "Opt-In" }
+                  ].map((col) => (
+                    <label key={col.id} className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-surface-container-low">
+                      <input type="checkbox" checked={visibleColumns.includes(col.id)} onChange={() => toggleColumn(col.id)} className="rounded border-outline-variant text-primary focus:ring-primary/20" />
+                      <span className="text-xs font-medium text-on-surface">{col.label}</span>
+                    </label>
+                  ))}
+                  {customFieldKeys.length > 0 && (
+                    <>
+                      <div className="mb-2 mt-2 px-2 pb-2 text-xs font-bold text-on-surface-variant border-b border-outline-variant/10">Custom Fields</div>
+                      {customFieldKeys.map((key) => (
+                        <label key={`custom_${key}`} className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-surface-container-low">
+                          <input type="checkbox" checked={visibleColumns.includes(`custom_${key}`)} onChange={() => toggleColumn(`custom_${key}`)} className="rounded border-outline-variant text-primary focus:ring-primary/20" />
+                          <span className="text-xs font-medium text-on-surface">{key}</span>
+                        </label>
+                      ))}
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
           <div className="flex items-center gap-4 text-xs text-on-surface-variant">
-            <span>Showing 1-{props.data.contacts.length} of {props.data.contacts.length} contacts</span>
+            <span>Showing {filteredContacts.length === 0 ? 0 : (page - 1) * itemsPerPage + 1}-{Math.min(page * itemsPerPage, filteredContacts.length)} of {filteredContacts.length} contacts</span>
+            <div className="flex gap-1">
+              <button disabled={page === 1} onClick={() => setPage(p => p - 1)} className="rounded p-1 hover:bg-surface-container disabled:opacity-30"><Icon name="chevron_left" /></button>
+              <button disabled={page === totalPages} onClick={() => setPage(p => p + 1)} className="rounded p-1 hover:bg-surface-container disabled:opacity-30"><Icon name="chevron_right" /></button>
+            </div>
           </div>
         </div>
 
@@ -1441,50 +1527,62 @@ function ContactsPage(props: {
                 <th className="w-12 px-8 py-4">
                   <input className="rounded border-outline-variant text-primary focus:ring-primary/20" type="checkbox" />
                 </th>
-                <th className="px-4 py-4">Contact Profile</th>
-                <th className="px-4 py-4">Phone Number</th>
-                <th className="px-4 py-4">Segments & Tags</th>
-                <th className="px-4 py-4">Last Activity</th>
-                <th className="px-4 py-4 text-center">Opt-In</th>
+                {visibleColumns.includes("profile") && <th className="px-4 py-4">Contact Profile</th>}
+                {visibleColumns.includes("phone") && <th className="px-4 py-4">Phone Number</th>}
+                {visibleColumns.includes("segments") && <th className="px-4 py-4">Segments & Tags</th>}
+                {customFieldKeys.map(key => visibleColumns.includes(`custom_${key}`) && <th key={key} className="px-4 py-4">{key}</th>)}
+                {visibleColumns.includes("activity") && <th className="px-4 py-4">Last Activity</th>}
+                {visibleColumns.includes("optIn") && <th className="px-4 py-4 text-center">Opt-In</th>}
                 <th className="px-8 py-4 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-outline-variant/10">
-              {props.data.contacts.map((contact, index) => (
+              {paginatedContacts.map((contact, index) => (
                 <tr className="group transition-all hover:bg-surface-bright" key={contact.id}>
                   <td className="border-l-4 border-transparent px-8 py-5 group-hover:border-primary">
                     <input className="rounded border-outline-variant text-primary focus:ring-primary/20" type="checkbox" />
                   </td>
-                  <td className="px-4 py-5">
-                    <div className="flex items-center gap-3">
-                      <Avatar label={fullName(contact)} size="h-10 w-10" />
-                      <div>
-                        <div className="text-sm font-bold text-on-surface">{fullName(contact)}</div>
-                        <div className="text-xs text-on-surface-variant">{contactRoles[index % contactRoles.length]}</div>
+                  {visibleColumns.includes("profile") && (
+                    <td className="px-4 py-5">
+                      <div className="flex items-center gap-3">
+                        <Avatar label={fullName(contact)} size="h-10 w-10" />
+                        <div>
+                          <div className="text-sm font-bold text-on-surface">{fullName(contact)}</div>
+                          {contact.company && <div className="text-xs text-on-surface-variant">{contact.company}</div>}
+                        </div>
                       </div>
-                    </div>
-                  </td>
-                  <td className="px-4 py-5 text-sm font-medium text-on-surface-variant">{contact.phone}</td>
-                  <td className="px-4 py-5">
-                    <div className="flex flex-wrap gap-1">
-                      {contact.segmentIds.map((segmentId) => (
-                        <span className="rounded-md bg-primary-fixed px-2 py-0.5 text-[10px] font-bold text-on-primary-fixed-variant" key={segmentId}>
-                          {resolveLabel(segmentId, props.data)}
-                        </span>
-                      ))}
-                      {contact.labels.map((label) => (
-                        <span className="rounded-md bg-surface-container px-2 py-0.5 text-[10px] font-bold text-on-surface-variant" key={label}>
-                          {label}
-                        </span>
-                      ))}
-                    </div>
-                  </td>
-                  <td className="px-4 py-5 text-xs text-on-surface-variant">{formatRelativeChatTime(new Date(Date.now() - (index + 1) * 3600_000).toISOString())}</td>
-                  <td className="px-4 py-5">
-                    <div className="flex justify-center">
-                      <div className={`h-2 w-2 rounded-full ring-4 ${index % 4 === 3 ? "bg-error ring-error/10" : "bg-secondary ring-secondary/10"}`} />
-                    </div>
-                  </td>
+                    </td>
+                  )}
+                  {visibleColumns.includes("phone") && <td className="px-4 py-5 text-sm font-medium text-on-surface-variant">{contact.phone}</td>}
+                  {visibleColumns.includes("segments") && (
+                    <td className="px-4 py-5">
+                      <div className="flex flex-wrap gap-1">
+                        {contact.segmentIds.map((segmentId) => (
+                          <span className="rounded-md bg-primary-fixed px-2 py-0.5 text-[10px] font-bold text-on-primary-fixed-variant" key={segmentId}>
+                            {resolveLabel(segmentId, props.data)}
+                          </span>
+                        ))}
+                        {contact.labels.map((label) => (
+                          <span className="rounded-md bg-surface-container px-2 py-0.5 text-[10px] font-bold text-on-surface-variant" key={label}>
+                            {label}
+                          </span>
+                        ))}
+                      </div>
+                    </td>
+                  )}
+                  {customFieldKeys.map(key => visibleColumns.includes(`custom_${key}`) && (
+                    <td key={`custom_col_${key}`} className="px-4 py-5 text-sm font-medium text-on-surface-variant">
+                      {contact.customFields[key] || "—"}
+                    </td>
+                  ))}
+                  {visibleColumns.includes("activity") && <td className="px-4 py-5 text-xs text-on-surface-variant">{formatRelativeChatTime(new Date(Date.now() - (index + 1) * 3600_000).toISOString())}</td>}
+                  {visibleColumns.includes("optIn") && (
+                    <td className="px-4 py-5">
+                      <div className="flex justify-center">
+                        <div className={`h-2 w-2 rounded-full ring-4 ${index % 4 === 3 ? "bg-error ring-error/10" : "bg-secondary ring-secondary/10"}`} />
+                      </div>
+                    </td>
+                  )}
                   <td className="px-8 py-5">
                     <div className="flex justify-end gap-2">
                       <button
