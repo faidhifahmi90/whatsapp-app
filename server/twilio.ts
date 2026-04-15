@@ -107,7 +107,7 @@ function mapApprovedTemplate(content: TwilioContentTemplate): Template {
 
   return {
     id: content.sid,
-    name: content.friendly_name,
+    name: content.friendly_name || `Template ${content.sid.slice(0, 8)}`,
     category: "approved",
     body: primaryBody,
     placeholders,
