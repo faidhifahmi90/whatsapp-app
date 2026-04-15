@@ -799,6 +799,6 @@ app.use((error: Error, _req: Request, res: Response, _next: NextFunction) => {
   res.status(500).json({ error: error.message });
 });
 
-server.listen(port, () => {
-  console.log(`WhatsApp center listening on http://localhost:${port}`);
+server.listen(port, "0.0.0.0", () => {
+  console.log(`WhatsApp center listening on http://0.0.0.0:${port}`);
 });
