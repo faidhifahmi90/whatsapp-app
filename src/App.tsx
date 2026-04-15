@@ -1020,8 +1020,28 @@ function CampaignsPage(props: { data: BootstrapData; onRefresh: (preferredConver
             </div>
 
             <div className="mt-6 grid gap-4 md:grid-cols-2">
-              <Field label="Schedule Run">
-                <input className="atrium-input" type="datetime-local" value={scheduledAt} onChange={(event) => setScheduledAt(event.target.value)} />
+              <Field label="Schedule Run (Leave empty to broadcast now)">
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center gap-3">
+                    <button 
+                      type="button"
+                      onClick={() => setScheduledAt("")}
+                      className={`px-3 py-1 text-xs font-bold rounded-full transition-all ${!scheduledAt ? 'bg-primary text-on-primary' : 'bg-surface-container text-on-surface-variant hover:bg-surface-container-high'}`}
+                    >
+                      Broadcast Now
+                    </button>
+                    <button 
+                      type="button"
+                      onClick={() => !scheduledAt && setScheduledAt(new Date(Date.now() + 3600000).toISOString().slice(0, 16))}
+                      className={`px-3 py-1 text-xs font-bold rounded-full transition-all ${scheduledAt ? 'bg-primary text-on-primary' : 'bg-surface-container text-on-surface-variant hover:bg-surface-container-high'}`}
+                    >
+                      Schedule Run
+                    </button>
+                  </div>
+                  {scheduledAt !== "" && (
+                    <input className="atrium-input mt-2" type="datetime-local" value={scheduledAt} onChange={(event) => setScheduledAt(event.target.value)} />
+                  )}
+                </div>
               </Field>
               <Field label="Estimated recipients">
                 <div className="atrium-input flex items-center font-bold text-primary">{recipientEstimate} contacts</div>
@@ -1127,7 +1147,7 @@ function CampaignsPage(props: { data: BootstrapData; onRefresh: (preferredConver
                 }
               }}
             >
-              {scheduledAt ? "Queue Campaign" : "Launch Campaign"}
+              {scheduledAt ? "Queue Campaign" : "Broadcast Now"}
               <Icon className="transition-transform group-hover:translate-x-1" name="arrow_forward" />
             </button>
             )}
