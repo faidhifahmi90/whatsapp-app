@@ -669,7 +669,9 @@ app.post("/api/campaigns/send", requireAuth, async (req: SessionRequest, res) =>
     recipientMode: req.body.recipientMode,
     recipientIds: Array.isArray(req.body.recipientIds) ? req.body.recipientIds : [],
     scheduledAt: req.body.scheduledAt ?? null,
-    status: req.body.scheduledAt ? "queued" : "sending"
+    status: req.body.scheduledAt ? "queued" : "sending",
+    recurringInterval: req.body.recurringInterval ?? "none",
+    recurringUntil: req.body.recurringUntil ?? null
   });
 
   if (campaign.status === "queued") {
@@ -875,3 +877,71 @@ server.listen(port, "0.0.0.0", () => {
       .catch((err) => console.error("Error auto-syncing templates from Twilio", err));
   }
 });
+
+// ~~~ BACKGROUND SCHEDULING ENGINE ~~~
+setInterval(() => {
+  const allCampaigns = listCampaigns();
+  const nowTime = new Date().getTime();
+
+  for (const campaign of allCampaigns) {
+    if (campaign.status === "queued" && campaign.scheduledAt) {
+      const scheduledTime = new Date(campaign.scheduledAt).getTime();
+      
+      if (scheduledTime <= nowTime) {
+        console.log(`[DISPATCHER] Firing scheduled campaign: ${campaign.id} (${campaign.name})`);
+        
+        const recipients = resolveCampaignRecipients(campaign);
+        const engineStats = { ...campaign.stats };
+
+        for (const recipient of recipients) {
+          engineStats.attempted += 1;
+          sendTemplateMessage({
+            contactId: recipient.id,
+            channelId: campaign.channelId,
+            templateId: campaign.templateId,
+            source: `campaign:${campaign.name}`
+          }).then(() => {
+            engineStats.delivered += 1;
+            updateCampaignStatus(campaign.id, "sent", engineStats);
+            refreshClients("campaign");
+          }).catch(err => {
+            console.error("Scheduled Campaign delivery fail:", err);
+            engineStats.failed += 1;
+            updateCampaignStatus(campaign.id, "sent", engineStats);
+          });
+        }
+
+        // Calculate Recurrences
+        if (campaign.recurringInterval && campaign.recurringInterval !== "none") {
+          let nextDate = new Date(campaign.scheduledAt);
+          if (campaign.recurringInterval === "daily") nextDate.setDate(nextDate.getDate() + 1);
+          if (campaign.recurringInterval === "weekly") nextDate.setDate(nextDate.getDate() + 7);
+          if (campaign.recurringInterval === "monthly") nextDate.setMonth(nextDate.getMonth() + 1);
+
+          let nextIso = nextDate.toISOString();
+          
+          if (campaign.recurringUntil) {
+            const boundaryTime = new Date(campaign.recurringUntil).getTime();
+            if (nextDate.getTime() > boundaryTime) {
+              // Reached limit, permanently shut off execution sequence.
+              updateCampaignStatus(campaign.id, "completed", engineStats);
+            } else {
+              // Bump schedule
+              import("./db.js").then(({ updateCampaignScheduler }) => {
+                updateCampaignScheduler(campaign.id, nextIso, "queued");
+              });
+            }
+          } else {
+             import("./db.js").then(({ updateCampaignScheduler }) => {
+                updateCampaignScheduler(campaign.id, nextIso, "queued");
+             });
+          }
+        } else {
+          // Standard one-off dispatch closure
+          updateCampaignStatus(campaign.id, "sent", engineStats);
+        }
+        refreshClients("campaign");
+      }
+    }
+  }
+}, 60000); // Evaluates the pipeline precisely every 60 seconds

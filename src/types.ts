@@ -79,6 +79,8 @@ export type Campaign = {
   recipientIds: string[];
   status: string;
   scheduledAt?: string | null;
+  recurringInterval: "none" | "daily" | "weekly" | "monthly";
+  recurringUntil?: string | null;
   stats: {
     attempted: number;
     delivered: number;

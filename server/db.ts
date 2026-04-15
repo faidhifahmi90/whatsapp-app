@@ -233,6 +233,8 @@ export function initDb() {
       status text not null,
       scheduled_at text,
       stats_json text,
+      recurring_interval text not null default 'none',
+      recurring_until text,
       created_at text not null
     );
 
@@ -712,7 +714,9 @@ export function listCampaigns(): Campaign[] {
     recipientIds: parseJson<string[]>(row.recipient_ids_json, []),
     status: row.status,
     scheduledAt: row.scheduled_at,
-    stats: parseJson(row.stats_json, { attempted: 0, delivered: 0, failed: 0 })
+    stats: parseJson(row.stats_json, { attempted: 0, delivered: 0, failed: 0 }),
+    recurringInterval: row.recurring_interval,
+    recurringUntil: row.recurring_until
   }));
 }
 
@@ -724,12 +728,14 @@ export function createCampaign(input: {
   recipientIds: string[];
   scheduledAt?: string | null;
   status: string;
+  recurringInterval: "none" | "daily" | "weekly" | "monthly";
+  recurringUntil?: string | null;
 }) {
   const id = randomUUID();
   db.prepare(
     `insert into campaigns
-      (id, name, template_id, channel_id, recipient_mode, recipient_ids_json, status, scheduled_at, stats_json, created_at)
-     values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      (id, name, template_id, channel_id, recipient_mode, recipient_ids_json, status, scheduled_at, stats_json, recurring_interval, recurring_until, created_at)
+     values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).run(
     id,
     input.name,
@@ -740,9 +746,19 @@ export function createCampaign(input: {
     input.status,
     input.scheduledAt ?? null,
     JSON.stringify({ attempted: 0, delivered: 0, failed: 0 }),
+    input.recurringInterval,
+    input.recurringUntil ?? null,
     now()
   );
-  return listCampaigns()[0];
+  return listCampaigns().find((c) => c.id === id) ?? listCampaigns()[0];
+}
+
+export function updateCampaignScheduler(campaignId: string, nextScheduledAt: string | null, status: string) {
+  db.prepare("update campaigns set scheduled_at = ?, status = ? where id = ?").run(
+    nextScheduledAt,
+    status,
+    campaignId
+  );
 }
 
 export function updateCampaignStatus(campaignId: string, status: string, stats: Campaign["stats"]) {

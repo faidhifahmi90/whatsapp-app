@@ -830,6 +830,8 @@ function CampaignsPage(props: { data: BootstrapData; onRefresh: (preferredConver
   const [recipientMode, setRecipientMode] = useState<Campaign["recipientMode"]>("segments");
   const [recipientIds, setRecipientIds] = useState<string[]>(props.data.segments[0] ? [props.data.segments[0].id] : []);
   const [scheduledAt, setScheduledAt] = useState("");
+  const [recurringInterval, setRecurringInterval] = useState<Campaign["recurringInterval"]>("none");
+  const [recurringUntil, setRecurringUntil] = useState("");
   const [templateVariables, setTemplateVariables] = useState<string[]>([]);
   const [feedback, setFeedback] = useState<string | null>(null);
 
@@ -860,11 +862,13 @@ function CampaignsPage(props: { data: BootstrapData; onRefresh: (preferredConver
         recipientMode,
         recipientIds,
         scheduledAt: scheduledAt || null,
+        recurringInterval,
+        recurringUntil: recurringUntil || null,
         variables: templateVariables
       })
     });
     setFeedback(scheduledAt ? "Campaign queued successfully." : "Campaign launched successfully.");
-    setScheduledAt("");
+    if (!scheduledAt) setScheduledAt("");
     setTemplateVariables([]);
     await props.onRefresh();
   }
@@ -969,13 +973,13 @@ function CampaignsPage(props: { data: BootstrapData; onRefresh: (preferredConver
             <div className="rounded-xl bg-surface-container-low p-6">
             <SectionTitle icon="person_add" title="Audience Selection" />
             <div className="grid gap-4 lg:grid-cols-2">
-              <div className="rounded-xl border-2 border-dashed border-primary p-8 transition-all hover:bg-primary-fixed/5">
+              <NavLink to="/contacts" className="group rounded-xl border-2 border-dashed border-primary p-8 transition-all hover:bg-primary-fixed/5 block cursor-pointer">
                 <div className="flex flex-col items-center justify-center text-center">
-                  <Icon className="mb-2 text-3xl text-primary" name="cloud_upload" />
-                  <span className="text-sm font-bold text-primary">Upload CSV/XLS</span>
-                  <span className="mt-1 text-[10px] text-outline">Use the Contacts screen for bulk imports and then target the saved segment here.</span>
+                  <Icon className="mb-2 text-3xl text-primary transition-transform group-hover:-translate-y-1" name="cloud_upload" />
+                  <span className="text-sm font-bold text-primary">Upload CSV</span>
+                  <span className="mt-1 text-[10px] text-outline">Click here to head to the Contacts Manager to run bulk import mappings.</span>
                 </div>
-              </div>
+              </NavLink>
               <div className="flex flex-col rounded-xl border border-outline-variant bg-surface-container-lowest p-4">
                 <div className="mb-4 flex items-center justify-between">
                   <span className="text-sm font-bold text-on-surface">Existing Audience</span>
@@ -1031,12 +1035,25 @@ function CampaignsPage(props: { data: BootstrapData; onRefresh: (preferredConver
             </div>
 
             <div className="mt-6 grid gap-4 md:grid-cols-2">
-              <Field label="Schedule">
+              <Field label="Schedule Run">
                 <input className="atrium-input" type="datetime-local" value={scheduledAt} onChange={(event) => setScheduledAt(event.target.value)} />
               </Field>
               <Field label="Estimated recipients">
                 <div className="atrium-input flex items-center font-bold text-primary">{recipientEstimate} contacts</div>
               </Field>
+              <Field label="Recurrence Interval">
+                <select className="atrium-input" value={recurringInterval} onChange={(event) => setRecurringInterval(event.target.value as any)}>
+                  <option value="none">One-time (Do Not Repeat)</option>
+                  <option value="daily">Daily</option>
+                  <option value="weekly">Weekly</option>
+                  <option value="monthly">Monthly</option>
+                </select>
+              </Field>
+              {recurringInterval !== "none" && (
+                <Field label="Repeat Until (Optional bounds)">
+                  <input className="atrium-input" type="datetime-local" value={recurringUntil} onChange={(event) => setRecurringUntil(event.target.value)} />
+                </Field>
+              )}
             </div>
             </div>
           )}
@@ -1083,8 +1100,8 @@ function CampaignsPage(props: { data: BootstrapData; onRefresh: (preferredConver
       </div>
       </div>
 
-      <div className="mt-8 w-full md:pointer-events-none md:fixed md:bottom-10 md:left-1/2 md:max-w-4xl md:-translate-x-1/2 md:px-6">
-        <div className="flex flex-col gap-4 rounded-2xl border border-white/40 bg-white/80 p-4 shadow-xl backdrop-blur-md md:pointer-events-auto md:flex-row md:items-center md:justify-between">
+      <div className="mt-8 w-full max-w-5xl mx-auto md:px-0">
+        <div className="flex flex-col gap-4 rounded-2xl border border-outline-variant/30 bg-surface-container-lowest p-6 shadow-sm md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-4">
             <div className="rounded-lg bg-secondary-fixed/20 p-2 text-secondary">
               <Icon name="history_edu" />
@@ -1129,7 +1146,7 @@ function CampaignsPage(props: { data: BootstrapData; onRefresh: (preferredConver
           </div>
         </div>
         
-      <div className="mt-24 xl:mt-32 w-full max-w-5xl mx-auto rounded-xl bg-surface-container-low p-6">
+      <div className="mt-16 w-full max-w-5xl mx-auto rounded-xl bg-surface-container-low p-6">
         <SectionTitle icon="insert_chart" title="Recent Campaigns Engine" />
         <div className="overflow-x-auto">
           <table className="w-full border-collapse">
@@ -1454,9 +1471,29 @@ function ContactsPage(props: {
                 onChange={(event) => setCsvFile(event.target.files?.[0] ?? null)}
               />
             </Field>
-            <p className="text-xs text-on-surface-variant">Expected columns: firstName, lastName, phone, email, company, labels and any extra custom field columns.</p>
+            
+            <div className="rounded-2xl bg-surface-container-low p-4">
+              <p className="mb-3 text-xs font-bold uppercase tracking-[0.16em] text-outline">Target Segments</p>
+              <div className="flex flex-wrap gap-2">
+                {props.data.segments.map((segment) => {
+                  const active = selectedSegments.includes(segment.id);
+                  return (
+                    <button
+                      className={`rounded-full px-3 py-1.5 text-xs font-bold transition-all ${active ? "bg-primary text-on-primary" : "bg-white text-on-surface-variant"}`}
+                      key={segment.id}
+                      onClick={() => setSelectedSegments(active ? selectedSegments.filter((id) => id !== segment.id) : [...selectedSegments, segment.id])}
+                      type="button"
+                    >
+                      {segment.name}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            
+            <p className="text-xs text-on-surface-variant">Your CSV payload will directly map into the targeted segments outlined above.</p>
             <button className="w-full rounded-xl border border-outline-variant/20 bg-surface-container-low px-5 py-3 text-sm font-bold text-primary transition-all hover:bg-surface-bright">
-              Upload contacts
+              Upload & Map Fields
             </button>
           </form>
 
