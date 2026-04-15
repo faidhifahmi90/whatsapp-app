@@ -621,6 +621,65 @@ export function createTemplate(input: {
   return findTemplate(id);
 }
 
+export function upsertTemplate(input: {
+  name: string;
+  category: string;
+  body: string;
+  placeholders: string[];
+  mediaUrl?: string | null;
+  ctaLabel?: string | null;
+  ctaUrl?: string | null;
+  twilioContentSid?: string | null;
+}) {
+  const existingBySid = input.twilioContentSid
+    ? (db.prepare("select * from templates where twilio_content_sid = ?").get(input.twilioContentSid) as DbTemplateRow | undefined)
+    : undefined;
+  const existingByName = db.prepare("select * from templates where name = ?").get(input.name) as DbTemplateRow | undefined;
+  const existing = existingBySid ?? existingByName;
+
+  if (!existing) {
+    const created = createTemplate({
+      name: input.name,
+      category: input.category,
+      body: input.body,
+      placeholders: input.placeholders,
+      mediaUrl: input.mediaUrl,
+      ctaLabel: input.ctaLabel,
+      ctaUrl: input.ctaUrl
+    });
+    if (created && input.twilioContentSid) {
+      updateTemplateTwilioSid(created.id, input.twilioContentSid);
+      return findTemplate(created.id);
+    }
+    return created;
+  }
+
+  db.prepare(
+    `update templates
+        set name = ?,
+            category = ?,
+            body = ?,
+            placeholders_json = ?,
+            media_url = ?,
+            cta_label = ?,
+            cta_url = ?,
+            twilio_content_sid = ?
+      where id = ?`
+  ).run(
+    input.name,
+    input.category,
+    input.body,
+    JSON.stringify(input.placeholders),
+    input.mediaUrl ?? null,
+    input.ctaLabel ?? null,
+    input.ctaUrl ?? null,
+    input.twilioContentSid ?? existing.twilio_content_sid,
+    existing.id
+  );
+
+  return findTemplate(existing.id);
+}
+
 export function updateTemplateTwilioSid(templateId: string, sid: string) {
   db.prepare("update templates set twilio_content_sid = ? where id = ?").run(sid, templateId);
   return findTemplate(templateId);

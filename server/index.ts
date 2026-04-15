@@ -36,13 +36,20 @@ import {
   markAutomationJob,
   openConversation,
   resolveCampaignRecipients,
+  upsertTemplate,
   updateCampaignStatus,
   updateMessageStatus,
   updateTemplateTwilioSid,
   upsertContact,
   verifyPassword
 } from "./db.js";
-import { buildContentVariables, renderTemplate, sendWhatsAppMessage, syncTemplateToTwilioContent } from "./twilio.js";
+import {
+  buildContentVariables,
+  fetchApprovedTemplatesFromTwilio,
+  renderTemplate,
+  sendWhatsAppMessage,
+  syncTemplateToTwilioContent
+} from "./twilio.js";
 import { SqliteSessionStore } from "./session-store.js";
 
 type SessionRequest = Request & {
@@ -539,6 +546,35 @@ app.post("/api/templates/:id/sync", requireAuth, async (req: SessionRequest, res
     refreshClients("templates");
   }
   return res.json(result);
+});
+
+app.post("/api/templates/sync-approved", requireAuth, async (_req: SessionRequest, res) => {
+  const result = await fetchApprovedTemplatesFromTwilio();
+  if (!result.synced) {
+    return res.status(400).json(result);
+  }
+
+  const syncedTemplates = result.templates
+    .map((template) =>
+      upsertTemplate({
+        name: template.name,
+        category: template.category,
+        body: template.body,
+        placeholders: template.placeholders,
+        mediaUrl: template.mediaUrl,
+        ctaLabel: template.ctaLabel,
+        ctaUrl: template.ctaUrl,
+        twilioContentSid: template.twilioContentSid
+      })
+    )
+    .filter(Boolean);
+
+  refreshClients("templates");
+  return res.json({
+    synced: true,
+    count: syncedTemplates.length,
+    templates: syncedTemplates
+  });
 });
 
 app.post("/api/campaigns/send", requireAuth, async (req: SessionRequest, res) => {

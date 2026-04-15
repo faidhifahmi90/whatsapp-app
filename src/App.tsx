@@ -1587,6 +1587,8 @@ function TemplatesStudioPage(props: { data: BootstrapData; onRefresh: (preferred
     ctaUrl: ""
   });
   const [status, setStatus] = useState<string | null>(null);
+  const [syncingApproved, setSyncingApproved] = useState(false);
+  const [syncingTemplateId, setSyncingTemplateId] = useState<string | null>(null);
 
   async function saveTemplate(event: FormEvent) {
     event.preventDefault();
@@ -1610,12 +1612,30 @@ function TemplatesStudioPage(props: { data: BootstrapData; onRefresh: (preferred
     await props.onRefresh();
   }
 
+  async function syncApprovedTemplates() {
+    setSyncingApproved(true);
+    try {
+      const result = await api<{ synced: boolean; count: number; reason?: string }>("/api/templates/sync-approved", {
+        method: "POST"
+      });
+      setStatus(result.synced ? `Synced ${result.count} approved templates from Twilio.` : result.reason ?? "Approved sync failed");
+      await props.onRefresh();
+    } finally {
+      setSyncingApproved(false);
+    }
+  }
+
   async function syncTemplate(template: Template) {
-    const result = await api<{ sid: string | null; synced: boolean; reason?: string }>(`/api/templates/${template.id}/sync`, {
-      method: "POST"
-    });
-    setStatus(result.synced ? `${template.name} synced to Twilio Content API.` : result.reason ?? "Sync failed");
-    await props.onRefresh();
+    setSyncingTemplateId(template.id);
+    try {
+      const result = await api<{ sid: string | null; synced: boolean; reason?: string }>(`/api/templates/${template.id}/sync`, {
+        method: "POST"
+      });
+      setStatus(result.synced ? `${template.name} pushed to Twilio Content API.` : result.reason ?? "Sync failed");
+      await props.onRefresh();
+    } finally {
+      setSyncingTemplateId(null);
+    }
   }
 
   return (
@@ -1656,18 +1676,47 @@ function TemplatesStudioPage(props: { data: BootstrapData; onRefresh: (preferred
         </div>
 
         <div className="grid gap-4">
+          <div className="rounded-[2rem] bg-primary p-6 text-on-primary shadow-sm">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.24em] text-primary-fixed">Approved Catalog</p>
+                <h3 className="mt-2 font-headline text-2xl font-bold">Sync all approved Twilio templates</h3>
+                <p className="mt-2 max-w-xl text-sm text-primary-fixed/80">
+                  Pull every WhatsApp-approved template into this workspace with its placeholders, media preview, CTA action, and Content SID.
+                </p>
+              </div>
+              <button
+                className="rounded-xl bg-white px-5 py-3 text-sm font-bold text-primary disabled:cursor-not-allowed disabled:opacity-60"
+                disabled={syncingApproved}
+                onClick={() => void syncApprovedTemplates()}
+              >
+                {syncingApproved ? "Syncing approved templates..." : "Sync approved from Twilio"}
+              </button>
+            </div>
+          </div>
+
           {props.data.templates.map((template) => (
             <div className="rounded-[2rem] bg-surface-container-low p-6" key={template.id}>
               <div className="mb-4 flex items-start justify-between gap-4">
                 <div>
                   <h3 className="font-headline text-xl font-bold text-primary">{template.name}</h3>
-                  <p className="text-sm text-on-surface-variant">{template.category}</p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <span className="rounded-full bg-primary-fixed/30 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-primary">
+                      {template.category}
+                    </span>
+                    {template.twilioContentSid ? (
+                      <span className="rounded-full bg-secondary/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-secondary">
+                        Approved in Twilio
+                      </span>
+                    ) : null}
+                  </div>
                 </div>
                 <button
-                  className="rounded-xl border border-outline-variant/20 bg-white px-4 py-2 text-sm font-bold text-primary"
+                  className="rounded-xl border border-outline-variant/20 bg-white px-4 py-2 text-sm font-bold text-primary disabled:cursor-not-allowed disabled:opacity-60"
+                  disabled={syncingTemplateId === template.id}
                   onClick={() => void syncTemplate(template)}
                 >
-                  Sync to Twilio
+                  {syncingTemplateId === template.id ? "Syncing..." : "Push local changes"}
                 </button>
               </div>
               <div className="rounded-2xl bg-surface-container-lowest p-4">
@@ -1680,6 +1729,19 @@ function TemplatesStudioPage(props: { data: BootstrapData; onRefresh: (preferred
                   ))}
                 </div>
                 {template.mediaUrl ? <img alt={template.name} className="mt-4 h-44 w-full rounded-2xl object-cover" src={template.mediaUrl} /> : null}
+                {template.ctaLabel || template.ctaUrl ? (
+                  <div className="mt-4 rounded-2xl border border-outline-variant/15 bg-surface-container-low p-4">
+                    <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-on-surface-variant">CTA Preview</p>
+                    <button className="mt-3 inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-bold text-on-primary">
+                      <Icon name={template.ctaUrl?.startsWith("tel:") ? "call" : "open_in_new"} />
+                      {template.ctaLabel ?? "Open CTA"}
+                    </button>
+                    {template.ctaUrl ? <p className="mt-2 break-all text-xs text-on-surface-variant">{template.ctaUrl}</p> : null}
+                  </div>
+                ) : null}
+                {template.twilioContentSid ? (
+                  <p className="mt-4 text-xs font-semibold text-on-surface-variant">Content SID: {template.twilioContentSid}</p>
+                ) : null}
               </div>
             </div>
           ))}
@@ -2210,10 +2272,25 @@ function renderTemplatePreview(template: Template | undefined, contact: Contact 
   }
   const sampleName = contact?.firstName ?? "there";
   const sampleCompany = contact?.company ?? "your team";
+  const values: Record<string, string> = {
+    first_name: sampleName,
+    customer_name: sampleName,
+    customer: sampleName,
+    name: sampleName,
+    company: sampleCompany,
+    company_name: sampleCompany,
+    email: contact?.email ?? "contact@atrium.io",
+    phone: contact?.phone ?? "+1 555 000 0000"
+  };
   return template.body
-    .replace(/\{\{\s*first_name\s*\}\}/g, sampleName)
-    .replace(/\{\{\s*company\s*\}\}/g, sampleCompany)
-    .replace(/\{\{\s*[a-zA-Z0-9_]+\s*\}\}/g, "{{value}}");
+    .replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (_match, key) => {
+      const trimmed = String(key).trim();
+      if (/^\d+$/.test(trimmed)) {
+        const mapped = template.placeholders[Number(trimmed) - 1];
+        return mapped ? values[mapped] ?? `{{${mapped}}}` : "{{value}}";
+      }
+      return values[trimmed] ?? `{{${trimmed}}}`;
+    });
 }
 
 function buildAnalyticsSummary(data: BootstrapData) {
