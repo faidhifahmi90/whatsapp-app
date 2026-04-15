@@ -1219,8 +1219,7 @@ function ContactsPage(props: {
     if (!mappingState) {
       const formData = new FormData();
       formData.append("file", csvFile);
-      const res = await api("/api/contacts/import/preview", { method: "POST", body: formData });
-      const { headers, previewRows } = (await res.json()) as { headers: string[]; previewRows: Record<string, string>[] };
+      const { headers, previewRows } = await api<{ headers: string[]; previewRows: Record<string, string>[] }>("/api/contacts/import/preview", { method: "POST", body: formData });
       
       const initialMap: Record<string, string> = {};
       for (const h of headers) {
