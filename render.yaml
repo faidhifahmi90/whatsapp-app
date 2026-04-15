@@ -1,9 +1,10 @@
 services:
   - type: web
     name: whatsapp-center
-    runtime: docker
+    runtime: node
+    buildCommand: npm install && npm run build
+    startCommand: npm start
     plan: starter
-    autoDeploy: true
     healthCheckPath: /api/health
     disk:
       name: whatsapp-center-data
