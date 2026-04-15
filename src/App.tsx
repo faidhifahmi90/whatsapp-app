@@ -822,6 +822,7 @@ function InboxPage(props: {
 }
 
 function CampaignsPage(props: { data: BootstrapData; onRefresh: (preferredConversationId?: string | null) => Promise<void> }) {
+  const [currentStep, setCurrentStep] = useState(1);
   const [name, setName] = useState("Seasonal Promo Spring");
   const approvedTemplates = props.data.templates.filter((t) => t.twilioContentSid);
   const [templateId, setTemplateId] = useState(approvedTemplates[0]?.id ?? "");
@@ -847,7 +848,6 @@ function CampaignsPage(props: { data: BootstrapData; onRefresh: (preferredConver
     if (!recipientOptions.find((item) => recipientIds.includes(item.id))) {
       setRecipientIds(recipientOptions[0] ? [recipientOptions[0].id] : []);
     }
-  const [currentStep, setCurrentStep] = useState(1);
   }, [recipientMode, recipientIds, recipientOptions]);
 
   async function launchCampaign() {
@@ -961,8 +961,7 @@ function CampaignsPage(props: { data: BootstrapData; onRefresh: (preferredConver
               })}
               </div>
             )}
-              </div>
-            )}
+            </div>
             </>
           )}
 
@@ -1067,62 +1066,21 @@ function CampaignsPage(props: { data: BootstrapData; onRefresh: (preferredConver
                 <div className="rounded-xl bg-surface-container-lowest p-4 text-sm text-on-surface-variant">
                   This template does not require any dynamic variables.
                 </div>
-                  </div>
-                )}
-              </div>
-            </div>
-            
-            <div className="col-span-12 xl:col-span-5">
-              <div className="sticky top-24 mx-auto w-full max-w-sm">
-                <div className="rounded-[3rem] border-4 border-surface-dim bg-surface-container-highest p-4 shadow-2xl">
-                  <TemplateLivePreview template={selectedTemplate} variables={templateVariables} />
-                </div>
-              </div>
+              )}
             </div>
           </div>
-          )}
         </div>
+
+        <div className="col-span-12 xl:col-span-5">
+          <div className="sticky top-24 mx-auto w-full max-w-sm">
+            <div className="rounded-[3rem] border-4 border-surface-dim bg-surface-container-highest p-4 shadow-2xl">
+              <TemplateLivePreview template={selectedTemplate} variables={templateVariables} />
+            </div>
+          </div>
+        </div>
+      </div>
+      )}
       </div>
-            <SectionTitle icon="insert_chart" title="Recent Campaigns" />
-            <div className="overflow-x-auto">
-              <table className="w-full border-collapse">
-                <thead>
-                  <tr className="text-left text-[11px] font-bold uppercase tracking-[0.14em] text-on-surface-variant">
-                    <th className="pb-4">Campaign</th>
-                    <th className="pb-4">Status</th>
-                    <th className="pb-4">Attempted</th>
-                    <th className="pb-4">Delivered</th>
-                    <th className="pb-4">Failed</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-outline-variant/10 text-sm">
-                  {props.data.campaigns.map((campaign) => (
-                    <tr key={campaign.id}>
-                      <td className="py-4 font-semibold text-on-surface">{campaign.name}</td>
-                      <td className="py-4">
-                        <span className={`rounded-full px-3 py-1 text-xs font-bold ${campaign.status === "sent" ? "bg-secondary/10 text-secondary" : "bg-primary/10 text-primary"}`}>
-                          {campaign.status}
-                        </span>
-                      </td>
-                      <td className="py-4 text-on-surface-variant">{campaign.stats.attempted}</td>
-                      <td className="py-4 text-on-surface-variant">{campaign.stats.delivered}</td>
-                      <td className="py-4 text-on-surface-variant">{campaign.stats.failed}</td>
-                    </tr>
-                  ))}
-                  {!props.data.campaigns.length ? (
-                    <tr>
-                      <td className="py-6 text-sm text-on-surface-variant" colSpan={5}>
-                        No campaigns launched yet.
-                      </td>
-                    </tr>
-                  ) : null}
-                </tbody>
-              </table>
-            </div>
-          </div>
-            </div>
-          </div>
-        </div>
       </div>
 
       <div className="mt-8 w-full md:pointer-events-none md:fixed md:bottom-10 md:left-1/2 md:max-w-4xl md:-translate-x-1/2 md:px-6">
