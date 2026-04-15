@@ -879,7 +879,7 @@ server.listen(port, "0.0.0.0", () => {
 });
 
 // ~~~ BACKGROUND SCHEDULING ENGINE ~~~
-setInterval(() => {
+let dispatcherInterval = setInterval(() => {
   const allCampaigns = listCampaigns();
   const nowTime = new Date().getTime();
 
@@ -945,3 +945,21 @@ setInterval(() => {
     }
   }
 }, 60000); // Evaluates the pipeline precisely every 60 seconds
+
+function gracefulShutdown(signal: string) {
+  console.log(`\n[${signal}] Initiating graceful shutdown sequence...`);
+  clearInterval(dispatcherInterval);
+  server.close(() => {
+    console.log("HTTP server actively closed.");
+    process.exit(0);
+  });
+  
+  // Failsafe timeout
+  setTimeout(() => {
+    console.error("Forcing termination due to hanging resources.");
+    process.exit(1);
+  }, 10000).unref();
+}
+
+process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
+process.on("SIGINT", () => gracefulShutdown("SIGINT"));
