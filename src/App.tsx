@@ -639,8 +639,8 @@ function InboxPage(props: {
           </div>
         </div>
 
-        <div className="min-h-[22rem] flex-1 space-y-8 overflow-y-auto bg-surface p-4 sm:p-6">
-          <div className="flex justify-center">
+        <div className="min-h-[22rem] flex-1 space-y-2 overflow-y-auto bg-surface p-4 sm:p-6">
+          <div className="flex justify-center mb-6">
             <span className="rounded-full bg-surface-container px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-slate-500">Today</span>
           </div>
           {selectedConversation?.messages.map((message, index) => (
@@ -712,7 +712,7 @@ function InboxPage(props: {
                   </Field>
                   
                   {Array.isArray(chosenTemplate?.placeholders) && chosenTemplate.placeholders.length > 0 && (
-                    <div className="mt-4 space-y-3">
+                    <div className="mt-4 space-y-3 max-h-[250px] overflow-y-auto pr-2 custom-scrollbar">
                       <span className="text-xs font-bold uppercase tracking-wider text-outline">Placeholder Values</span>
                       {chosenTemplate.placeholders.map((ph, idx) => (
                         <input
@@ -1063,7 +1063,7 @@ function CampaignsPage(props: { data: BootstrapData; onRefresh: (preferredConver
               <div className="col-span-12 xl:col-span-7 space-y-6">
                 <div className="rounded-xl bg-surface-container-low p-6">
             <SectionTitle icon="data_object" title="Template Variables" />
-            <div className="space-y-4">
+            <div className="space-y-4 max-h-[280px] overflow-y-auto pr-2 custom-scrollbar">
               {Array.isArray(selectedTemplate?.placeholders) && selectedTemplate.placeholders.length > 0 ? (
                 selectedTemplate.placeholders.map((ph, idx) => (
                   <Field key={idx} label={`Variable {{${idx + 1}}} (${ph})`}>
@@ -1116,6 +1116,7 @@ function CampaignsPage(props: { data: BootstrapData; onRefresh: (preferredConver
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
             {currentStep > 1 && (
             <button
+              type="button"
               className="rounded-xl border border-outline-variant px-6 py-3 text-sm font-bold text-on-surface transition-all hover:bg-surface-container"
               onClick={() => setCurrentStep(prev => prev - 1)}
             >
@@ -1124,6 +1125,7 @@ function CampaignsPage(props: { data: BootstrapData; onRefresh: (preferredConver
             )}
             {currentStep < 3 ? (
             <button
+              type="button"
               className="group flex items-center gap-2 rounded-xl bg-primary px-8 py-3 text-sm font-bold text-on-primary shadow-lg shadow-primary/20 transition-all active:scale-95 disabled:opacity-50 disabled:grayscale"
               onClick={() => setCurrentStep(prev => prev + 1)}
               disabled={currentStep === 1 && !templateId}
@@ -1133,10 +1135,15 @@ function CampaignsPage(props: { data: BootstrapData; onRefresh: (preferredConver
             </button>
             ) : (
             <button
+              type="button"
               className="group flex items-center gap-2 rounded-xl bg-primary px-8 py-3 text-sm font-bold text-on-primary shadow-lg shadow-primary/20 transition-all active:scale-95"
-              onClick={() => {
-                void launchCampaign();
-                setCurrentStep(1);
+              onClick={async () => {
+                try {
+                  await launchCampaign();
+                  setCurrentStep(1);
+                } catch (err: any) {
+                  setFeedback(err.message || "Failed to launch campaign");
+                }
               }}
             >
               {scheduledAt ? "Queue Campaign" : "Launch Campaign"}
@@ -1220,6 +1227,7 @@ function ContactsPage(props: {
     customFieldNames: Record<string, string>;
   } | null>(null);
 
+  const [isAddContactOpen, setIsAddContactOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [page, setPage] = useState(1);
   const [visibleColumns, setVisibleColumns] = useState<string[]>(["profile", "phone", "segments", "activity", "optIn"]);
@@ -1396,9 +1404,19 @@ function ContactsPage(props: {
       </div>
 
       <div className="mb-8 grid gap-6 xl:grid-cols-[1.1fr_0.9fr_0.8fr]">
-        <div className="rounded-[2rem] bg-surface-container-lowest p-6 shadow-sm">
-          <SectionTitle icon="person_add" title="Add Individual Contact" />
-          <form className="grid gap-4 md:grid-cols-2" onSubmit={saveContact}>
+        <div className="rounded-[2rem] bg-surface-container-lowest p-6 shadow-sm flex flex-col items-start gap-4 h-fit">
+          <div className="flex w-full items-center justify-between">
+            <SectionTitle icon="person_add" title="Add Individual Contact" />
+            <button 
+              type="button"
+              className="rounded-full bg-primary/10 text-primary px-4 py-1.5 text-xs font-bold transition-colors hover:bg-primary/20"
+              onClick={() => setIsAddContactOpen(!isAddContactOpen)}
+            >
+              {isAddContactOpen ? "Collapse" : "+ Add Lead"}
+            </button>
+          </div>
+          {isAddContactOpen && (
+          <form className="grid w-full gap-4 md:grid-cols-2" onSubmit={saveContact}>
             <Field label="First name">
               <input className="atrium-input" value={form.firstName} onChange={(event) => setForm((current) => ({ ...current, firstName: event.target.value }))} />
             </Field>
@@ -1458,11 +1476,29 @@ function ContactsPage(props: {
               Save contact
             </button>
           </form>
+          )}
         </div>
 
         <div className="rounded-[2rem] bg-surface-container-lowest p-6 shadow-sm">
           <SectionTitle icon="upload_file" title="Bulk Import & Segmenting" />
           <form className="space-y-4" onSubmit={importCsv}>
+            <Field label="Quick Add Segment (Optional)">
+              <div className="flex gap-2">
+                <input
+                  className="atrium-input"
+                  placeholder="e.g. VIP Customers"
+                  value={segmentName}
+                  onChange={(e) => setSegmentName(e.target.value)}
+                />
+                <button
+                  type="button"
+                  className="rounded-xl bg-surface-container hover:bg-surface-container-high px-4 py-2 text-sm font-bold text-on-surface transition-colors"
+                  onClick={createSegment}
+                >
+                  Create
+                </button>
+              </div>
+            </Field>
             <Field label="CSV file">
               <input
                 accept=".csv"
@@ -1494,19 +1530,6 @@ function ContactsPage(props: {
             <p className="text-xs text-on-surface-variant">Your CSV payload will directly map into the targeted segments outlined above.</p>
             <button className="w-full rounded-xl border border-outline-variant/20 bg-surface-container-low px-5 py-3 text-sm font-bold text-primary transition-all hover:bg-surface-bright">
               Upload & Map Fields
-            </button>
-          </form>
-
-          <form className="mt-8 space-y-4" onSubmit={createSegment}>
-            <SectionTitle icon="label" title="Create Segment" />
-            <Field label="Segment name">
-              <input className="atrium-input" value={segmentName} onChange={(event) => setSegmentName(event.target.value)} />
-            </Field>
-            <Field label="Color">
-              <input className="atrium-input h-12" type="color" value={segmentColor} onChange={(event) => setSegmentColor(event.target.value)} />
-            </Field>
-            <button className="w-full rounded-xl bg-primary px-5 py-3 text-sm font-bold text-on-primary transition-all hover:opacity-90">
-              Create segment
             </button>
           </form>
         </div>
