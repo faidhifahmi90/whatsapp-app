@@ -2378,12 +2378,6 @@ function SettingsStudioPage(props: { data: BootstrapData; onRefresh: (preferredC
     messagingServiceSid: ""
   });
   const [userForm, setUserForm] = useState({
-  const [channelForm, setChannelForm] = useState({
-    name: "",
-    whatsappNumber: "",
-    messagingServiceSid: ""
-  });
-  const [userForm, setUserForm] = useState({
     name: "",
     email: "",
     role: "agent"
