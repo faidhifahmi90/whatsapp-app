@@ -125,6 +125,9 @@ This repo now includes:
 - `railway.json` for Railway health checks and restart behavior
 - `fly.toml` starter config for Fly.io deployment
 
+Recommended first production rollout: Render.
+The included `render.yaml` now prompts for the required public URL and Twilio secrets, while generating a session secret automatically during Blueprint creation.
+
 Recommended production env:
 
 - `PUBLIC_BASE_URL=https://your-domain`
