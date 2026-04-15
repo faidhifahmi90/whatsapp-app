@@ -266,6 +266,17 @@ export function initDb() {
     );
   `);
 
+  // Migrations for existing databases
+  try {
+    db.prepare(`alter table campaigns add column created_at text not null default CURRENT_TIMESTAMP`).run();
+  } catch (e) {}
+  try {
+    db.prepare(`alter table campaigns add column recurring_interval text not null default 'none'`).run();
+  } catch (e) {}
+  try {
+    db.prepare(`alter table campaigns add column recurring_until text`).run();
+  } catch (e) {}
+
   seedIfEmpty();
   cleanupDummyData();
 }
