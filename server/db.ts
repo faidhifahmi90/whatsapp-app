@@ -309,6 +309,17 @@ export function listUsers() {
   return (db.prepare("select id, name, email, role from users order by created_at asc").all() as any[]).map(mapUser);
 }
 
+export function updateUser(id: string, input: { name: string; email: string; role: string }) {
+  db.prepare(
+    `update users set name = ?, email = ?, role = ? where id = ?`
+  ).run(input.name, input.email, input.role, id);
+  return getUserForSession(id);
+}
+
+export function deleteUser(id: string) {
+  db.prepare("delete from users where id = ?").run(id);
+}
+
 export function listChannels() {
   return (db.prepare("select * from channels order by created_at asc").all() as any[]).map(mapChannel);
 }
@@ -320,6 +331,17 @@ export function createChannel(input: { name: string; whatsappNumber: string; mes
      values (?, ?, ?, ?, ?, ?)`
   ).run(id, input.name, input.whatsappNumber, input.messagingServiceSid ?? null, "active", now());
   return listChannels();
+}
+
+export function updateChannel(id: string, input: { name: string; whatsappNumber: string; messagingServiceSid?: string | null }) {
+  db.prepare(
+    `update channels set name = ?, whatsapp_number = ?, messaging_service_sid = ? where id = ?`
+  ).run(input.name, input.whatsappNumber, input.messagingServiceSid ?? null, id);
+  return findChannel(id);
+}
+
+export function deleteChannel(id: string) {
+  db.prepare("delete from channels where id = ?").run(id);
 }
 
 export function listSegments() {

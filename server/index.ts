@@ -43,7 +43,11 @@ import {
   upsertContact,
   getUserByEmail,
   updateTemplate,
-  deleteTemplate
+  deleteTemplate,
+  updateChannel,
+  deleteChannel,
+  updateUser,
+  deleteUser
 } from "./db.js";
 import {
   buildContentVariables,
@@ -751,6 +755,24 @@ app.post("/api/channels", requireAuth, (req: SessionRequest, res) => {
   res.json({ channels });
 });
 
+app.put("/api/channels/:id", requireAuth, (req: SessionRequest, res) => {
+  const channelId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  updateChannel(channelId, {
+    name: req.body.name,
+    whatsappNumber: req.body.whatsappNumber,
+    messagingServiceSid: req.body.messagingServiceSid
+  });
+  refreshClients("channels");
+  res.json({ ok: true });
+});
+
+app.delete("/api/channels/:id", requireAuth, (req: SessionRequest, res) => {
+  const channelId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  deleteChannel(channelId);
+  refreshClients("channels");
+  res.json({ ok: true });
+});
+
 app.post("/api/segments", requireAuth, (req: SessionRequest, res) => {
   const segments = createSegment({
     name: req.body.name,
@@ -768,6 +790,24 @@ app.post("/api/users", requireAuth, (req: SessionRequest, res) => {
   });
   refreshClients("users");
   res.json({ user });
+});
+
+app.put("/api/users/:id", requireAuth, (req: SessionRequest, res) => {
+  const userId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  updateUser(userId, {
+    name: req.body.name,
+    email: req.body.email,
+    role: req.body.role ?? "agent"
+  });
+  refreshClients("users");
+  res.json({ ok: true });
+});
+
+app.delete("/api/users/:id", requireAuth, (req: SessionRequest, res) => {
+  const userId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  deleteUser(userId);
+  refreshClients("users");
+  res.json({ ok: true });
 });
 
 app.post("/api/webhooks/twilio/incoming", validateTwilioSignature, async (req, res) => {

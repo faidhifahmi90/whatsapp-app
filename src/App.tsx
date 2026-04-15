@@ -1377,8 +1377,8 @@ function ContactsPage(props: {
 
   return (
     <div className="px-8 pb-10 pt-8">
-      <div className="mb-8 grid grid-cols-12 gap-6">
-        <div className="col-span-12 flex flex-col justify-between rounded-[2rem] bg-surface-container-low p-8 md:col-span-8">
+      <div className="mb-8 grid grid-cols-1 gap-6">
+        <div className="flex flex-col justify-between rounded-[2rem] bg-surface-container-low p-8">
           <div>
             <span className="font-headline text-sm font-bold uppercase tracking-[0.18em] text-tertiary">Audience Vitality</span>
             <h2 className="mt-2 font-headline text-4xl font-extrabold text-primary">{props.data.contacts.length.toLocaleString()} Active Leads</h2>
@@ -1388,22 +1388,13 @@ function ContactsPage(props: {
           </div>
           <div className="mt-8 flex flex-col gap-4 md:flex-row">
             <OverviewMetric label="Opt-in Rate" value="89.4%" />
-            <OverviewMetric label="CRM Sync" value="Active" />
             <OverviewMetric label="Segments" value={String(props.data.segments.length)} />
           </div>
         </div>
-        <div className="col-span-12 flex flex-col justify-end rounded-[2rem] bg-primary p-8 text-on-primary md:col-span-4">
-          <div className="mb-6">
-            <h3 className="font-headline text-xl font-bold">CRM Synchronization</h3>
-            <p className="mt-2 text-sm text-primary-fixed/80">
-              Instantly pull contacts from upstream systems, then batch and segment them for WhatsApp outreach.
-            </p>
-          </div>
-          <button className="rounded-xl bg-surface-container-lowest py-3 text-sm font-bold text-primary">Configure Bridge</button>
-        </div>
       </div>
 
-      <div className="mb-8 grid gap-6 xl:grid-cols-[1.1fr_0.9fr_0.8fr]">
+      <div className="grid grid-cols-1 xl:grid-cols-4 gap-6 items-start mb-8">
+        <div className="xl:col-span-1 flex flex-col gap-6 order-1 xl:order-2">
         <div className="rounded-[2rem] bg-surface-container-lowest p-6 shadow-sm flex flex-col items-start gap-4 h-fit">
           <div className="flex w-full items-center justify-between">
             <SectionTitle icon="person_add" title="Add Individual Contact" />
@@ -1552,8 +1543,9 @@ function ContactsPage(props: {
             ))}
           </div>
         </div>
-      </div>
+        </div>
 
+        <div className="xl:col-span-3 order-2 xl:order-1">
       <section className="overflow-hidden rounded-[2rem] border border-outline-variant/20 bg-surface-container-lowest">
         <div className="flex flex-col gap-4 border-b border-outline-variant/10 px-8 py-6 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex flex-wrap items-center gap-3">
@@ -1700,6 +1692,8 @@ function ContactsPage(props: {
           </table>
         </div>
       </section>
+      </div>
+      </div>
 
       {mappingState !== null && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#091b18]/60 p-6 backdrop-blur-sm">
@@ -2384,45 +2378,90 @@ function SettingsStudioPage(props: { data: BootstrapData; onRefresh: (preferredC
     messagingServiceSid: ""
   });
   const [userForm, setUserForm] = useState({
+  const [channelForm, setChannelForm] = useState({
+    name: "",
+    whatsappNumber: "",
+    messagingServiceSid: ""
+  });
+  const [userForm, setUserForm] = useState({
     name: "",
     email: "",
     role: "agent"
   });
 
-  async function addChannel(event: FormEvent) {
+  const [editingChannelId, setEditingChannelId] = useState<string | null>(null);
+  const [editingUserId, setEditingUserId] = useState<string | null>(null);
+
+  async function saveChannel(event: FormEvent) {
     event.preventDefault();
-    await api("/api/channels", {
-      method: "POST",
-      body: JSON.stringify(channelForm)
-    });
-    setChannelForm({
-      name: "",
-      whatsappNumber: "",
-      messagingServiceSid: ""
-    });
+    if (editingChannelId) {
+      await api(`/api/channels/${editingChannelId}`, {
+        method: "PUT",
+        body: JSON.stringify(channelForm)
+      });
+      setEditingChannelId(null);
+    } else {
+      await api("/api/channels", {
+        method: "POST",
+        body: JSON.stringify(channelForm)
+      });
+    }
+    setChannelForm({ name: "", whatsappNumber: "", messagingServiceSid: "" });
     await props.onRefresh();
   }
 
-  async function addUser(event: FormEvent) {
-    event.preventDefault();
-    await api("/api/users", {
-      method: "POST",
-      body: JSON.stringify(userForm)
-    });
-    setUserForm({
-      name: "",
-      email: "",
-      role: "agent"
-    });
+  async function deleteChannel(id: string) {
+    if (!window.confirm("Are you sure you want to delete this WhatsApp number?")) return;
+    await api(`/api/channels/${id}`, { method: "DELETE" });
+    if (editingChannelId === id) setEditingChannelId(null);
     await props.onRefresh();
+  }
+
+  function startEditingChannel(channel: BootstrapData["channels"][number]) {
+    setEditingChannelId(channel.id);
+    setChannelForm({
+      name: channel.name,
+      whatsappNumber: channel.whatsappNumber,
+      messagingServiceSid: channel.messagingServiceSid || ""
+    });
+  }
+
+  async function saveUser(event: FormEvent) {
+    event.preventDefault();
+    if (editingUserId) {
+      await api(`/api/users/${editingUserId}`, {
+        method: "PUT",
+        body: JSON.stringify(userForm)
+      });
+      setEditingUserId(null);
+    } else {
+      await api("/api/users", {
+        method: "POST",
+        body: JSON.stringify(userForm)
+      });
+    }
+    setUserForm({ name: "", email: "", role: "agent" });
+    await props.onRefresh();
+  }
+
+  async function deleteUser(id: string) {
+    if (!window.confirm("Are you sure you want to delete this team member?")) return;
+    await api(`/api/users/${id}`, { method: "DELETE" });
+    if (editingUserId === id) setEditingUserId(null);
+    await props.onRefresh();
+  }
+
+  function startEditingUser(user: BootstrapData["users"][number]) {
+    setEditingUserId(user.id);
+    setUserForm({ name: user.name, email: user.email, role: user.role });
   }
 
   return (
     <StudioPageShell title="Shared Settings" subtitle="Manage multi-user access and multiple WhatsApp senders for the same workspace.">
       <div className="grid gap-6 xl:grid-cols-2">
         <div className="rounded-[2rem] bg-surface-container-lowest p-6 shadow-sm">
-          <SectionTitle icon="call" title="Add WhatsApp Number" />
-          <form className="space-y-4" onSubmit={addChannel}>
+          <SectionTitle icon="call" title={editingChannelId ? "Edit WhatsApp Number" : "Add WhatsApp Number"} />
+          <form className="space-y-4" onSubmit={saveChannel}>
             <Field label="Channel name">
               <input className="atrium-input" value={channelForm.name} onChange={(event) => setChannelForm((current) => ({ ...current, name: event.target.value }))} />
             </Field>
@@ -2432,24 +2471,47 @@ function SettingsStudioPage(props: { data: BootstrapData; onRefresh: (preferredC
             <Field label="Messaging service SID">
               <input className="atrium-input" value={channelForm.messagingServiceSid} onChange={(event) => setChannelForm((current) => ({ ...current, messagingServiceSid: event.target.value }))} />
             </Field>
-            <button className="w-full rounded-xl bg-primary px-5 py-3 text-sm font-bold text-on-primary">Add number</button>
+            <div className="flex gap-2">
+              <button className="flex-1 rounded-xl bg-primary px-5 py-3 text-sm font-bold text-on-primary shadow-sm hover:opacity-90">
+                {editingChannelId ? "Save Changes" : "Add number"}
+              </button>
+              {editingChannelId && (
+                <button 
+                  type="button" 
+                  className="rounded-xl border border-outline-variant/30 px-5 py-3 text-sm font-bold text-on-surface hover:bg-surface-container"
+                  onClick={() => { setEditingChannelId(null); setChannelForm({ name: "", whatsappNumber: "", messagingServiceSid: "" }); }}
+                >
+                  Cancel
+                </button>
+              )}
+            </div>
           </form>
           <div className="mt-6 space-y-3">
             {props.data.channels.map((channel) => (
-              <div className="flex items-center justify-between rounded-2xl bg-surface-container-low p-4" key={channel.id}>
+              <div className="flex items-center justify-between rounded-2xl bg-surface-container-low p-4 group" key={channel.id}>
                 <div>
-                  <p className="font-bold text-on-surface">{channel.name}</p>
-                  <p className="text-xs text-on-surface-variant">{channel.whatsappNumber}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="font-bold text-on-surface">{channel.name}</p>
+                    <span className="rounded-full bg-secondary/10 px-2 py-0.5 text-[10px] font-bold text-secondary uppercase tracking-widest">{channel.status}</span>
+                  </div>
+                  <p className="mt-1 text-xs text-on-surface-variant font-mono">{channel.whatsappNumber}</p>
                 </div>
-                <span className="rounded-full bg-secondary/10 px-3 py-1 text-xs font-bold text-secondary">{channel.status}</span>
+                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button type="button" onClick={() => startEditingChannel(channel)} className="rounded-lg p-2 text-on-surface-variant hover:bg-surface-container hover:text-primary transition-colors focus:outline-none">
+                    <Icon className="text-sm" name="edit" />
+                  </button>
+                  <button type="button" onClick={() => void deleteChannel(channel.id)} className="rounded-lg p-2 text-on-surface-variant hover:bg-error/10 hover:text-error transition-colors focus:outline-none">
+                    <Icon className="text-sm" name="delete" />
+                  </button>
+                </div>
               </div>
             ))}
           </div>
         </div>
 
         <div className="rounded-[2rem] bg-surface-container-lowest p-6 shadow-sm">
-          <SectionTitle icon="group" title="Add Team Member" />
-          <form className="space-y-4" onSubmit={addUser}>
+          <SectionTitle icon="group" title={editingUserId ? "Edit Team Member" : "Add Team Member"} />
+          <form className="space-y-4" onSubmit={saveUser}>
             <Field label="Name">
               <input className="atrium-input" value={userForm.name} onChange={(event) => setUserForm((current) => ({ ...current, name: event.target.value }))} />
             </Field>
@@ -2462,23 +2524,57 @@ function SettingsStudioPage(props: { data: BootstrapData; onRefresh: (preferredC
                 <option value="owner">Owner</option>
               </select>
             </Field>
-            <button className="w-full rounded-xl bg-primary px-5 py-3 text-sm font-bold text-on-primary">Invite teammate</button>
+            <div className="flex gap-2">
+              <button className="flex-1 rounded-xl bg-primary px-5 py-3 text-sm font-bold text-on-primary shadow-sm hover:opacity-90">
+                {editingUserId ? "Save Changes" : "Invite teammate"}
+              </button>
+              {editingUserId && (
+                <button 
+                  type="button" 
+                  className="rounded-xl border border-outline-variant/30 px-5 py-3 text-sm font-bold text-on-surface hover:bg-surface-container"
+                  onClick={() => { setEditingUserId(null); setUserForm({ name: "", email: "", role: "agent" }); }}
+                >
+                  Cancel
+                </button>
+              )}
+            </div>
           </form>
           <div className="mt-6 space-y-3">
             {props.data.users.map((user) => (
-              <div className="flex items-center justify-between rounded-2xl bg-surface-container-low p-4" key={user.id}>
+              <div className="flex items-center justify-between rounded-2xl bg-surface-container-low p-4 group" key={user.id}>
                 <div className="flex items-center gap-3">
                   <Avatar label={user.name} size="h-10 w-10" />
                   <div>
-                    <p className="font-bold text-on-surface">{user.name}</p>
-                    <p className="text-xs text-on-surface-variant">{user.email}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="font-bold text-on-surface">{user.name}</p>
+                      <span className="rounded-full bg-primary-fixed/20 px-2 py-0.5 text-[10px] uppercase tracking-widest font-bold text-primary">{user.role}</span>
+                    </div>
+                    <p className="text-xs text-on-surface-variant font-medium mt-1">{user.email}</p>
                   </div>
                 </div>
-                <span className="rounded-full bg-primary-fixed/20 px-3 py-1 text-xs font-bold text-primary">{user.role}</span>
+                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button type="button" onClick={() => startEditingUser(user)} className="rounded-lg p-2 text-on-surface-variant hover:bg-surface-container hover:text-primary transition-colors focus:outline-none">
+                    <Icon className="text-sm" name="edit" />
+                  </button>
+                  <button type="button" onClick={() => void deleteUser(user.id)} className="rounded-lg p-2 text-on-surface-variant hover:bg-error/10 hover:text-error transition-colors focus:outline-none">
+                    <Icon className="text-sm" name="delete" />
+                  </button>
+                </div>
               </div>
             ))}
           </div>
         </div>
+        
+        <div className="rounded-[2rem] bg-surface-container-lowest p-6 shadow-sm flex flex-col justify-between">
+          <div>
+            <SectionTitle icon="sync" title="CRM Synchronization" />
+            <p className="mt-2 text-sm text-on-surface-variant">
+              Instantly pull contacts from upstream systems, then batch and segment them for WhatsApp outreach.
+            </p>
+          </div>
+          <button className="mt-8 rounded-xl bg-primary py-3 text-sm font-bold text-on-primary w-full">Configure Bridge</button>
+        </div>
+
       </div>
     </StudioPageShell>
   );
