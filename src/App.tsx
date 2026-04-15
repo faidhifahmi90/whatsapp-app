@@ -154,12 +154,12 @@ function LoginPage(props: { onLogin: (credential: CredentialResponse) => Promise
       <div className="mx-auto grid min-h-[80vh] max-w-6xl items-center gap-10 lg:grid-cols-[1.1fr_0.9fr]">
         <div className="space-y-8">
           <div className="inline-flex items-center gap-3 rounded-full bg-surface-container-low px-4 py-2 text-xs font-bold uppercase tracking-[0.18em] text-primary">
-            <Icon name="hub" className="text-base" />
+            <img src="/logo.png" alt="tomorrowX" className="h-5 w-5 rounded-md" />
             Verified WhatsApp Operations Hub
           </div>
           <div className="space-y-5">
             <h1 className="font-headline text-5xl font-extrabold leading-tight text-primary sm:text-6xl">
-              Atrium Business for live WhatsApp sales, support, and campaigns.
+              tomorrowX for live WhatsApp sales, support, and campaigns.
             </h1>
             <p className="max-w-2xl text-lg text-on-surface-variant">
               Shared multi-user dashboard, real-time conversations, contact imports, batch messaging, approved templates,
@@ -175,7 +175,7 @@ function LoginPage(props: { onLogin: (credential: CredentialResponse) => Promise
 
         <div className="rounded-[2rem] border border-outline-variant/20 bg-surface-container-lowest p-8 shadow-[0_40px_120px_-48px_rgba(0,69,61,0.32)]">
           <div className="mb-8 space-y-2">
-            <p className="font-label text-xs font-bold uppercase tracking-[0.3em] text-outline">Atrium Access</p>
+            <p className="font-label text-xs font-bold uppercase tracking-[0.3em] text-outline">tomorrowX Access</p>
             <h2 className="font-headline text-3xl font-extrabold text-primary">Enter shared workspace</h2>
             <p className="text-sm text-on-surface-variant">Sign in securely with your Google Workspace account to begin.</p>
           </div>
@@ -198,6 +198,7 @@ function LoginPage(props: { onLogin: (credential: CredentialResponse) => Promise
           {error ? (
             <div className="mt-6 rounded-2xl border border-error/20 bg-error-container px-4 py-3 text-sm font-semibold text-on-error-container">
               {error}
+            </div>
           ) : null}
         </div>
       </div>
@@ -205,7 +206,15 @@ function LoginPage(props: { onLogin: (credential: CredentialResponse) => Promise
   );
 }
 
-function TemplateLivePreview(props: { template: Template; variables: string[] }) {
+function TemplateLivePreview(props: { template?: Template; variables: string[] }) {
+  if (!props.template) {
+    return (
+      <div className="flex h-64 w-full items-center justify-center rounded-2xl border border-dashed border-outline-variant/30 text-sm font-medium text-slate-400">
+        No template selected
+      </div>
+    );
+  }
+
   let renderedBody = props.template.body;
   if (Array.isArray(props.template.placeholders)) {
     props.template.placeholders.forEach((_, idx) => {
@@ -263,7 +272,7 @@ function DashboardShell(props: {
 
   const routeMeta = {
     "/inbox": {
-      title: "Atrium Business",
+      title: "tomorrowX",
       searchPlaceholder: "Search conversations..."
     },
     "/campaigns": {
@@ -281,7 +290,7 @@ function DashboardShell(props: {
   } as Record<string, { title: string; searchPlaceholder: string }>;
 
   const currentMeta = routeMeta[location.pathname] ?? {
-    title: "Atrium Business",
+    title: "tomorrowX",
     searchPlaceholder: "Search workspace..."
   };
 
@@ -323,12 +332,10 @@ function DashboardShell(props: {
       >
         <div className={`mb-8 ${sidebarCollapsed ? "px-1" : "px-4"}`}>
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-on-primary">
-              <Icon name="hub" />
-            </div>
+            <img src="/logo.png" alt="tomorrowX" className="h-10 w-10 rounded-xl object-cover shadow-sm ring-1 ring-primary/20" />
             {!sidebarCollapsed ? (
               <div>
-                <h1 className="font-headline text-sm font-bold leading-tight text-primary">Global Enterprise</h1>
+                <h1 className="font-headline text-sm font-bold leading-tight text-primary">tomorrowX</h1>
                 <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500">Verified API</p>
               </div>
             ) : null}
@@ -359,7 +366,10 @@ function DashboardShell(props: {
         </nav>
 
         <div className="mt-auto space-y-1 border-t border-slate-200 pt-6">
-          <button className="mb-4 flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 font-headline text-sm font-bold text-on-primary shadow-lg shadow-primary/10 transition-all hover:opacity-90">
+          <button 
+            className="mb-4 flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 font-headline text-sm font-bold text-on-primary shadow-lg shadow-primary/10 transition-all hover:opacity-90"
+            onClick={() => navigate("/campaigns")}
+          >
             <Icon name="add" className="text-base" />
             {!sidebarCollapsed ? "New Broadcast" : null}
           </button>
@@ -514,8 +524,9 @@ function InboxPage(props: {
     await props.onRefresh(selectedConversation.id);
   }
 
-  async function sendTemplate() {
-    if (!selectedConversation || !templateId) {
+  async function sendTemplate(templateIdOverride?: string) {
+    const targetTemplateId = templateIdOverride ?? templateId;
+    if (!selectedConversation || !targetTemplateId) {
       return;
     }
     await api(`/api/conversations/${selectedConversation.id}/messages/template`, {
@@ -523,7 +534,7 @@ function InboxPage(props: {
       body: JSON.stringify({
         contactId: selectedConversation.contactId,
         channelId,
-        templateId,
+        templateId: targetTemplateId,
         variables: templateVariables
       })
     });
@@ -774,7 +785,7 @@ function InboxPage(props: {
               </div>
               <h4 className="font-headline text-lg font-bold text-on-surface">{fullName(selectedConversation.contact)}</h4>
               <p className="text-xs text-slate-500">
-                {deriveContactRole(selectedConversation.contact)}, {selectedConversation.contact.company || "Atrium Client"}
+                {deriveContactRole(selectedConversation.contact)}, {selectedConversation.contact.company || "tomorrowX Client"}
               </p>
               <div className="mt-3 flex gap-2">
                 <span className="rounded-full bg-primary/10 px-3 py-1 text-[10px] font-bold uppercase tracking-tight text-primary">VIP Tier</span>
@@ -790,7 +801,7 @@ function InboxPage(props: {
               </InfoCard>
 
               <InfoCard action="+ New" title="Internal Notes">
-                <NoteCard text={`Client prefers WhatsApp for urgent updates and template confirmations. Latest ask: ${latestInbound?.body ?? "No recent inbound note."}`} meta="Today by Atrium" />
+                <NoteCard text={`Client prefers WhatsApp for urgent updates and template confirmations. Latest ask: ${latestInbound?.body ?? "No recent inbound note."}`} meta="Today by tomorrowX" />
                 <NoteCard text={`Assigned to ${selectedConversation.channel.name} and tagged with ${selectedConversation.contact.labels[0] ?? "priority"} workflows.`} meta="Auto note" />
               </InfoCard>
 
@@ -929,7 +940,8 @@ function CampaignsPage(props: { data: BootstrapData; onRefresh: (preferredConver
                   </button>
                 );
               })}
-            </div>
+              </div>
+            )}
           </div>
 
           <div className="rounded-xl bg-surface-container-low p-6">
