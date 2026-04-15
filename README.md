@@ -14,6 +14,7 @@ A realtime conversational web app for shared-team WhatsApp operations using Twil
 - Multiple shared logins pointing to the same dashboard and settings
 - Multiple WhatsApp numbers/channels with easy channel switching
 - Twilio inbound and status webhook endpoints
+- Responsive Atrium-style UI with collapsible desktop nav and mobile slide-in workspace rail
 
 ## Stack
 
@@ -95,6 +96,10 @@ npm run build
 npm run start
 ```
 
+Health check:
+
+- `GET /api/health`
+
 ## Docker deploy
 
 Build and run:
@@ -117,6 +122,8 @@ This repo now includes:
 - `Dockerfile` for container deployment
 - `docker-compose.yml` for single-host deployment
 - `render.yaml` for Render blueprint deployment
+- `railway.json` for Railway health checks and restart behavior
+- `fly.toml` starter config for Fly.io deployment
 
 Recommended production env:
 
@@ -129,6 +136,65 @@ Twilio console webhook URLs should point to:
 
 - `https://your-domain/api/webhooks/twilio/incoming`
 - `https://your-domain/api/webhooks/twilio/status`
+
+## Render rollout
+
+1. Create a new Blueprint service in Render from this repo.
+2. Attach the persistent disk at `/app/data`.
+3. Set secret env vars in Render:
+
+- `SESSION_SECRET`
+- `TWILIO_ACCOUNT_SID`
+- `TWILIO_AUTH_TOKEN`
+- `TWILIO_DEFAULT_MESSAGING_SERVICE_SID` if you use one shared service
+
+4. Set `PUBLIC_BASE_URL` to your Render URL or custom domain.
+5. After deploy, verify `[health](https://your-domain/api/health)` and then configure Twilio webhooks.
+
+## Railway rollout
+
+1. Create a new Railway project from this repo and deploy with the included `Dockerfile`.
+2. Add a persistent volume mounted to `/app/data`.
+3. Set env vars:
+
+- `SESSION_SECRET`
+- `PUBLIC_BASE_URL`
+- `TRUST_PROXY=true`
+- `SESSION_COOKIE_SECURE=true`
+- `TWILIO_WEBHOOK_VALIDATE=true`
+- Twilio credentials as needed
+
+4. Railway will use `/api/health` as the service health check from `railway.json`.
+5. Point Twilio incoming and status callbacks to the Railway public domain.
+
+## Fly.io rollout
+
+1. Update `app` in `fly.toml` to a globally unique app name.
+2. Create the persistent volume once:
+
+```bash
+fly volumes create whatsapp_center_data --region sin --size 1
+```
+
+3. Set secrets:
+
+```bash
+fly secrets set SESSION_SECRET=... PUBLIC_BASE_URL=https://your-domain TWILIO_ACCOUNT_SID=... TWILIO_AUTH_TOKEN=...
+```
+
+4. Deploy:
+
+```bash
+fly launch --no-deploy
+fly deploy
+```
+
+5. Confirm `https://your-domain/api/health` is healthy before wiring Twilio webhooks.
+
+## Frontend polish notes
+
+- Dark-mode utility drift has been removed from the shipped app shell, so production styling is single-theme and predictable.
+- The sidebar now collapses on desktop and slides in on smaller screens, which makes the same build easier to use on laptops and tablets without separate layouts.
 
 ## Notes
 

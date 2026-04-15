@@ -238,6 +238,8 @@ function DashboardShell(props: {
 }) {
   const navigate = useNavigate();
   const location = useLocation();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   const routeMeta = {
     "/inbox": {
@@ -263,6 +265,10 @@ function DashboardShell(props: {
     searchPlaceholder: "Search workspace..."
   };
 
+  useEffect(() => {
+    setSidebarOpen(false);
+  }, [location.pathname]);
+
   async function openConversation(contactId: string, channelId: string, templateId?: string) {
     const result = await api<{ conversationId: string }>("/api/conversations/open", {
       method: "POST",
@@ -279,52 +285,99 @@ function DashboardShell(props: {
 
   return (
     <div className="min-h-screen bg-background text-on-surface">
-      <aside className="fixed left-0 top-0 z-40 flex h-screen w-64 flex-col gap-y-2 bg-slate-100 px-4 py-8">
-        <div className="mb-8 px-4">
+      {sidebarOpen ? (
+        <button
+          aria-label="Close navigation"
+          className="fixed inset-0 z-30 bg-slate-950/30 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+          type="button"
+        />
+      ) : null}
+
+      <aside
+        className={[
+          "fixed left-0 top-0 z-40 flex h-screen flex-col gap-y-2 bg-slate-100 py-8 transition-transform duration-200 lg:translate-x-0",
+          sidebarCollapsed ? "w-20 px-3" : "w-64 px-4",
+          sidebarOpen ? "translate-x-0" : "-translate-x-full"
+        ].join(" ")}
+      >
+        <div className={`mb-8 ${sidebarCollapsed ? "px-1" : "px-4"}`}>
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-on-primary">
               <Icon name="hub" />
             </div>
-            <div>
-              <h1 className="font-headline text-sm font-bold leading-tight text-primary">Global Enterprise</h1>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500">Verified API</p>
-            </div>
+            {!sidebarCollapsed ? (
+              <div>
+                <h1 className="font-headline text-sm font-bold leading-tight text-primary">Global Enterprise</h1>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500">Verified API</p>
+              </div>
+            ) : null}
+            <button
+              aria-label="Close navigation"
+              className="ml-auto rounded-full p-2 text-slate-500 transition-colors hover:bg-slate-200/70 lg:hidden"
+              onClick={() => setSidebarOpen(false)}
+              type="button"
+            >
+              <Icon name="close" />
+            </button>
           </div>
         </div>
 
         <nav className="flex-1 space-y-1">
           {primaryNavItems.map((item) => (
-            <AtriumNavLink key={item.to} to={item.to} icon={item.icon} label={item.label} />
+            <AtriumNavLink collapsed={sidebarCollapsed} key={item.to} to={item.to} icon={item.icon} label={item.label} />
           ))}
 
-          <div className="px-4 pb-2 pt-6">
-            <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-slate-400">Studio</p>
-          </div>
+          {!sidebarCollapsed ? (
+            <div className="px-4 pb-2 pt-6">
+              <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-slate-400">Studio</p>
+            </div>
+          ) : null}
           {studioNavItems.map((item) => (
-            <AtriumNavLink compact key={item.to} to={item.to} icon={item.icon} label={item.label} />
+            <AtriumNavLink collapsed={sidebarCollapsed} compact key={item.to} to={item.to} icon={item.icon} label={item.label} />
           ))}
         </nav>
 
         <div className="mt-auto space-y-1 border-t border-slate-200 pt-6">
           <button className="mb-4 flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 font-headline text-sm font-bold text-on-primary shadow-lg shadow-primary/10 transition-all hover:opacity-90">
             <Icon name="add" className="text-base" />
-            New Broadcast
+            {!sidebarCollapsed ? "New Broadcast" : null}
           </button>
-          <SidebarUtility label="Support" icon="headset_mic" />
-          <SidebarUtility label="API Docs" icon="terminal" />
+          <SidebarUtility collapsed={sidebarCollapsed} label="Support" icon="headset_mic" />
+          <SidebarUtility collapsed={sidebarCollapsed} label="API Docs" icon="terminal" />
           <button
-            className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-medium text-slate-500 transition-all hover:bg-slate-200/50 hover:text-emerald-800"
+            className={`flex w-full items-center rounded-xl px-4 py-3 text-left text-sm font-medium text-slate-500 transition-all hover:bg-slate-200/50 hover:text-emerald-800 ${
+              sidebarCollapsed ? "justify-center" : "gap-3"
+            }`}
             onClick={() => void props.onLogout()}
+            title={sidebarCollapsed ? "Log out" : undefined}
+            type="button"
           >
             <Icon name="logout" className="text-lg" />
-            Log out
+            {!sidebarCollapsed ? "Log out" : null}
           </button>
         </div>
       </aside>
 
-      <main className="ml-64 min-h-screen bg-surface">
+      <main className={`min-h-screen bg-surface transition-[margin] duration-200 ${sidebarCollapsed ? "lg:ml-20" : "lg:ml-64"}`}>
         <header className="sticky top-0 z-30 flex items-center justify-between bg-slate-50/80 px-6 py-3 backdrop-blur-xl">
-          <div className="flex items-center gap-8">
+          <div className="flex items-center gap-3 lg:gap-8">
+            <button
+              aria-label="Open navigation"
+              className="rounded-full p-2 text-slate-500 transition-colors hover:bg-slate-200/50 lg:hidden"
+              onClick={() => setSidebarOpen(true)}
+              type="button"
+            >
+              <Icon name="menu" />
+            </button>
+            <button
+              aria-label={sidebarCollapsed ? "Expand navigation" : "Collapse navigation"}
+              className="hidden rounded-full p-2 text-slate-500 transition-colors hover:bg-slate-200/50 lg:inline-flex"
+              onClick={() => setSidebarCollapsed((current) => !current)}
+              type="button"
+            >
+              <Icon name={sidebarCollapsed ? "menu_open" : "menu"} />
+            </button>
             <span className="font-headline text-xl font-bold tracking-tight text-emerald-900">{currentMeta.title}</span>
             <div className="hidden w-80 items-center gap-2 rounded-full bg-slate-100/70 px-4 py-2 md:flex">
               <Icon name="search" className="text-sm text-slate-400" />
@@ -335,15 +388,15 @@ function DashboardShell(props: {
               />
             </div>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 sm:gap-4">
             <button className="rounded-full p-2 text-slate-500 transition-colors hover:bg-slate-200/50">
               <Icon name="notifications" />
             </button>
             <button className="rounded-full p-2 text-slate-500 transition-colors hover:bg-slate-200/50">
               <Icon name="settings" />
             </button>
-            <div className="flex items-center gap-3 rounded-full bg-white/70 px-3 py-1 shadow-sm">
-              <div className="text-right">
+            <div className="flex items-center gap-3 rounded-full bg-white/70 px-2 py-1 shadow-sm sm:px-3">
+              <div className="hidden text-right sm:block">
                 <p className="text-xs font-bold text-emerald-900">{props.data.user.name}</p>
                 <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">{props.data.user.role}</p>
               </div>
@@ -457,8 +510,8 @@ function InboxPage(props: {
   const latestInbound = selectedConversation?.messages.filter((message) => message.direction === "inbound").at(-1);
 
   return (
-    <div className="flex h-[calc(100vh-72px)] overflow-hidden">
-      <div className="flex w-80 flex-col border-r border-slate-100 bg-surface-container-low">
+    <div className="flex min-h-[calc(100vh-72px)] flex-col overflow-hidden xl:h-[calc(100vh-72px)] xl:flex-row">
+      <div className="flex w-full flex-col border-b border-slate-100 bg-surface-container-low xl:w-80 xl:border-b-0 xl:border-r">
         <div className="space-y-4 p-4">
           <div className="flex items-center justify-between">
             <h2 className="font-headline text-lg font-bold text-on-surface">Inbox</h2>
@@ -470,7 +523,7 @@ function InboxPage(props: {
             <button className="flex-1 rounded-lg py-2 text-[10px] font-semibold text-slate-500 transition-colors hover:bg-slate-200/50">Resolved</button>
           </div>
         </div>
-        <div className="flex-1 space-y-1 overflow-y-auto px-2 pb-4">
+        <div className="max-h-[24rem] flex-1 space-y-1 overflow-y-auto px-2 pb-4 xl:max-h-none">
           {props.data.conversations.map((conversation) => {
             const latest = conversation.messages[conversation.messages.length - 1];
             const active = conversation.id === selectedConversation?.id;
@@ -519,7 +572,7 @@ function InboxPage(props: {
       </div>
 
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden bg-surface">
-        <div className="z-10 flex items-center justify-between bg-surface-container-lowest px-6 py-4 shadow-sm">
+        <div className="z-10 flex flex-col gap-3 bg-surface-container-lowest px-4 py-4 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:px-6">
           <div className="flex items-center gap-4">
             <div className="relative">
               <Avatar label={selectedConversation ? fullName(selectedConversation.contact) : "Contact"} size="h-10 w-10" />
@@ -537,7 +590,7 @@ function InboxPage(props: {
               </p>
             </div>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 self-end sm:self-auto">
             <button className="rounded-xl border border-outline-variant/30 p-2.5 text-slate-600 transition-colors hover:bg-slate-50">
               <Icon name="call" className="text-xl" />
             </button>
@@ -548,7 +601,7 @@ function InboxPage(props: {
           </div>
         </div>
 
-        <div className="flex-1 space-y-8 overflow-y-auto bg-surface p-6">
+        <div className="min-h-[22rem] flex-1 space-y-8 overflow-y-auto bg-surface p-4 sm:p-6">
           <div className="flex justify-center">
             <span className="rounded-full bg-surface-container px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-slate-500">Today</span>
           </div>
@@ -566,7 +619,7 @@ function InboxPage(props: {
           ) : null}
         </div>
 
-        <div className="flex gap-2 overflow-x-auto bg-surface-container-low/50 px-6 py-2">
+        <div className="flex gap-2 overflow-x-auto bg-surface-container-low/50 px-4 py-2 sm:px-6">
           {quickReplyTemplates.map((template) => (
             <button
               className="whitespace-nowrap rounded-full border border-outline-variant/20 bg-surface-container-lowest px-3 py-1.5 text-[11px] font-semibold text-primary transition-all hover:bg-primary hover:text-on-primary"
@@ -649,7 +702,7 @@ function InboxPage(props: {
         </div>
       </div>
 
-      <div className="hidden w-72 flex-col overflow-y-auto bg-surface-container-high p-6 xl:flex">
+      <div className="w-full overflow-y-auto border-t border-slate-100 bg-surface-container-high p-6 xl:w-72 xl:border-l xl:border-t-0">
         {selectedConversation ? (
           <>
             <div className="flex flex-col items-center text-center">
@@ -742,7 +795,7 @@ function CampaignsPage(props: { data: BootstrapData; onRefresh: (preferredConver
       : props.data.contacts.filter((contact) => contact.segmentIds.some((segmentId) => recipientIds.includes(segmentId))).length;
 
   return (
-    <div className="relative overflow-hidden px-10 pb-32 pt-10">
+    <div className="relative overflow-hidden px-4 pb-10 pt-6 sm:px-6 lg:px-10 lg:pb-32 lg:pt-10">
       <div className="fixed -right-40 -top-40 -z-10 h-[600px] w-[600px] rounded-full bg-primary-fixed/10 blur-[120px]" />
       <div className="fixed bottom-0 left-10 -z-10 h-[400px] w-[400px] rounded-full bg-secondary-fixed/10 blur-[100px]" />
 
@@ -756,7 +809,7 @@ function CampaignsPage(props: { data: BootstrapData; onRefresh: (preferredConver
         <p className="mt-2 max-w-2xl text-on-surface-variant">Design, validate, and launch high-impact WhatsApp campaigns from your centralized atrium.</p>
       </div>
 
-      <div className="mb-12 flex max-w-4xl items-center justify-between gap-4">
+      <div className="mb-12 hidden max-w-4xl items-center justify-between gap-4 lg:flex">
         <WizardStep index={1} label="Template" status="selected" />
         <div className="mx-4 h-[2px] flex-1 bg-primary-fixed" />
         <WizardStep index={2} label="Audience" status="pending" />
@@ -1012,8 +1065,8 @@ function CampaignsPage(props: { data: BootstrapData; onRefresh: (preferredConver
         </div>
       </div>
 
-      <div className="pointer-events-none fixed bottom-10 left-1/2 w-full max-w-4xl -translate-x-1/2 px-6">
-        <div className="pointer-events-auto flex items-center justify-between rounded-2xl border border-white/40 bg-white/80 p-4 shadow-xl backdrop-blur-md">
+      <div className="mt-8 w-full md:pointer-events-none md:fixed md:bottom-10 md:left-1/2 md:max-w-4xl md:-translate-x-1/2 md:px-6">
+        <div className="flex flex-col gap-4 rounded-2xl border border-white/40 bg-white/80 p-4 shadow-xl backdrop-blur-md md:pointer-events-auto md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-4">
             <div className="rounded-lg bg-secondary-fixed/20 p-2 text-secondary">
               <Icon name="verified" />
@@ -1025,7 +1078,7 @@ function CampaignsPage(props: { data: BootstrapData; onRefresh: (preferredConver
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
             <button className="rounded-xl border border-outline-variant px-6 py-3 text-sm font-bold text-on-surface transition-all hover:bg-surface-container">
               Save Draft
             </button>
@@ -1962,31 +2015,39 @@ function ProgressCard(props: { label: string; value: number; secondary?: boolean
   );
 }
 
-function AtriumNavLink(props: { to: string; label: string; icon: string; compact?: boolean }) {
+function AtriumNavLink(props: { to: string; label: string; icon: string; compact?: boolean; collapsed?: boolean }) {
   return (
     <NavLink
       className={({ isActive }) =>
         [
-          "relative flex items-center gap-3 rounded-xl px-4 transition-all duration-200 ease-in-out",
+          "relative flex items-center rounded-xl px-4 transition-all duration-200 ease-in-out",
+          props.collapsed ? "justify-center px-3" : "gap-3",
           props.compact ? "py-2.5 text-xs font-semibold" : "py-3 text-sm font-medium",
           isActive
             ? "font-bold text-emerald-900 after:absolute after:right-0 after:h-6 after:w-1 after:rounded-l-full after:bg-orange-900"
             : "text-slate-500 hover:bg-slate-200/50 hover:text-emerald-800"
         ].join(" ")
       }
+      title={props.collapsed ? props.label : undefined}
       to={props.to}
     >
       <Icon className={props.compact ? "text-base" : ""} name={props.icon} />
-      <span>{props.label}</span>
+      {!props.collapsed ? <span>{props.label}</span> : null}
     </NavLink>
   );
 }
 
-function SidebarUtility(props: { label: string; icon: string }) {
+function SidebarUtility(props: { label: string; icon: string; collapsed?: boolean }) {
   return (
-    <a className="flex items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-medium text-slate-500 transition-all hover:bg-slate-200/50 hover:text-emerald-800" href="#">
+    <a
+      className={`flex rounded-xl px-4 py-3 text-left text-sm font-medium text-slate-500 transition-all hover:bg-slate-200/50 hover:text-emerald-800 ${
+        props.collapsed ? "justify-center" : "items-center gap-3"
+      }`}
+      href="#"
+      title={props.collapsed ? props.label : undefined}
+    >
       <Icon className="text-lg" name={props.icon} />
-      <span>{props.label}</span>
+      {!props.collapsed ? <span>{props.label}</span> : null}
     </a>
   );
 }

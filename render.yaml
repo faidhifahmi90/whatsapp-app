@@ -4,6 +4,7 @@ services:
     runtime: docker
     plan: starter
     autoDeploy: true
+    healthCheckPath: /api/health
     disk:
       name: whatsapp-center-data
       mountPath: /app/data
