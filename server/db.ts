@@ -262,6 +262,13 @@ export function initDb() {
   `);
 
   seedIfEmpty();
+  cleanupDummyData();
+}
+
+function cleanupDummyData() {
+  db.prepare("delete from contacts where first_name = 'Sarah' and email = 'sarah@example.com'").run();
+  db.prepare("delete from templates where name like 'Demo:%'").run();
+  db.prepare("delete from campaigns where name like 'Seasonal Promo%' or name like 'Beta Users%'").run();
 }
 
 function seedIfEmpty() {

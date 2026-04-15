@@ -198,10 +198,52 @@ function LoginPage(props: { onLogin: (credential: CredentialResponse) => Promise
           {error ? (
             <div className="mt-6 rounded-2xl border border-error/20 bg-error-container px-4 py-3 text-sm font-semibold text-on-error-container">
               {error}
-            </div>
           ) : null}
         </div>
       </div>
+    </div>
+  );
+}
+
+function TemplateLivePreview(props: { template: Template; variables: string[] }) {
+  let renderedBody = props.template.body;
+  if (Array.isArray(props.template.placeholders)) {
+    props.template.placeholders.forEach((_, idx) => {
+      const val = props.variables[idx] || `{{${idx + 1}}}`;
+      renderedBody = renderedBody.replace(`{{${idx + 1}}}`, val);
+    });
+  }
+
+  return (
+    <div className="relative w-full max-w-[320px] shrink-0 overflow-hidden bg-[#EFEAE2] p-4 font-sans text-[15px] shadow-sm ring-1 ring-black/5 sm:rounded-[24px]">
+      <div className="mb-4 flex items-center justify-between opacity-80">
+        <span className="text-[11px] font-medium uppercase tracking-wider text-[#54656f]">WhatsApp Preview</span>
+        <Icon className="text-[#54656f]" name="visibility" />
+      </div>
+      
+      <div className="relative max-w-[90%] rounded-2xl rounded-tl-none bg-white p-2 shadow-[0_1px_0.5px_rgba(11,20,26,.13)] sm:p-2.5">
+        <svg viewBox="0 0 8 13" width="8" height="13" className="absolute -left-2 top-0 text-white"><path opacity=".13" fill="#0000000" d="M1.533 3.568 8 12.193V1H2.812C1.042 1 .474 2.156 1.533 3.568z"></path><path fill="currentColor" d="M1.533 2.568 8 11.193V0H2.812C1.042 0 .474 1.156 1.533 2.568z"></path></svg>
+        {props.template.mediaUrl && (
+          <div className="mb-2 shrink-0 overflow-hidden rounded-xl bg-black/5">
+            <img src={props.template.mediaUrl} alt="Attached Media" className="h-auto w-full object-cover" />
+          </div>
+        )}
+        <div className="whitespace-pre-wrap text-[#111b21] leading-[22px]">
+          {renderedBody}
+        </div>
+        <div className="mt-1 flex items-center justify-end gap-1 text-[11px] text-[#667781]">
+          <span>12:00</span>
+        </div>
+      </div>
+      
+      {props.template.ctaLabel && (
+        <div className="mt-2 max-w-[90%]">
+          <button className="flex w-full items-center justify-center gap-2 rounded-xl bg-white p-3 font-semibold text-[#00a884] shadow-[0_1px_0.5px_rgba(11,20,26,.13)]">
+            <Icon name={props.template.ctaUrl ? "open_in_new" : "call"} className="text-[18px]" />
+            {props.template.ctaLabel}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -431,13 +473,17 @@ function InboxPage(props: {
   onSelectConversation: (id: string | null) => void;
 }) {
   const [messageBody, setMessageBody] = useState("");
-  const [templateId, setTemplateId] = useState(props.data.templates[0]?.id ?? "");
+  const approvedTemplates = props.data.templates.filter((t) => t.twilioContentSid);
+  const [templateId, setTemplateId] = useState(approvedTemplates[0]?.id ?? "");
   const [channelId, setChannelId] = useState(props.data.channels[0]?.id ?? "");
+  
+  const [isTemplateModalOpen, setTemplateModalOpen] = useState(false);
+  const [templateVariables, setTemplateVariables] = useState<string[]>([]);
 
   const selectedConversation =
     props.data.conversations.find((conversation) => conversation.id === props.selectedConversationId) ??
     props.data.conversations[0];
-  const chosenTemplate = props.data.templates.find((template) => template.id === templateId) ?? props.data.templates[0];
+  const chosenTemplate = approvedTemplates.find((template) => template.id === templateId) ?? approvedTemplates[0];
 
   useEffect(() => {
     if (!props.selectedConversationId && props.data.conversations[0]) {
@@ -468,19 +514,21 @@ function InboxPage(props: {
     await props.onRefresh(selectedConversation.id);
   }
 
-  async function sendTemplate(templateIdOverride?: string) {
-    if (!selectedConversation || !(templateIdOverride ?? templateId)) {
+  async function sendTemplate() {
+    if (!selectedConversation || !templateId) {
       return;
     }
-    await api("/api/messages/send", {
+    await api(`/api/conversations/${selectedConversation.id}/messages/template`, {
       method: "POST",
       body: JSON.stringify({
-        conversationId: selectedConversation.id,
         contactId: selectedConversation.contactId,
         channelId,
-        templateId: templateIdOverride ?? templateId
+        templateId,
+        variables: templateVariables
       })
     });
+    setTemplateModalOpen(false);
+    setTemplateVariables([]);
     await props.onRefresh(selectedConversation.id);
   }
 
@@ -609,56 +657,93 @@ function InboxPage(props: {
           ))}
         </div>
 
-        <div className="space-y-3 bg-surface-container-lowest p-4">
-          <div className="grid gap-3 md:grid-cols-[1fr_1fr_auto]">
-            <select
-              className="rounded-2xl border-outline-variant/20 bg-surface-container-low px-4 py-3 text-sm focus:border-primary focus:ring-primary/20"
-              value={templateId}
-              onChange={(event) => setTemplateId(event.target.value)}
-            >
-              {props.data.templates.map((template) => (
-                <option key={template.id} value={template.id}>
-                  {template.name}
-                </option>
-              ))}
-            </select>
-            <select
-              className="rounded-2xl border-outline-variant/20 bg-surface-container-low px-4 py-3 text-sm focus:border-primary focus:ring-primary/20"
-              value={channelId}
-              onChange={(event) => setChannelId(event.target.value)}
-            >
-              {props.data.channels.map((channel) => (
-                <option key={channel.id} value={channel.id}>
-                  {channel.name} · {channel.whatsappNumber}
-                </option>
-              ))}
-            </select>
-            <button
-              className="rounded-2xl border border-outline-variant/20 bg-white px-4 py-3 text-sm font-bold text-primary transition-all hover:bg-slate-50"
-              onClick={() => void sendTemplate()}
-            >
-              Send template
-            </button>
-          </div>
-          {chosenTemplate ? (
-            <div className="rounded-2xl bg-surface-container-low p-4">
-              <div className="mb-2 flex items-center justify-between gap-3">
-                <strong className="font-headline text-sm text-on-surface">{chosenTemplate.name}</strong>
-                <span className="rounded-full bg-primary-fixed/40 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-primary">
-                  Preview
-                </span>
+        <div className="relative space-y-3 bg-surface-container-lowest p-4">
+          {isTemplateModalOpen && (
+            <div className="absolute bottom-full left-0 right-0 z-50 mb-4 rounded-3xl border border-outline-variant/20 bg-surface-container-low p-6 shadow-2xl backdrop-blur-3xl">
+              <div className="mb-6 flex items-center justify-between">
+                <h3 className="font-headline text-lg font-bold text-on-surface">Send Approved Template</h3>
+                <button
+                  className="rounded-full p-2 text-on-surface-variant hover:bg-surface-container-high"
+                  onClick={() => setTemplateModalOpen(false)}
+                >
+                  <Icon name="close" />
+                </button>
               </div>
-              <p className="text-sm text-on-surface-variant">{chosenTemplate.body}</p>
-              {chosenTemplate.ctaLabel ? (
-                <div className="mt-3 inline-flex rounded-full bg-white px-3 py-1 text-xs font-bold text-primary shadow-sm">
-                  {chosenTemplate.ctaLabel}
+              
+              <div className="flex flex-col gap-8 md:flex-row">
+                <div className="flex-1 space-y-4">
+                  <Field label="Template">
+                    <select
+                      className="atrium-input"
+                      value={templateId}
+                      onChange={(event) => setTemplateId(event.target.value)}
+                    >
+                      {approvedTemplates.map((template) => (
+                        <option key={template.id} value={template.id}>
+                          {template.name} ({template.category})
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                  <Field label="Sender Channel">
+                    <select
+                      className="atrium-input"
+                      value={channelId}
+                      onChange={(event) => setChannelId(event.target.value)}
+                    >
+                      {props.data.channels.map((channel) => (
+                        <option key={channel.id} value={channel.id}>
+                          {channel.name} · {channel.whatsappNumber}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                  
+                  {Array.isArray(chosenTemplate?.placeholders) && chosenTemplate.placeholders.length > 0 && (
+                    <div className="mt-4 space-y-3">
+                      <span className="text-xs font-bold uppercase tracking-wider text-outline">Placeholder Values</span>
+                      {chosenTemplate.placeholders.map((ph, idx) => (
+                        <input
+                          key={idx}
+                          className="atrium-input text-sm"
+                          placeholder={`Value for ${ph}...`}
+                          value={templateVariables[idx] || ""}
+                          onChange={(e) => {
+                            const newVars = [...templateVariables];
+                            newVars[idx] = e.target.value;
+                            setTemplateVariables(newVars);
+                          }}
+                        />
+                      ))}
+                    </div>
+                  )}
+                  
+                  <div className="pt-4">
+                    <button
+                      className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3 font-bold text-on-primary shadow-lg shadow-primary/30 transition-all hover:bg-primary/90"
+                      onClick={() => void sendTemplate()}
+                    >
+                      <Icon name="schedule_send" /> Send Template Now
+                    </button>
+                  </div>
                 </div>
-              ) : null}
+                
+                <div className="flex justify-center md:w-[320px]">
+                  <TemplateLivePreview template={chosenTemplate} variables={templateVariables} />
+                </div>
+              </div>
             </div>
-          ) : null}
+          )}
+          
           <div className="flex items-end gap-3 rounded-2xl border border-outline-variant/10 bg-surface-container-low p-2 pl-4">
-            <button className="p-2 text-slate-400 transition-colors hover:text-primary">
-              <Icon name="add_circle" />
+            <button 
+              className="group relative p-2 text-slate-400 transition-colors hover:text-primary"
+              onClick={() => setTemplateModalOpen(!isTemplateModalOpen)}
+            >
+              <Icon name="quick_reference_all" />
+              <div className="pointer-events-none absolute bottom-full left-1/2 mb-2 w-max -translate-x-1/2 opacity-0 transition-opacity group-hover:opacity-100 rounded bg-on-surface px-2 py-1 text-[10px] text-surface">
+                Use Template
+              </div>
             </button>
             <textarea
               className="max-h-32 flex-1 resize-none border-none bg-transparent py-2 text-sm focus:ring-0"
@@ -726,14 +811,16 @@ function InboxPage(props: {
 
 function CampaignsPage(props: { data: BootstrapData; onRefresh: (preferredConversationId?: string | null) => Promise<void> }) {
   const [name, setName] = useState("Seasonal Promo Spring");
-  const [templateId, setTemplateId] = useState(props.data.templates[0]?.id ?? "");
+  const approvedTemplates = props.data.templates.filter((t) => t.twilioContentSid);
+  const [templateId, setTemplateId] = useState(approvedTemplates[0]?.id ?? "");
   const [channelId, setChannelId] = useState(props.data.channels[0]?.id ?? "");
   const [recipientMode, setRecipientMode] = useState<Campaign["recipientMode"]>("segments");
   const [recipientIds, setRecipientIds] = useState<string[]>(props.data.segments[0] ? [props.data.segments[0].id] : []);
   const [scheduledAt, setScheduledAt] = useState("");
+  const [templateVariables, setTemplateVariables] = useState<string[]>([]);
   const [feedback, setFeedback] = useState<string | null>(null);
 
-  const selectedTemplate = props.data.templates.find((template) => template.id === templateId) ?? props.data.templates[0];
+  const selectedTemplate = approvedTemplates.find((template) => template.id === templateId) ?? approvedTemplates[0];
   const previewContact = props.data.contacts[0];
   const recipientOptions =
     recipientMode === "contacts"
@@ -759,11 +846,13 @@ function CampaignsPage(props: { data: BootstrapData; onRefresh: (preferredConver
         channelId,
         recipientMode,
         recipientIds,
-        scheduledAt: scheduledAt || null
+        scheduledAt: scheduledAt || null,
+        variables: templateVariables
       })
     });
     setFeedback(scheduledAt ? "Campaign queued successfully." : "Campaign launched successfully.");
     setScheduledAt("");
+    setTemplateVariables([]);
     await props.onRefresh();
   }
 
@@ -801,12 +890,18 @@ function CampaignsPage(props: { data: BootstrapData; onRefresh: (preferredConver
         <div className="col-span-12 space-y-6 xl:col-span-7">
           <div className="rounded-xl bg-surface-container-low p-6">
             <SectionTitle icon="grid_view" title="Select Approved Template" />
-            <div className="space-y-3">
-              {props.data.templates.map((template) => {
-                const active = template.id === templateId;
-                return (
-                  <button
-                    className={`flex w-full items-center justify-between rounded-xl p-4 text-left transition-all ${
+            
+            {approvedTemplates.length === 0 ? (
+              <div className="rounded-xl border border-warning/20 bg-warning-container p-4 text-sm font-medium text-on-warning-container">
+                You have no approved Twilio templates synced. Go to Templates to sync from Twilio.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {approvedTemplates.map((template) => {
+                  const active = template.id === templateId;
+                  return (
+                    <button
+                      className={`flex w-full items-center justify-between rounded-xl p-4 text-left transition-all ${
                       active
                         ? "border-l-4 border-primary bg-surface-container-lowest shadow-sm"
                         : "bg-surface-container hover:bg-surface-container-high"
@@ -924,17 +1019,28 @@ function CampaignsPage(props: { data: BootstrapData; onRefresh: (preferredConver
           </div>
 
           <div className="rounded-xl bg-surface-container-low p-6">
-            <SectionTitle icon="hub" title="Workflow Notes" />
-            <div className="grid gap-4 md:grid-cols-2">
-              {props.data.automations.slice(0, 4).map((automation) => (
-                <div className="rounded-xl bg-surface-container-lowest p-4" key={automation.id}>
-                  <p className="text-xs font-bold uppercase tracking-[0.2em] text-outline">{automation.triggerType.replaceAll("_", " ")}</p>
-                  <h4 className="mt-2 font-headline text-base font-bold text-on-surface">{automation.name}</h4>
-                  <p className="mt-1 text-sm text-on-surface-variant">
-                    Sends {props.data.templates.find((template) => template.id === automation.templateId)?.name ?? "template"} after {automation.delayMinutes} minutes.
-                  </p>
+            <SectionTitle icon="data_object" title="Template Variables" />
+            <div className="space-y-4">
+              {Array.isArray(selectedTemplate?.placeholders) && selectedTemplate.placeholders.length > 0 ? (
+                selectedTemplate.placeholders.map((ph, idx) => (
+                  <Field key={idx} label={`Variable {{${idx + 1}}} (${ph})`}>
+                    <input
+                      className="atrium-input"
+                      placeholder={`Dynamic value for ${ph}`}
+                      value={templateVariables[idx] || ""}
+                      onChange={(e) => {
+                        const newVars = [...templateVariables];
+                        newVars[idx] = e.target.value;
+                        setTemplateVariables(newVars);
+                      }}
+                    />
+                  </Field>
+                ))
+              ) : (
+                <div className="rounded-xl bg-surface-container-lowest p-4 text-sm text-on-surface-variant">
+                  This template does not require any dynamic variables.
                 </div>
-              ))}
+              )}
             </div>
           </div>
 
@@ -981,63 +1087,7 @@ function CampaignsPage(props: { data: BootstrapData; onRefresh: (preferredConver
         <div className="col-span-12 xl:col-span-5">
           <div className="sticky top-24 mx-auto w-full max-w-sm">
             <div className="rounded-[3rem] border-4 border-surface-dim bg-surface-container-highest p-4 shadow-2xl">
-              <div className="relative flex h-[600px] flex-col overflow-hidden rounded-[2rem] bg-background">
-                <div className="flex items-center justify-between bg-primary-container/90 px-6 pb-4 pt-10 text-white">
-                  <div className="flex items-center gap-3">
-                    <Icon name="arrow_back" />
-                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/20">
-                      <Icon className="text-lg" name="business" />
-                    </div>
-                    <div>
-                      <p className="text-xs font-bold leading-none">Global Enterprise</p>
-                      <p className="mt-0.5 text-[8px] uppercase tracking-widest opacity-80">Official Business Account</p>
-                    </div>
-                  </div>
-                  <div className="flex gap-4">
-                    <Icon className="text-sm" name="videocam" />
-                    <Icon className="text-sm" name="call" />
-                  </div>
-                </div>
-                <div className="flex flex-1 flex-col justify-end space-y-4 bg-[radial-gradient(circle_at_top_left,rgba(168,240,227,0.25),transparent_32%),linear-gradient(180deg,#f7f9fc_0%,#eef3f5_100%)] p-4">
-                  <div className="self-center rounded-full bg-white/50 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-primary">Today</div>
-                  <div className="relative self-end max-w-[85%]">
-                    <div className="relative z-10 rounded-xl rounded-br-sm bg-primary-container p-3 text-on-primary-container shadow-sm">
-                      {selectedTemplate?.mediaUrl ? (
-                        <div className="mb-3 h-32 w-full overflow-hidden rounded-lg bg-white/10">
-                          <img alt={selectedTemplate.name} className="h-full w-full object-cover" src={selectedTemplate.mediaUrl} />
-                        </div>
-                      ) : null}
-                      <h5 className="mb-1 text-sm font-bold leading-tight">{selectedTemplate?.name ?? "Campaign Template"}</h5>
-                      <p className="text-xs leading-relaxed opacity-90">{renderTemplatePreview(selectedTemplate, previewContact)}</p>
-                      <div className="mt-2 flex justify-end gap-1">
-                        <span className="text-[9px] opacity-70">10:42 AM</span>
-                        <Icon className="text-[12px] text-primary-fixed" fill name="done_all" />
-                      </div>
-                    </div>
-                    <div className="absolute -bottom-0 -right-1 h-3 w-3 bg-primary-container [clip-path:polygon(0_0,100%_0,100%_100%)]" />
-                    <div className="mt-2 space-y-1">
-                      <button className="flex w-full items-center justify-center gap-1 rounded-lg border border-outline-variant/10 bg-white/90 py-2 text-[10px] font-bold text-primary">
-                        <Icon className="text-xs" name="shopping_bag" />
-                        {selectedTemplate?.ctaLabel ?? "Open CTA"}
-                      </button>
-                      <button className="flex w-full items-center justify-center gap-1 rounded-lg border border-outline-variant/10 bg-white/90 py-2 text-[10px] font-bold text-primary">
-                        <Icon className="text-xs" name="close" />
-                        Opt Out
-                      </button>
-                    </div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 bg-background p-3">
-                  <div className="flex flex-1 items-center gap-2 rounded-full bg-surface-container px-4 py-2">
-                    <Icon className="text-lg text-outline" name="mood" />
-                    <div className="h-3 flex-1 rounded bg-outline-variant/20" />
-                    <Icon className="text-lg text-outline" name="attach_file" />
-                  </div>
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-on-primary">
-                    <Icon className="text-xl" name="mic" />
-                  </div>
-                </div>
-              </div>
+              <TemplateLivePreview template={selectedTemplate} variables={templateVariables} />
             </div>
           </div>
         </div>

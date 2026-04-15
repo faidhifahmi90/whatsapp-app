@@ -120,16 +120,26 @@ function mapApprovedTemplate(content: TwilioContentTemplate): Template {
 
 export function renderTemplate(
   template: Pick<Template, "body" | "placeholders">,
-  contact: Pick<Contact, "firstName" | "lastName" | "phone" | "email" | "company" | "customFields">
+  contact: Pick<Contact, "firstName" | "lastName" | "phone" | "email" | "company" | "customFields">,
+  customVariables?: string[]
 ) {
   const values = getContactValues(contact);
 
-  return template.body.replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (_, key) => resolvePlaceholderValue(template, key, values));
+  return template.body.replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (_, key) => {
+    const defaultVal = resolvePlaceholderValue(template, key, values);
+    if (!customVariables || customVariables.length === 0) return defaultVal;
+
+    // Typically placeholders in Twilio are "1", "2", or named.
+    // If customVariables is mapped, we match by array index relative to placeholders sequence.
+    const index = template.placeholders.indexOf(key);
+    return index >= 0 && customVariables[index] ? customVariables[index] : defaultVal;
+  });
 }
 
 export function buildContentVariables(
   template: Pick<Template, "body" | "placeholders">,
-  contact: Pick<Contact, "firstName" | "lastName" | "phone" | "email" | "company" | "customFields">
+  contact: Pick<Contact, "firstName" | "lastName" | "phone" | "email" | "company" | "customFields">,
+  customVariables?: string[]
 ) {
   const values = getContactValues(contact);
   const tokens = uniquePlaceholders(collectPlaceholderTokens(template.body));
@@ -137,7 +147,13 @@ export function buildContentVariables(
 
   return JSON.stringify(
     Object.fromEntries(
-      contentKeys.map((placeholder) => [placeholder, resolvePlaceholderValue(template, placeholder, values)])
+      contentKeys.map((placeholder) => {
+        const defaultVal = resolvePlaceholderValue(template, placeholder, values);
+        if (!customVariables || customVariables.length === 0) return [placeholder, defaultVal];
+
+        const index = template.placeholders.indexOf(placeholder);
+        return [placeholder, index >= 0 && customVariables[index] ? customVariables[index] : defaultVal];
+      })
     )
   );
 }

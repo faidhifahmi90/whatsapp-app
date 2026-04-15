@@ -166,6 +166,7 @@ async function sendTemplateMessage(input: {
   templateId: string;
   conversationId?: string;
   source?: string;
+  customVariables?: string[];
 }) {
   const contact = findContact(input.contactId);
   const channel = findChannel(input.channelId);
@@ -176,14 +177,14 @@ async function sendTemplateMessage(input: {
   }
 
   const conversationId = input.conversationId ?? openConversation(contact.id, channel.id);
-  const renderedBody = renderTemplate(template, contact);
+  const renderedBody = renderTemplate(template, contact, input.customVariables);
   const result = await sendWhatsAppMessage({
     channel,
     contact,
     body: renderedBody,
     mediaUrl: template.mediaUrl,
     contentSid: template.twilioContentSid ?? null,
-    contentVariables: template.twilioContentSid ? buildContentVariables(template, contact) : null
+    contentVariables: template.twilioContentSid ? buildContentVariables(template, contact, input.customVariables) : null
   });
 
   const message = addMessage({
@@ -658,7 +659,8 @@ app.post("/api/campaigns/send", requireAuth, async (req: SessionRequest, res) =>
         contactId: recipient.id,
         channelId: campaign.channelId,
         templateId: campaign.templateId,
-        source: `campaign:${campaign.name}`
+        source: `campaign:${campaign.name}`,
+        customVariables: Array.isArray(req.body.variables) ? req.body.variables : undefined
       });
       stats.delivered += 1;
     } catch (error) {
@@ -670,6 +672,25 @@ app.post("/api/campaigns/send", requireAuth, async (req: SessionRequest, res) =>
   updateCampaignStatus(campaign.id, "sent", stats);
   refreshClients("campaign");
   return res.json({ campaignId: campaign.id, stats });
+});
+
+app.post("/api/conversations/:id/messages/template", requireAuth, async (req: SessionRequest, res) => {
+  const conversationId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  
+  if (!req.body.templateId) {
+    return res.status(400).json({ error: "Missing templateId" });
+  }
+
+  const result = await sendTemplateMessage({
+    contactId: req.body.contactId,
+    channelId: req.body.channelId,
+    templateId: req.body.templateId,
+    conversationId,
+    source: "direct_template",
+    customVariables: Array.isArray(req.body.variables) ? req.body.variables : undefined
+  });
+
+  return res.json({ success: true, result });
 });
 
 app.post("/api/automations", requireAuth, (req: SessionRequest, res) => {
@@ -801,4 +822,24 @@ app.use((error: Error, _req: Request, res: Response, _next: NextFunction) => {
 
 server.listen(port, "0.0.0.0", () => {
   console.log(`WhatsApp center listening on http://0.0.0.0:${port}`);
+  
+  if (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN) {
+    fetchApprovedTemplatesFromTwilio()
+      .then((result) => {
+        if (result.synced) {
+          result.templates.forEach((t) => upsertTemplate({
+            name: t.name,
+            category: t.category,
+            body: t.body,
+            placeholders: t.placeholders,
+            mediaUrl: t.mediaUrl,
+            ctaLabel: t.ctaLabel,
+            ctaUrl: t.ctaUrl,
+            twilioContentSid: t.twilioContentSid
+          }));
+          console.log(`Synced ${result.templates.length} templates from Twilio`);
+        }
+      })
+      .catch((err) => console.error("Error auto-syncing templates from Twilio", err));
+  }
 });
