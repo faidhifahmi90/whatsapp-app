@@ -1759,146 +1759,222 @@ function ContactsPage(props: {
 
 function AnalyticsPage(props: { data: BootstrapData }) {
   const analytics = useMemo(() => buildAnalyticsSummary(props.data), [props.data]);
+  
+  const availableWidgets = [
+    { id: "overview", label: "Metrics Overview" },
+    { id: "funnel", label: "Conversion Funnel" },
+    { id: "trends", label: "Engagement Trends" },
+    { id: "campaigns", label: "Active Campaigns" }
+  ];
+  const [visibleWidgets, setVisibleWidgets] = useState(["overview", "funnel", "trends", "campaigns"]);
+  const [isEditing, setIsEditing] = useState(false);
+
+  const toggleWidget = (id: string) => {
+    setVisibleWidgets(prev => prev.includes(id) ? prev.filter(w => w !== id) : [...prev, id]);
+  };
 
   return (
     <div className="px-8 pb-12 pt-8">
-      <div className="mb-10 flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
+      <div className="mb-10 flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between border-b border-outline-variant/20 pb-6">
         <div className="space-y-1">
-          <h1 className="font-headline text-[2.75rem] font-extrabold leading-none tracking-tight text-primary">Campaign Analytics</h1>
-          <p className="font-medium text-on-surface-variant">Performance insights for the current live workspace snapshot</p>
+          <h1 className="font-headline text-[2.75rem] font-medium leading-none tracking-tight text-on-surface">Analytics</h1>
+          <p className="font-medium text-on-surface-variant">Real-time performance metrics</p>
         </div>
         <div className="flex gap-3">
-          <button className="flex items-center gap-2 rounded-xl bg-surface-container-lowest px-5 py-2.5 text-sm font-semibold text-primary outline outline-1 outline-outline-variant/20 transition-all hover:bg-slate-50">
+          <button 
+            onClick={() => setIsEditing(!isEditing)}
+            className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-all ${isEditing ? 'bg-primary text-on-primary' : 'bg-surface-container-low text-on-surface hover:bg-surface-container'}`}
+          >
+            <Icon className="text-lg" name="dashboard_customize" />
+            {isEditing ? "Done Editing" : "Customize Widgets"}
+          </button>
+          <button className="flex items-center gap-2 rounded-lg bg-surface-container-lowest px-4 py-2 text-sm font-semibold text-on-surface border border-outline-variant/30 transition-all hover:bg-surface-container-low">
             <Icon className="text-lg" name="calendar_today" />
             Last 30 Days
-          </button>
-          <button className="flex items-center gap-2 rounded-xl bg-primary px-6 py-2.5 text-sm font-bold text-on-primary shadow-lg shadow-primary/20 transition-all hover:opacity-90">
-            <Icon className="text-lg" name="download" />
-            Export Report
           </button>
         </div>
       </div>
 
-      <section className="mb-10 grid gap-6 md:grid-cols-4">
-        <AnalyticsMetricCard icon="send" label="Total Sent" value={analytics.totalSent.toLocaleString()} badge="+12.5%" accent="primary" />
-        <AnalyticsMetricCard icon="done_all" label="Delivered" value={analytics.delivered.toLocaleString()} badge={`${analytics.deliveryRate}%`} accent="secondary" />
-        <AnalyticsMetricCard icon="visibility" label="Read Rate" value={analytics.readEstimate.toLocaleString()} badge={`${analytics.readRate}%`} accent="primary" />
-        <AnalyticsMetricCard icon="chat_bubble" label="Replied" value={analytics.replyEstimate.toLocaleString()} badge={`${analytics.replyRate}%`} accent="tertiary" />
-      </section>
-
-      <section className="mb-10 grid gap-8 lg:grid-cols-3">
-        <div className="relative overflow-hidden rounded-full bg-surface-container-lowest p-8 shadow-[0_32px_64px_-12px_rgba(0,69,61,0.06)] lg:col-span-2">
-          <div className="mb-8 flex items-center justify-between">
-            <div>
-              <h2 className="font-headline text-xl font-bold text-primary">Engagement Trends</h2>
-              <p className="text-sm text-on-surface-variant">Campaign activity built from recent send volume and reply movement.</p>
-            </div>
-            <div className="flex gap-2">
-              <LegendPill color="bg-primary" label="Sent" textColor="text-primary" />
-              <LegendPill color="bg-secondary" label="Read" textColor="text-secondary" />
-            </div>
-          </div>
-          <div className="flex h-64 items-end gap-2">
-            {analytics.trendBars.map((height, index) => (
-              <div className={`group relative flex-1 rounded-t-lg transition-all ${index === analytics.highlightedBar ? "bg-primary/80" : "bg-surface-container-high hover:bg-primary/20"}`} key={index} style={{ height: `${height}%` }}>
-                {index === analytics.highlightedBar ? (
-                  <div className="absolute -top-10 left-1/2 -translate-x-1/2 rounded bg-primary px-2 py-1 text-[10px] text-on-primary">
-                    {Math.round((analytics.totalSent / analytics.trendBars.length) * (height / 100)).toLocaleString()}
-                  </div>
-                ) : null}
-              </div>
+      {isEditing && (
+        <div className="mb-8 rounded-xl border border-outline-variant/30 bg-surface-container-lowest p-6 shadow-sm transform transition-all">
+          <h3 className="mb-4 text-sm font-bold uppercase tracking-widest text-on-surface-variant">Enabled Widgets</h3>
+          <div className="flex flex-wrap gap-3">
+            {availableWidgets.map(widget => (
+              <button
+                key={widget.id}
+                onClick={() => toggleWidget(widget.id)}
+                className={`flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition-colors ${visibleWidgets.includes(widget.id) ? 'border-primary bg-primary/10 text-primary' : 'border-outline-variant/30 bg-transparent text-on-surface-variant hover:border-outline-variant'}`}
+              >
+                <div className={`h-2 w-2 rounded-full ${visibleWidgets.includes(widget.id) ? 'bg-primary' : 'bg-surface-container-highest'}`} />
+                {widget.label}
+              </button>
             ))}
           </div>
-          <div className="mt-4 flex justify-between px-1 text-[10px] font-bold text-on-surface-variant">
-            <span>W1</span>
-            <span>W2</span>
-            <span>W3</span>
-            <span>W4</span>
-            <span>Now</span>
-          </div>
         </div>
+      )}
 
-        <div className="relative overflow-hidden rounded-full bg-primary p-8 text-on-primary">
-          <div className="absolute -right-16 -top-16 h-32 w-32 rounded-full bg-primary-container opacity-20" />
-          <div>
-            <h2 className="font-headline text-xl font-bold">Executive Summary</h2>
-            <p className="mb-6 mt-2 text-sm leading-relaxed text-primary-fixed/80">
-              Delivery reliability remains strong, and reply activity is concentrated in the same campaigns driving the highest template engagement.
-            </p>
-            <div className="space-y-4">
-              <ProgressCard label="Conversion Goal" value={Math.min(96, analytics.replyRate + 54)} />
-              <ProgressCard label="Customer Retention" value={Math.min(98, analytics.deliveryRate - 2)} secondary />
+      <div className="flex flex-col gap-8">
+        {visibleWidgets.includes("overview") && (
+          <section className="grid gap-6 md:grid-cols-4">
+            <MinimalMetricCard label="Total Sent" value={analytics.totalSent.toLocaleString()} trend="+12.5%" data={analytics.trendBars.slice(0, 7)} />
+            <MinimalMetricCard label="Delivered" value={analytics.delivered.toLocaleString()} trend={`${analytics.deliveryRate}%`} data={analytics.trendBars.slice(2, 9)} />
+            <MinimalMetricCard label="Read" value={analytics.readEstimate.toLocaleString()} trend={`${analytics.readRate}%`} data={analytics.trendBars.slice(4, 11)} />
+            <MinimalMetricCard label="Replied" value={analytics.replyEstimate.toLocaleString()} trend={`${analytics.replyRate}%`} data={analytics.trendBars.slice(5, 12)} />
+          </section>
+        )}
+
+        {visibleWidgets.includes("funnel") && (
+          <div className="rounded-2xl border border-outline-variant/20 bg-surface-container-lowest p-8 shadow-sm">
+            <h2 className="mb-6 font-headline text-lg font-semibold text-on-surface">Conversion Funnel</h2>
+            <div className="flex flex-col gap-4">
+              <FunnelStep label="Sent" value={analytics.totalSent} max={analytics.totalSent} color="bg-surface-container-highest" />
+              <FunnelStep label="Delivered" value={analytics.delivered} max={analytics.totalSent} color="bg-primary/40" />
+              <FunnelStep label="Read" value={analytics.readEstimate} max={analytics.totalSent} color="bg-primary/70" />
+              <FunnelStep label="Replied" value={analytics.replyEstimate} max={analytics.totalSent} color="bg-primary" />
             </div>
           </div>
-          <button className="mt-8 w-full rounded-xl bg-primary-fixed py-3 text-sm font-bold text-on-primary-fixed">View Full Insight Report</button>
-        </div>
-      </section>
+        )}
 
-      <section className="overflow-hidden rounded-full bg-surface-container-low">
-        <div className="flex items-center justify-between px-8 py-6">
-          <h2 className="font-headline text-xl font-bold text-primary">Recent Campaigns</h2>
-          <select className="border-none bg-transparent text-sm font-semibold text-on-surface-variant focus:ring-0">
-            <option>Sort by Date</option>
-            <option>Sort by Performance</option>
-          </select>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse">
-            <thead>
-              <tr className="bg-surface-container-high/50 text-left text-[11px] font-bold uppercase tracking-[0.1em] text-on-surface-variant">
-                <th className="px-8 py-4">Campaign Name</th>
-                <th className="px-8 py-4">Status</th>
-                <th className="px-8 py-4">Sent</th>
-                <th className="px-8 py-4">Read Rate</th>
-                <th className="px-8 py-4">ROI</th>
-                <th className="px-8 py-4 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="text-sm font-medium">
-              {props.data.campaigns.map((campaign, index) => {
-                const sent = campaign.stats.attempted || campaign.stats.delivered || (index + 1) * 1200;
-                const rate = sent ? Math.round((campaign.stats.delivered / Math.max(1, sent)) * 100) : 0;
-                const roi = (campaign.stats.delivered * 0.09 + 1).toFixed(1);
-                return (
-                  <tr className="group border-b border-surface-container-high transition-all hover:bg-surface-bright last:border-0" key={campaign.id}>
-                    <td className="px-8 py-6">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-surface-container-high text-primary transition-colors group-hover:bg-primary group-hover:text-on-primary">
-                          <Icon name={index % 3 === 0 ? "shopping_bag" : index % 3 === 1 ? "loyalty" : "notifications_active"} />
-                        </div>
-                        <div>
-                          <p className="font-bold text-on-surface">{campaign.name}</p>
-                          <p className="text-xs text-on-surface-variant">{campaign.status} • {campaign.scheduledAt ? formatLongDate(campaign.scheduledAt) : "Immediate"}</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-8 py-6">
-                      <span className={`rounded-full px-3 py-1 text-xs font-bold ${campaign.status === "sent" ? "bg-secondary/10 text-secondary" : "bg-primary/10 text-primary"}`}>
-                        {campaign.status === "sent" ? "Completed" : "Active"}
-                      </span>
-                    </td>
-                    <td className="px-8 py-6 text-on-surface-variant">{sent.toLocaleString()}</td>
-                    <td className="px-8 py-6">
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold">{rate}%</span>
-                        <div className="h-1 w-12 overflow-hidden rounded-full bg-surface-container-highest">
-                          <div className="h-full bg-primary" style={{ width: `${Math.min(rate, 100)}%` }} />
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-8 py-6 font-bold text-emerald-700">{roi}x</td>
-                    <td className="px-8 py-6 text-right">
-                      <button className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-surface-container-high hover:text-primary">
-                        <Icon name="more_vert" />
-                      </button>
-                    </td>
+        {visibleWidgets.includes("trends") && (
+          <div className="rounded-2xl border border-outline-variant/20 bg-surface-container-lowest p-8 shadow-sm">
+            <div className="mb-8 flex items-center justify-between">
+              <div>
+                <h2 className="font-headline text-lg font-semibold text-on-surface">Engagement Trends</h2>
+                <p className="text-xs text-on-surface-variant mt-1">30-day trailing activity</p>
+              </div>
+              <div className="flex gap-4 text-xs font-semibold">
+                <div className="flex items-center gap-1.5"><div className="h-2 w-2 rounded-full bg-primary" /> Sent</div>
+                <div className="flex items-center gap-1.5"><div className="h-2 w-2 rounded-full bg-primary/30" /> Read</div>
+              </div>
+            </div>
+            <div className="relative h-48 w-full flex items-end justify-between gap-1.5">
+              {analytics.trendBars.map((height, index) => (
+                <div key={index} className="group relative flex-1 h-full flex flex-col justify-end">
+                  <div className="w-full rounded-sm bg-primary/30 transition-all group-hover:bg-primary/50" style={{ height: `${height * 0.7}%` }} />
+                  <div className="w-full rounded-sm bg-primary transition-all group-hover:bg-primary/90 mt-0.5" style={{ height: `${height}%` }} />
+                  <div className="absolute -top-10 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-surface-container-highest text-on-surface text-[10px] py-1 px-2 rounded font-medium z-10 whitespace-nowrap pointer-events-none shadow-sm">
+                    {Math.round((analytics.totalSent / analytics.trendBars.length) * (height / 100)).toLocaleString()}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="mt-4 flex justify-between uppercase text-[10px] font-bold text-on-surface-variant tracking-widest border-t border-outline-variant/10 pt-4">
+              <span>Week 1</span>
+              <span>Week 2</span>
+              <span>Week 3</span>
+              <span>Week 4</span>
+            </div>
+          </div>
+        )}
+
+        {visibleWidgets.includes("campaigns") && (
+          <section className="rounded-2xl border border-outline-variant/20 bg-surface-container-lowest shadow-sm">
+            <div className="flex items-center justify-between px-8 py-6 border-b border-outline-variant/10">
+              <h2 className="font-headline text-lg font-semibold text-on-surface">Active Campaigns</h2>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse">
+                <thead>
+                  <tr className="text-left text-[10px] font-bold uppercase tracking-widest text-on-surface-variant bg-surface-container-low/50">
+                    <th className="px-8 py-4 font-medium">Campaign</th>
+                    <th className="px-8 py-4 font-medium">Status</th>
+                    <th className="px-8 py-4 font-medium">Volume</th>
+                    <th className="px-8 py-4 font-medium">Read Rate</th>
+                    <th className="px-8 py-4 font-medium text-right">ROI</th>
                   </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                </thead>
+                <tbody className="text-sm">
+                  {props.data.campaigns.map((campaign, index) => {
+                    const sent = campaign.stats.attempted || campaign.stats.delivered || (index + 1) * 1200;
+                    const rate = sent ? Math.round((campaign.stats.delivered / Math.max(1, sent)) * 100) : 0;
+                    const roi = (campaign.stats.delivered * 0.09 + 1).toFixed(1);
+                    return (
+                      <tr className="border-b border-outline-variant/5 last:border-0 hover:bg-surface-bright/50 transition-colors" key={campaign.id}>
+                        <td className="px-8 py-5">
+                          <p className="font-semibold text-on-surface">{campaign.name}</p>
+                          <p className="text-xs text-on-surface-variant mt-0.5">{campaign.scheduledAt ? formatLongDate(campaign.scheduledAt) : "Immediate"}</p>
+                        </td>
+                        <td className="px-8 py-5">
+                          <span className={`inline-flex items-center gap-1.5 text-xs font-semibold ${campaign.status === "sent" ? "text-on-surface-variant" : "text-primary"}`}>
+                            <div className={`h-1.5 w-1.5 rounded-full ${campaign.status === "sent" ? "bg-on-surface-variant/40" : "bg-primary"}`} />
+                            {campaign.status === "sent" ? "Completed" : "Active"}
+                          </span>
+                        </td>
+                        <td className="px-8 py-5 font-mono text-xs">{sent.toLocaleString()}</td>
+                        <td className="px-8 py-5">
+                          <div className="flex items-center gap-3">
+                            <span className="font-mono text-xs w-8">{rate}%</span>
+                            <div className="h-1 w-24 overflow-hidden rounded bg-surface-container-highest">
+                              <div className="h-full bg-primary transition-all" style={{ width: `${Math.min(rate, 100)}%` }} />
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-8 py-5 font-mono text-xs font-semibold text-right">{roi}x</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function MinimalMetricCard(props: { label: string; value: string; trend: string; data: number[] }) {
+  const min = Math.min(...props.data)
+  const max = Math.max(...props.data)
+  const range = max - min || 1
+  const width = 100;
+  const height = 30;
+  const points = props.data.map((val, i) => {
+    const x = (i / (props.data.length - 1)) * width;
+    const y = height - ((val - min) / range) * height;
+    return `${x},${y}`;
+  }).join(" ");
+
+  const isPositive = !props.trend.startsWith("-");
+
+  return (
+    <div className="flex flex-col justify-between rounded-2xl border border-outline-variant/20 bg-surface-container-lowest p-6 shadow-sm hover:shadow-md transition-shadow">
+      <div className="mb-6 flex items-start justify-between">
+        <h3 className="text-xs font-bold uppercase tracking-widest text-on-surface-variant">{props.label}</h3>
+        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${isPositive ? 'bg-primary/10 text-primary' : 'bg-error/10 text-error'}`}>
+          {props.trend}
+        </span>
+      </div>
+      <div className="flex items-end justify-between gap-4">
+        <p className="font-headline text-3xl font-medium text-on-surface">{props.value}</p>
+        <div className="w-16 h-8 flex-shrink-0 opacity-70">
+          <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-full overflow-visible">
+            <polyline
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              points={points}
+              className={isPositive ? "text-primary" : "text-error"}
+              style={{ vectorEffect: 'non-scaling-stroke' }}
+            />
+          </svg>
         </div>
-      </section>
+      </div>
+    </div>
+  );
+}
+
+function FunnelStep(props: { label: string; value: number; max: number; color: string }) {
+  const percentage = Math.max(1, (props.value / props.max) * 100);
+  return (
+    <div className="flex items-center gap-4">
+      <div className="w-20 flex-shrink-0 text-xs font-semibold text-on-surface-variant uppercase tracking-wider">{props.label}</div>
+      <div className="flex-1 h-10 bg-surface-container-low rounded-lg overflow-hidden flex items-center">
+        <div className={`h-full ${props.color} transition-all duration-1000 ease-out`} style={{ width: `${percentage}%` }} />
+      </div>
+      <div className="w-20 flex-shrink-0 text-right font-mono text-sm">{props.value.toLocaleString()}</div>
     </div>
   );
 }
@@ -2416,30 +2492,6 @@ function MessageBubble(props: { message: Conversation["messages"][number]; previ
         <span className="text-[10px] text-slate-400">{formatClockTime(props.message.createdAt)}</span>
         {outgoing ? <Icon className="text-[14px] text-primary-fixed" fill name="done_all" /> : null}
       </div>
-    </div>
-  );
-}
-
-function AnalyticsMetricCard(props: { icon: string; label: string; value: string; badge: string; accent: "primary" | "secondary" | "tertiary" }) {
-  const accentStyles = {
-    primary: "bg-primary/5 text-primary",
-    secondary: "bg-secondary/5 text-secondary",
-    tertiary: "bg-tertiary/5 text-tertiary"
-  };
-
-  return (
-    <div className="rounded-full bg-surface-container-low p-6 transition-all duration-300 hover:bg-surface-container-lowest">
-      <div className="mb-4 flex items-start justify-between">
-        <div className={`flex h-12 w-12 items-center justify-center rounded-xl ${accentStyles[props.accent]}`}>
-          <Icon name={props.icon} />
-        </div>
-        <span className="flex items-center rounded-lg bg-secondary/10 px-2 py-1 text-xs font-bold text-secondary">
-          {props.badge}
-          <Icon className="ml-0.5 text-xs" name="trending_up" />
-        </span>
-      </div>
-      <h3 className="mb-1 text-xs font-bold uppercase tracking-wider text-on-surface-variant">{props.label}</h3>
-      <p className="font-headline text-3xl font-bold text-primary">{props.value}</p>
     </div>
   );
 }
