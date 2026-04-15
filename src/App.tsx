@@ -847,6 +847,7 @@ function CampaignsPage(props: { data: BootstrapData; onRefresh: (preferredConver
     if (!recipientOptions.find((item) => recipientIds.includes(item.id))) {
       setRecipientIds(recipientOptions[0] ? [recipientOptions[0].id] : []);
     }
+  const [currentStep, setCurrentStep] = useState(1);
   }, [recipientMode, recipientIds, recipientOptions]);
 
   async function launchCampaign() {
@@ -889,18 +890,35 @@ function CampaignsPage(props: { data: BootstrapData; onRefresh: (preferredConver
       </div>
 
       <div className="mb-12 hidden max-w-4xl items-center justify-between gap-4 lg:flex">
-        <WizardStep index={1} label="Template" status="selected" />
-        <div className="mx-4 h-[2px] flex-1 bg-primary-fixed" />
-        <WizardStep index={2} label="Audience" status="pending" />
-        <div className="mx-4 h-[2px] flex-1 bg-surface-container-high" />
-        <WizardStep dim index={3} label="Variables" status="locked" />
-        <div className="mx-4 h-[2px] flex-1 bg-surface-container-high" />
-        <WizardStep dim index={4} label="Launch" status="locked" />
+        <WizardStep index={1} label="Template" status={currentStep === 1 ? "selected" : "pending"} />
+        <div className={`mx-4 h-[2px] flex-1 ${currentStep >= 2 ? "bg-primary-fixed" : "bg-surface-container-high"}`} />
+        <WizardStep index={2} label="Audience" status={currentStep === 2 ? "selected" : currentStep > 2 ? "pending" : "locked"} dim={currentStep < 2} />
+        <div className={`mx-4 h-[2px] flex-1 ${currentStep >= 3 ? "bg-primary-fixed" : "bg-surface-container-high"}`} />
+        <WizardStep dim={currentStep < 3} index={3} label="Launch" status={currentStep === 3 ? "selected" : "locked"} />
       </div>
 
       <div className="grid grid-cols-12 gap-8">
-        <div className="col-span-12 space-y-6 xl:col-span-7">
-          <div className="rounded-xl bg-surface-container-low p-6">
+        <div className="col-span-12 xl:col-span-12 space-y-6">
+          {currentStep === 1 && (
+            <>
+              <div className="rounded-xl bg-surface-container-low p-6">
+                <SectionTitle icon="campaign" title="Campaign Basics" />
+                <div className="grid gap-4 md:grid-cols-2">
+                  <Field label="Campaign name">
+                    <input className="atrium-input" value={name} onChange={(event) => setName(event.target.value)} />
+                  </Field>
+                  <Field label="Dispatch Channel">
+                    <select className="atrium-input" value={channelId} onChange={(event) => setChannelId(event.target.value)}>
+                      {props.data.channels.map((channel) => (
+                        <option key={channel.id} value={channel.id}>
+                          {channel.name}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                </div>
+              </div>
+              <div className="rounded-xl bg-surface-container-low p-6">
             <SectionTitle icon="grid_view" title="Select Approved Template" />
             
             {approvedTemplates.length === 0 ? (
@@ -943,9 +961,13 @@ function CampaignsPage(props: { data: BootstrapData; onRefresh: (preferredConver
               })}
               </div>
             )}
-          </div>
+              </div>
+            )}
+            </>
+          )}
 
-          <div className="rounded-xl bg-surface-container-low p-6">
+          {currentStep === 2 && (
+            <div className="rounded-xl bg-surface-container-low p-6">
             <SectionTitle icon="person_add" title="Audience Selection" />
             <div className="grid gap-4 lg:grid-cols-2">
               <div className="rounded-xl border-2 border-dashed border-primary p-8 transition-all hover:bg-primary-fixed/5">
@@ -1009,19 +1031,7 @@ function CampaignsPage(props: { data: BootstrapData; onRefresh: (preferredConver
               </div>
             </div>
 
-            <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-              <Field label="Campaign name">
-                <input className="atrium-input" value={name} onChange={(event) => setName(event.target.value)} />
-              </Field>
-              <Field label="Channel">
-                <select className="atrium-input" value={channelId} onChange={(event) => setChannelId(event.target.value)}>
-                  {props.data.channels.map((channel) => (
-                    <option key={channel.id} value={channel.id}>
-                      {channel.name}
-                    </option>
-                  ))}
-                </select>
-              </Field>
+            <div className="mt-6 grid gap-4 md:grid-cols-2">
               <Field label="Schedule">
                 <input className="atrium-input" type="datetime-local" value={scheduledAt} onChange={(event) => setScheduledAt(event.target.value)} />
               </Field>
@@ -1029,9 +1039,13 @@ function CampaignsPage(props: { data: BootstrapData; onRefresh: (preferredConver
                 <div className="atrium-input flex items-center font-bold text-primary">{recipientEstimate} contacts</div>
               </Field>
             </div>
-          </div>
+            </div>
+          )}
 
-          <div className="rounded-xl bg-surface-container-low p-6">
+          {currentStep === 3 && (
+            <div className="grid grid-cols-12 gap-6">
+              <div className="col-span-12 xl:col-span-7 space-y-6">
+                <div className="rounded-xl bg-surface-container-low p-6">
             <SectionTitle icon="data_object" title="Template Variables" />
             <div className="space-y-4">
               {Array.isArray(selectedTemplate?.placeholders) && selectedTemplate.placeholders.length > 0 ? (
@@ -1053,11 +1067,22 @@ function CampaignsPage(props: { data: BootstrapData; onRefresh: (preferredConver
                 <div className="rounded-xl bg-surface-container-lowest p-4 text-sm text-on-surface-variant">
                   This template does not require any dynamic variables.
                 </div>
-              )}
+                  </div>
+                )}
+              </div>
+            </div>
+            
+            <div className="col-span-12 xl:col-span-5">
+              <div className="sticky top-24 mx-auto w-full max-w-sm">
+                <div className="rounded-[3rem] border-4 border-surface-dim bg-surface-container-highest p-4 shadow-2xl">
+                  <TemplateLivePreview template={selectedTemplate} variables={templateVariables} />
+                </div>
+              </div>
             </div>
           </div>
-
-          <div className="rounded-xl bg-surface-container-low p-6">
+          )}
+        </div>
+      </div>
             <SectionTitle icon="insert_chart" title="Recent Campaigns" />
             <div className="overflow-x-auto">
               <table className="w-full border-collapse">
@@ -1095,12 +1120,6 @@ function CampaignsPage(props: { data: BootstrapData; onRefresh: (preferredConver
               </table>
             </div>
           </div>
-        </div>
-
-        <div className="col-span-12 xl:col-span-5">
-          <div className="sticky top-24 mx-auto w-full max-w-sm">
-            <div className="rounded-[3rem] border-4 border-surface-dim bg-surface-container-highest p-4 shadow-2xl">
-              <TemplateLivePreview template={selectedTemplate} variables={templateVariables} />
             </div>
           </div>
         </div>
@@ -1110,28 +1129,86 @@ function CampaignsPage(props: { data: BootstrapData; onRefresh: (preferredConver
         <div className="flex flex-col gap-4 rounded-2xl border border-white/40 bg-white/80 p-4 shadow-xl backdrop-blur-md md:pointer-events-auto md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-4">
             <div className="rounded-lg bg-secondary-fixed/20 p-2 text-secondary">
-              <Icon name="verified" />
+              <Icon name="history_edu" />
             </div>
             <div>
-              <p className="text-xs font-bold text-on-surface">{selectedTemplate?.name ?? "No template selected"}</p>
+              <p className="text-xs font-bold text-on-surface">Wizard State</p>
               <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-outline">
-                Approved • {recipientEstimate} estimated recipients • {scheduledAt ? "Scheduled" : "Ready to send"}
+                Step {currentStep} of 3
               </p>
             </div>
           </div>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <button className="rounded-xl border border-outline-variant px-6 py-3 text-sm font-bold text-on-surface transition-all hover:bg-surface-container">
-              Save Draft
+            {currentStep > 1 && (
+            <button
+              className="rounded-xl border border-outline-variant px-6 py-3 text-sm font-bold text-on-surface transition-all hover:bg-surface-container"
+              onClick={() => setCurrentStep(prev => prev - 1)}
+            >
+              Back
             </button>
+            )}
+            {currentStep < 3 ? (
+            <button
+              className="group flex items-center gap-2 rounded-xl bg-primary px-8 py-3 text-sm font-bold text-on-primary shadow-lg shadow-primary/20 transition-all active:scale-95 disabled:opacity-50 disabled:grayscale"
+              onClick={() => setCurrentStep(prev => prev + 1)}
+              disabled={currentStep === 1 && !templateId}
+            >
+              Next Step
+              <Icon className="transition-transform group-hover:translate-x-1" name="arrow_forward" />
+            </button>
+            ) : (
             <button
               className="group flex items-center gap-2 rounded-xl bg-primary px-8 py-3 text-sm font-bold text-on-primary shadow-lg shadow-primary/20 transition-all active:scale-95"
-              onClick={() => void launchCampaign()}
+              onClick={() => {
+                void launchCampaign();
+                setCurrentStep(1);
+              }}
             >
               {scheduledAt ? "Queue Campaign" : "Launch Campaign"}
               <Icon className="transition-transform group-hover:translate-x-1" name="arrow_forward" />
             </button>
+            )}
           </div>
         </div>
+        
+      <div className="mt-24 xl:mt-32 w-full max-w-5xl mx-auto rounded-xl bg-surface-container-low p-6">
+        <SectionTitle icon="insert_chart" title="Recent Campaigns Engine" />
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse">
+            <thead>
+              <tr className="text-left text-[11px] font-bold uppercase tracking-[0.14em] text-on-surface-variant">
+                <th className="pb-4">Campaign</th>
+                <th className="pb-4">Status</th>
+                <th className="pb-4">Attempted</th>
+                <th className="pb-4">Delivered</th>
+                <th className="pb-4">Failed</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-outline-variant/10 text-sm">
+              {props.data.campaigns.map((campaign) => (
+                <tr key={campaign.id}>
+                  <td className="py-4 font-semibold text-on-surface">{campaign.name}</td>
+                  <td className="py-4">
+                    <span className={`rounded-full px-3 py-1 text-xs font-bold ${campaign.status === "sent" ? "bg-secondary/10 text-secondary" : "bg-primary/10 text-primary"}`}>
+                      {campaign.status}
+                    </span>
+                  </td>
+                  <td className="py-4 text-on-surface-variant">{campaign.stats.attempted}</td>
+                  <td className="py-4 text-on-surface-variant">{campaign.stats.delivered}</td>
+                  <td className="py-4 text-on-surface-variant">{campaign.stats.failed}</td>
+                </tr>
+              ))}
+              {!props.data.campaigns.length ? (
+                <tr>
+                  <td className="py-6 text-sm text-on-surface-variant" colSpan={5}>
+                    No campaigns launched yet.
+                  </td>
+                </tr>
+              ) : null}
+            </tbody>
+          </table>
+        </div>
+      </div>
         {feedback ? (
           <div className="mx-auto mt-3 max-w-fit rounded-full bg-primary px-4 py-2 text-xs font-bold uppercase tracking-[0.16em] text-on-primary shadow-lg">
             {feedback}
