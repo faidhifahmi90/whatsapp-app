@@ -666,8 +666,9 @@ app.post("/api/templates/sync-approved", requireAuth, async (_req: SessionReques
 });
 
 app.post("/api/campaigns/send", requireAuth, async (req: SessionRequest, res) => {
-  const campaign = createCampaign({
-    name: req.body.name,
+  try {
+    const campaign = createCampaign({
+      name: req.body.name,
     templateId: req.body.templateId,
     channelId: req.body.channelId,
     recipientMode: req.body.recipientMode,
@@ -707,15 +708,20 @@ app.post("/api/campaigns/send", requireAuth, async (req: SessionRequest, res) =>
     }
   }
 
-  updateCampaignStatus(campaign.id, "sent", stats);
-  refreshClients("campaign");
-  return res.json({ campaignId: campaign.id, stats });
+    updateCampaignStatus(campaign.id, "sent", stats);
+    refreshClients("campaign");
+    return res.json({ campaignId: campaign.id, stats });
+  } catch (err: any) {
+    console.error("Failed to process campaign POST /api/campaigns/send:", err);
+    return res.status(500).json({ error: err.message || "Failed to queue/send campaign" });
+  }
 });
 
 app.post("/api/conversations/:id/messages/template", requireAuth, async (req: SessionRequest, res) => {
-  const conversationId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-  
-  if (!req.body.templateId) {
+  try {
+    const conversationId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    
+    if (!req.body.templateId) {
     return res.status(400).json({ error: "Missing templateId" });
   }
 
@@ -728,7 +734,11 @@ app.post("/api/conversations/:id/messages/template", requireAuth, async (req: Se
     customVariables: Array.isArray(req.body.variables) ? req.body.variables : undefined
   });
 
-  return res.json({ success: true, result });
+    return res.json({ success: true, result });
+  } catch (err: any) {
+    console.error("Failed to send template message:", err);
+    return res.status(500).json({ error: err.message || "Failed to send template message" });
+  }
 });
 
 app.post("/api/automations", requireAuth, (req: SessionRequest, res) => {
