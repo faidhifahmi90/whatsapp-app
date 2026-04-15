@@ -272,155 +272,15 @@ function seedIfEmpty() {
 
   const createdAt = now();
   const adminId = randomUUID();
-  const agentId = randomUUID();
-  const retailChannelId = randomUUID();
-  const supportChannelId = randomUUID();
-  const vipSegmentId = randomUUID();
-  const leadSegmentId = randomUUID();
-  const onboardingSegmentId = randomUUID();
-  const contactA = randomUUID();
-  const contactB = randomUUID();
-  const templateWelcome = randomUUID();
-  const templatePromo = randomUUID();
-  const conversationId = randomUUID();
-  const messageId = randomUUID();
-  const passwordHash = bcrypt.hashSync("admin123", 10);
 
   db.prepare(
     "insert into users (id, name, email, password_hash, role, created_at) values (?, ?, ?, ?, ?, ?)"
-  ).run(adminId, "Admin User", "admin@example.com", passwordHash, "owner", createdAt);
-  db.prepare(
-    "insert into users (id, name, email, password_hash, role, created_at) values (?, ?, ?, ?, ?, ?)"
-  ).run(agentId, "Sales Agent", "agent@example.com", passwordHash, "agent", createdAt);
-
-  db.prepare(
-    "insert into channels (id, name, whatsapp_number, messaging_service_sid, status, created_at) values (?, ?, ?, ?, ?, ?)"
-  ).run(retailChannelId, "Retail Sales", "whatsapp:+14155238886", null, "active", createdAt);
-  db.prepare(
-    "insert into channels (id, name, whatsapp_number, messaging_service_sid, status, created_at) values (?, ?, ?, ?, ?, ?)"
-  ).run(supportChannelId, "Customer Care", "whatsapp:+14155238887", null, "active", createdAt);
-
-  db.prepare("insert into segments (id, name, color, created_at) values (?, ?, ?, ?)").run(
-    vipSegmentId,
-    "VIP",
-    "#ff9966",
-    createdAt
-  );
-  db.prepare("insert into segments (id, name, color, created_at) values (?, ?, ?, ?)").run(
-    leadSegmentId,
-    "Leads",
-    "#7ae582",
-    createdAt
-  );
-  db.prepare("insert into segments (id, name, color, created_at) values (?, ?, ?, ?)").run(
-    onboardingSegmentId,
-    "Onboarding",
-    "#6ec6ff",
-    createdAt
-  );
-
-  db.prepare(
-    `insert into contacts
-      (id, first_name, last_name, phone, email, company, labels_json, custom_fields_json, created_at, updated_at)
-     values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-  ).run(
-    contactA,
-    "Alya",
-    "Rahman",
-    "+60123456789",
-    "alya@example.com",
-    "Maple Studio",
-    JSON.stringify(["priority", "retail"]),
-    JSON.stringify({ city: "Kuala Lumpur", product: "Premium Plan" }),
-    createdAt,
-    createdAt
-  );
-  db.prepare(
-    `insert into contacts
-      (id, first_name, last_name, phone, email, company, labels_json, custom_fields_json, created_at, updated_at)
-     values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-  ).run(
-    contactB,
-    "Daniel",
-    "Tan",
-    "+60198765432",
-    "daniel@example.com",
-    "Nimbus Labs",
-    JSON.stringify(["campaign"]),
-    JSON.stringify({ city: "Johor Bahru", interest: "Automation" }),
-    createdAt,
-    createdAt
-  );
-
-  db.prepare("insert into contact_segments (contact_id, segment_id) values (?, ?)").run(contactA, vipSegmentId);
-  db.prepare("insert into contact_segments (contact_id, segment_id) values (?, ?)").run(contactA, onboardingSegmentId);
-  db.prepare("insert into contact_segments (contact_id, segment_id) values (?, ?)").run(contactB, leadSegmentId);
-
-  db.prepare(
-    `insert into templates
-      (id, name, category, body, placeholders_json, media_url, cta_label, cta_url, twilio_content_sid, created_at)
-     values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-  ).run(
-    templateWelcome,
-    "Welcome Flow",
-    "utility",
-    "Hi {{first_name}}, welcome to our WhatsApp center. Your company {{company}} is now connected with {{product}} support.",
-    JSON.stringify(["first_name", "company", "product"]),
-    null,
-    "Open Portal",
-    "https://example.com/portal",
-    null,
-    createdAt
-  );
-  db.prepare(
-    `insert into templates
-      (id, name, category, body, placeholders_json, media_url, cta_label, cta_url, twilio_content_sid, created_at)
-     values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-  ).run(
-    templatePromo,
-    "Promo Broadcast",
-    "marketing",
-    "Hello {{first_name}}, we prepared a custom package for {{company}}. Reply YES and we will activate it today.",
-    JSON.stringify(["first_name", "company"]),
-    "https://images.unsplash.com/photo-1516321497487-e288fb19713f?auto=format&fit=crop&w=800&q=80",
-    "View Offer",
-    "https://example.com/offer",
-    null,
-    createdAt
-  );
-
-  db.prepare(
-    `insert into conversations
-      (id, contact_id, channel_id, status, created_at, updated_at, last_message_at)
-     values (?, ?, ?, ?, ?, ?, ?)`
-  ).run(conversationId, contactA, retailChannelId, "open", createdAt, createdAt, createdAt);
-
-  db.prepare(
-    `insert into messages
-      (id, conversation_id, channel_id, direction, body, media_url, status, template_id, twilio_message_sid, twilio_content_sid, metadata_json, created_at)
-     values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-  ).run(
-    messageId,
-    conversationId,
-    retailChannelId,
-    "inbound",
-    "Hi, I’d like to know if I can send batch campaigns to my VIP segment.",
-    null,
-    "received",
-    null,
-    null,
-    null,
-    JSON.stringify({ source: "seed" }),
-    createdAt
-  );
+  ).run(adminId, "Master Admin", "faidhifahmi@gmail.com", "", "owner", createdAt);
 }
 
-export function verifyPassword(email: string, password: string) {
+export function getUserByEmail(email: string) {
   const row = db.prepare("select * from users where email = ?").get(email) as any;
-  if (!row) {
-    return null;
-  }
-  return bcrypt.compareSync(password, row.password_hash) ? mapUser(row) : null;
+  return row ? mapUser(row) : null;
 }
 
 export function getUserForSession(id: string) {
@@ -428,11 +288,11 @@ export function getUserForSession(id: string) {
   return row ? mapUser(row) : null;
 }
 
-export function createUser(input: { name: string; email: string; password: string; role: string }) {
+export function createUser(input: { name: string; email: string; role: string }) {
   const id = randomUUID();
   db.prepare(
     "insert into users (id, name, email, password_hash, role, created_at) values (?, ?, ?, ?, ?, ?)"
-  ).run(id, input.name, input.email, bcrypt.hashSync(input.password, 10), input.role, now());
+  ).run(id, input.name, input.email, "", input.role, now());
   return getUserForSession(id);
 }
 

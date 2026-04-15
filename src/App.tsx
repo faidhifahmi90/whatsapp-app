@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { NavLink, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
+import { GoogleOAuthProvider, GoogleLogin, CredentialResponse } from "@react-oauth/google";
 import { io } from "socket.io-client";
 import { api, ApiError } from "./api";
 import type {
@@ -11,10 +12,7 @@ import type {
   Template
 } from "./types";
 
-type LoginForm = {
-  email: string;
-  password: string;
-};
+
 
 const primaryNavItems = [
   { to: "/inbox", label: "Conversations", icon: "forum" },
@@ -92,10 +90,11 @@ export default function App() {
     };
   }, [selectedConversationId]);
 
-  async function login(form: LoginForm) {
-    await api("/api/auth/login", {
+  async function login(credentialResponse: CredentialResponse) {
+    if (!credentialResponse.credential) return;
+    await api("/api/auth/google", {
       method: "POST",
-      body: JSON.stringify(form)
+      body: JSON.stringify({ credential: credentialResponse.credential })
     });
     await refreshData();
   }
@@ -112,7 +111,11 @@ export default function App() {
   }
 
   if (!data) {
-    return <LoginPage onLogin={login} error={error} />;
+    return (
+      <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID ?? ""}>
+        <LoginPage onLogin={login} error={error} />
+      </GoogleOAuthProvider>
+    );
   }
 
   return (
@@ -127,26 +130,8 @@ export default function App() {
   );
 }
 
-function LoginPage(props: { onLogin: (form: LoginForm) => Promise<void>; error: string | null }) {
-  const [form, setForm] = useState<LoginForm>({
-    email: "admin@example.com",
-    password: "admin123"
-  });
-  const [submitting, setSubmitting] = useState(false);
+function LoginPage(props: { onLogin: (credential: CredentialResponse) => Promise<void>; error: string | null }) {
   const [error, setError] = useState<string | null>(props.error);
-
-  async function handleSubmit(event: FormEvent) {
-    event.preventDefault();
-    try {
-      setSubmitting(true);
-      setError(null);
-      await props.onLogin(form);
-    } catch (caughtError) {
-      setError(caughtError instanceof Error ? caughtError.message : "Login failed");
-    } finally {
-      setSubmitting(false);
-    }
-  }
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-background px-6 py-12 text-on-surface">
@@ -178,50 +163,29 @@ function LoginPage(props: { onLogin: (form: LoginForm) => Promise<void>; error: 
           <div className="mb-8 space-y-2">
             <p className="font-label text-xs font-bold uppercase tracking-[0.3em] text-outline">Atrium Access</p>
             <h2 className="font-headline text-3xl font-extrabold text-primary">Enter shared workspace</h2>
-            <p className="text-sm text-on-surface-variant">Seeded credentials are prefilled so you can preview the full product immediately.</p>
+            <p className="text-sm text-on-surface-variant">Sign in securely with your Google Workspace account to begin.</p>
           </div>
-          <form className="space-y-5" onSubmit={handleSubmit}>
-            <label className="block space-y-2">
-              <span className="text-sm font-semibold text-on-surface">Email</span>
-              <input
-                className="w-full rounded-2xl border-outline-variant/20 bg-surface-container-low px-4 py-3 text-sm focus:border-primary focus:ring-primary/20"
-                value={form.email}
-                onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))}
-              />
-            </label>
-            <label className="block space-y-2">
-              <span className="text-sm font-semibold text-on-surface">Password</span>
-              <input
-                className="w-full rounded-2xl border-outline-variant/20 bg-surface-container-low px-4 py-3 text-sm focus:border-primary focus:ring-primary/20"
-                type="password"
-                value={form.password}
-                onChange={(event) => setForm((current) => ({ ...current, password: event.target.value }))}
-              />
-            </label>
-            {error ? (
-              <div className="rounded-2xl border border-error/20 bg-error-container px-4 py-3 text-sm font-semibold text-on-error-container">
-                {error}
-              </div>
-            ) : null}
-            <button
-              className="flex w-full items-center justify-center gap-2 rounded-2xl bg-primary px-5 py-4 font-headline text-sm font-bold text-on-primary shadow-lg shadow-primary/20 transition-all hover:opacity-90 active:scale-[0.99]"
-              disabled={submitting}
-              type="submit"
-            >
-              <Icon name="arrow_forward" className="text-lg" />
-              {submitting ? "Signing in…" : "Enter dashboard"}
-            </button>
-          </form>
-          <div className="mt-6 grid gap-3 rounded-[1.5rem] bg-surface-container-low p-4 text-xs text-on-surface-variant">
-            <div className="flex items-center justify-between">
-              <span>Admin</span>
-              <strong className="text-on-surface">admin@example.com / admin123</strong>
-            </div>
-            <div className="flex items-center justify-between">
-              <span>Agent</span>
-              <strong className="text-on-surface">agent@example.com / admin123</strong>
-            </div>
+          
+          <div className="flex flex-col items-stretch gap-4">
+            <GoogleLogin
+              onSuccess={(credentialResponse) => {
+                setError(null);
+                props.onLogin(credentialResponse).catch((caughtError) => {
+                  setError(caughtError instanceof Error ? caughtError.message : "Login failed");
+                });
+              }}
+              onError={() => setError("Google Authentication Failed")}
+              useOneTap
+              theme="filled_black"
+              shape="pill"
+            />
           </div>
+
+          {error ? (
+            <div className="mt-6 rounded-2xl border border-error/20 bg-error-container px-4 py-3 text-sm font-semibold text-on-error-container">
+              {error}
+            </div>
+          ) : null}
         </div>
       </div>
     </div>
@@ -1907,7 +1871,6 @@ function SettingsStudioPage(props: { data: BootstrapData; onRefresh: (preferredC
   const [userForm, setUserForm] = useState({
     name: "",
     email: "",
-    password: "",
     role: "agent"
   });
 
@@ -1934,7 +1897,6 @@ function SettingsStudioPage(props: { data: BootstrapData; onRefresh: (preferredC
     setUserForm({
       name: "",
       email: "",
-      password: "",
       role: "agent"
     });
     await props.onRefresh();
@@ -1978,9 +1940,6 @@ function SettingsStudioPage(props: { data: BootstrapData; onRefresh: (preferredC
             </Field>
             <Field label="Email">
               <input className="atrium-input" value={userForm.email} onChange={(event) => setUserForm((current) => ({ ...current, email: event.target.value }))} />
-            </Field>
-            <Field label="Password">
-              <input className="atrium-input" type="password" value={userForm.password} onChange={(event) => setUserForm((current) => ({ ...current, password: event.target.value }))} />
             </Field>
             <Field label="Role">
               <select className="atrium-input" value={userForm.role} onChange={(event) => setUserForm((current) => ({ ...current, role: event.target.value }))}>

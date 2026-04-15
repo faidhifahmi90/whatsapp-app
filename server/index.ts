@@ -41,7 +41,7 @@ import {
   updateMessageStatus,
   updateTemplateTwilioSid,
   upsertContact,
-  verifyPassword
+  getUserByEmail
 } from "./db.js";
 import {
   buildContentVariables,
@@ -51,6 +51,7 @@ import {
   syncTemplateToTwilioContent
 } from "./twilio.js";
 import { SqliteSessionStore } from "./session-store.js";
+import { OAuth2Client } from "google-auth-library";
 
 type SessionRequest = Request & {
   session: session.Session &
@@ -61,6 +62,7 @@ type SessionRequest = Request & {
 
 const app = express();
 const server = createServer(app);
+const oauthClient = new OAuth2Client(process.env.VITE_GOOGLE_CLIENT_ID);
 const io = new Server(server, {
   cors: {
     origin: true,
@@ -359,19 +361,34 @@ app.get("/api/health", (_req, res) => {
   });
 });
 
-app.post("/api/auth/login", (req: SessionRequest, res) => {
-  const { email, password } = req.body as { email?: string; password?: string };
-  if (!email || !password) {
-    return res.status(400).json({ error: "Email and password are required" });
+app.post("/api/auth/google", async (req: SessionRequest, res) => {
+  const { credential } = req.body as { credential?: string };
+  if (!credential) {
+    return res.status(400).json({ error: "Missing Google credential" });
   }
 
-  const user = verifyPassword(email, password);
-  if (!user) {
-    return res.status(401).json({ error: "Invalid credentials" });
-  }
+  try {
+    const ticket = await oauthClient.verifyIdToken({
+      idToken: credential,
+      audience: process.env.VITE_GOOGLE_CLIENT_ID
+    });
+    const payload = ticket.getPayload();
+    
+    if (!payload?.email) {
+      return res.status(400).json({ error: "Invalid Google token payload" });
+    }
+    
+    const user = getUserByEmail(payload.email);
+    if (!user) {
+      return res.status(403).json({ error: "Email not whitelisted in the system." });
+    }
 
-  req.session.userId = user.id;
-  return res.json({ user });
+    req.session.userId = user.id;
+    return res.json({ user });
+  } catch (error) {
+    console.error("Google Auth Error:", error);
+    return res.status(401).json({ error: "Invalid Google credential" });
+  }
 });
 
 app.post("/api/auth/logout", (req: SessionRequest, res) => {
@@ -658,7 +675,6 @@ app.post("/api/users", requireAuth, (req: SessionRequest, res) => {
   const user = createUser({
     name: req.body.name,
     email: req.body.email,
-    password: req.body.password,
     role: req.body.role ?? "agent"
   });
   refreshClients("users");
