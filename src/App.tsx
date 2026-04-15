@@ -50,6 +50,20 @@ export default function App() {
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [googleClientId, setGoogleClientId] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function initClientConfig() {
+      try {
+        const response = await fetch("/api/public-config");
+        const json = await response.json();
+        setGoogleClientId(json.googleClientId);
+      } catch (err) {
+        console.error("Failed to load public config", err);
+      }
+    }
+    void initClientConfig();
+  }, []);
 
   async function refreshData(preferredConversationId?: string | null) {
     try {
@@ -106,13 +120,13 @@ export default function App() {
     setData(null);
   }
 
-  if (loading) {
+  if (loading || googleClientId === null) {
     return <div className="grid min-h-screen place-items-center bg-background text-on-surface">Loading dashboard…</div>;
   }
 
   if (!data) {
     return (
-      <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID ?? ""}>
+      <GoogleOAuthProvider clientId={googleClientId}>
         <LoginPage onLogin={login} error={error} />
       </GoogleOAuthProvider>
     );

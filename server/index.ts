@@ -361,6 +361,12 @@ app.get("/api/health", (_req, res) => {
   });
 });
 
+app.get("/api/public-config", (_req, res) => {
+  res.json({
+    googleClientId: process.env.VITE_GOOGLE_CLIENT_ID ?? ""
+  });
+});
+
 app.post("/api/auth/google", async (req: SessionRequest, res) => {
   const { credential } = req.body as { credential?: string };
   if (!credential) {
