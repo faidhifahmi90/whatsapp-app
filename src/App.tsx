@@ -785,14 +785,23 @@ function InboxPage(props: {
       <div className="w-full overflow-y-auto border-t border-slate-100 bg-surface-container-high p-6 xl:w-72 xl:border-l xl:border-t-0">
         {selectedConversation ? (
           <>
-            <div className="flex flex-col items-center text-center">
-              <div className="mb-4 ring-4 ring-surface-container-lowest">
-                <Avatar label={fullName(selectedConversation.contact)} size="h-20 w-20 rounded-[1.5rem]" />
-              </div>
-              <h4 className="font-headline text-lg font-bold text-on-surface">{fullName(selectedConversation.contact)}</h4>
-              <p className="text-xs text-slate-500">
+            <div className="flex flex-col text-left">
+              <h4 className="font-headline text-xl font-bold text-on-surface mb-1">{fullName(selectedConversation.contact)}</h4>
+              <p className="text-sm text-slate-500 mb-1">
                 {deriveContactRole(selectedConversation.contact)}, {selectedConversation.contact.company || "tomorrowX Client"}
               </p>
+              {(() => {
+                const ic = selectedConversation.contact.customFields.identification_number;
+                if (!ic) return null;
+                const match = String(ic).match(/^(\d{2})/);
+                if (!match) return null;
+                const yy = parseInt(match[1], 10);
+                const birthYear = yy > 26 ? 1900 + yy : 2000 + yy;
+                const age = 2026 - birthYear;
+                return (
+                 <p className="text-sm font-semibold text-slate-700">Age: <span className="font-bold text-primary">{age}</span> <span className="font-normal text-slate-400">({ic})</span></p>
+                );
+              })()}
               <div className="mt-3 flex gap-2">
                 <span className="rounded-full bg-primary/10 px-3 py-1 text-[10px] font-bold uppercase tracking-tight text-primary">VIP Tier</span>
                 <span className="rounded-full bg-secondary/10 px-3 py-1 text-[10px] font-bold uppercase tracking-tight text-secondary">Key Account</span>
@@ -945,9 +954,16 @@ function CampaignsPage(props: { data: BootstrapData; onRefresh: (preferredConver
                       </select>
                     </Field>
                     {selectedTemplate?.mediaUrl && (
-                      <Field label="Dynamic Web Image Link (Optional, overrides template header)">
-                        <input className="atrium-input" placeholder="https://example.com/image.png" value={headerMediaUrl} onChange={(e) => setHeaderMediaUrl(e.target.value)} />
-                      </Field>
+                      <div className="flex flex-col">
+                        <Field label="Dynamic Web Image Link (Optional, overrides template header)">
+                          <input className="atrium-input" placeholder="https://example.com/image.png" value={headerMediaUrl} onChange={(e) => setHeaderMediaUrl(e.target.value)} />
+                        </Field>
+                        {selectedTemplate.mediaUrl.includes('{{') && (
+                          <p className="mt-2 text-xs text-slate-500">
+                            Template media link: <code className="bg-slate-100 px-1 rounded text-primary">{selectedTemplate.mediaUrl}</code>
+                          </p>
+                        )}
+                      </div>
                     )}
                   </div>
                 )}
