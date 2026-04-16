@@ -238,6 +238,7 @@ export function initDb() {
       stats_json text,
       recurring_interval text not null default 'none',
       recurring_until text,
+      metadata_json text,
       created_at text not null
     );
 
@@ -275,6 +276,9 @@ export function initDb() {
   } catch (e) {}
   try {
     db.prepare(`alter table campaigns add column recurring_until text`).run();
+  } catch (e) {}
+  try {
+    db.prepare(`alter table campaigns add column metadata_json text`).run();
   } catch (e) {}
 
   seedIfEmpty();
@@ -753,6 +757,7 @@ export function listCampaigns(): Campaign[] {
     stats: parseJson(row.stats_json, { attempted: 0, delivered: 0, failed: 0 }),
     recurringInterval: row.recurring_interval,
     recurringUntil: row.recurring_until,
+    metadata: row.metadata_json ? parseJson(row.metadata_json, {}) : undefined,
     createdAt: row.created_at
   }));
 }
@@ -767,12 +772,16 @@ export function createCampaign(input: {
   status: string;
   recurringInterval: "none" | "daily" | "weekly" | "monthly";
   recurringUntil?: string | null;
+  metadata?: {
+    variables?: string[];
+    headerMediaUrl?: string;
+  };
 }) {
   const id = randomUUID();
   db.prepare(
     `insert into campaigns
-      (id, name, template_id, channel_id, recipient_mode, recipient_ids_json, status, scheduled_at, stats_json, recurring_interval, recurring_until, created_at)
-     values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      (id, name, template_id, channel_id, recipient_mode, recipient_ids_json, status, scheduled_at, stats_json, recurring_interval, recurring_until, metadata_json, created_at)
+     values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).run(
     id,
     input.name,
@@ -785,6 +794,7 @@ export function createCampaign(input: {
     JSON.stringify({ attempted: 0, delivered: 0, failed: 0 }),
     input.recurringInterval,
     input.recurringUntil ?? null,
+    input.metadata ? JSON.stringify(input.metadata) : null,
     now()
   );
   return listCampaigns().find((c) => c.id === id) ?? listCampaigns()[0];

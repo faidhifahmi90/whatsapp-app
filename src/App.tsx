@@ -870,7 +870,8 @@ function CampaignsPage(props: { data: BootstrapData; onRefresh: (preferredConver
         scheduledAt: scheduledAt || null,
         recurringInterval,
         recurringUntil: recurringUntil || null,
-        variables: templateVariables
+        variables: templateVariables,
+        headerMediaUrl: headerMediaUrl || undefined
       })
     });
     setFeedback(scheduledAt ? "Campaign queued successfully." : "Campaign launched successfully.");

@@ -171,6 +171,7 @@ async function sendTemplateMessage(input: {
   conversationId?: string;
   source?: string;
   customVariables?: string[];
+  mediaUrlOverride?: string;
 }) {
   const contact = findContact(input.contactId);
   const channel = findChannel(input.channelId);
@@ -181,14 +182,18 @@ async function sendTemplateMessage(input: {
   }
 
   const conversationId = input.conversationId ?? openConversation(contact.id, channel.id);
-  const renderedBody = renderTemplate(template, contact, input.customVariables);
+  const finalMediaUrl = input.mediaUrlOverride || template.mediaUrl;
+  
+  // If the sender explicitly overrides the media url dynamically, we must bypass the static Twilio Content API template and let the classic message API map the template manually via WhatsApp.
+  const useContentAPI = template.twilioContentSid && !input.mediaUrlOverride; 
+
   const result = await sendWhatsAppMessage({
     channel,
     contact,
     body: renderedBody,
-    mediaUrl: template.mediaUrl,
-    contentSid: template.twilioContentSid ?? null,
-    contentVariables: template.twilioContentSid ? buildContentVariables(template, contact, input.customVariables) : null
+    mediaUrl: finalMediaUrl,
+    contentSid: useContentAPI ? template.twilioContentSid : null,
+    contentVariables: useContentAPI ? buildContentVariables(template, contact, input.customVariables) : null
   });
 
   const message = addMessage({
@@ -669,15 +674,19 @@ app.post("/api/campaigns/send", requireAuth, async (req: SessionRequest, res) =>
   try {
     const campaign = createCampaign({
       name: req.body.name,
-    templateId: req.body.templateId,
-    channelId: req.body.channelId,
-    recipientMode: req.body.recipientMode,
-    recipientIds: Array.isArray(req.body.recipientIds) ? req.body.recipientIds : [],
-    scheduledAt: req.body.scheduledAt ?? null,
-    status: req.body.scheduledAt ? "queued" : "sending",
-    recurringInterval: req.body.recurringInterval ?? "none",
-    recurringUntil: req.body.recurringUntil ?? null
-  });
+      templateId: req.body.templateId,
+      channelId: req.body.channelId,
+      recipientMode: req.body.recipientMode,
+      recipientIds: Array.isArray(req.body.recipientIds) ? req.body.recipientIds : [],
+      scheduledAt: req.body.scheduledAt ?? null,
+      status: req.body.scheduledAt ? "queued" : "sending",
+      recurringInterval: req.body.recurringInterval ?? "none",
+      recurringUntil: req.body.recurringUntil ?? null,
+      metadata: {
+        variables: Array.isArray(req.body.variables) ? req.body.variables : undefined,
+        headerMediaUrl: req.body.headerMediaUrl ?? undefined,
+      }
+    });
 
   if (campaign.status === "queued") {
     refreshClients("campaign");
@@ -699,7 +708,8 @@ app.post("/api/campaigns/send", requireAuth, async (req: SessionRequest, res) =>
         channelId: campaign.channelId,
         templateId: campaign.templateId,
         source: `campaign:${campaign.name}`,
-        customVariables: Array.isArray(req.body.variables) ? req.body.variables : undefined
+        customVariables: campaign.metadata?.variables,
+        mediaUrlOverride: campaign.metadata?.headerMediaUrl
       });
       stats.delivered += 1;
     } catch (error) {
@@ -949,7 +959,9 @@ let dispatcherInterval = setInterval(() => {
             contactId: recipient.id,
             channelId: campaign.channelId,
             templateId: campaign.templateId,
-            source: `campaign:${campaign.name}`
+            source: `campaign:${campaign.name}`,
+            customVariables: campaign.metadata?.variables,
+            mediaUrlOverride: campaign.metadata?.headerMediaUrl
           }).then(() => {
             engineStats.delivered += 1;
             updateCampaignStatus(campaign.id, "sent", engineStats);

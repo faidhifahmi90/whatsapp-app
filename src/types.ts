@@ -88,6 +88,10 @@ export type Campaign = {
     delivered: number;
     failed: number;
   };
+  metadata?: {
+    variables?: string[];
+    headerMediaUrl?: string;
+  };
   createdAt: string;
 };
 
