@@ -13,6 +13,15 @@ export type Channel = {
   status: string;
 };
 
+export type Note = {
+  id: string;
+  contactId: string;
+  author: string;
+  body: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type Segment = {
   id: string;
   name: string;
@@ -30,6 +39,7 @@ export type Contact = {
   labels: string[];
   customFields: Record<string, string>;
   segmentIds: string[];
+  notes: Note[];
   createdAt: string;
 };
 
@@ -64,7 +74,8 @@ export type Conversation = {
   id: string;
   contactId: string;
   channelId: string;
-  status: string;
+  status: "open" | "kiv" | "resolved" | "attention" | "pending";
+  unreadCount?: number;
   updatedAt: string;
   lastMessageAt: string;
   contact: Contact;

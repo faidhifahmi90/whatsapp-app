@@ -111,6 +111,12 @@ function mapContact(row: DbContactRow): Contact {
     )
     .all(row.id) as Array<{ segment_id: string }>;
 
+  const notesRows = db
+    .prepare(
+      `select id, contact_id, author, body, created_at, updated_at from notes where contact_id = ? order by created_at desc`
+    )
+    .all(row.id) as any[];
+
   return {
     id: row.id,
     firstName: row.first_name,
@@ -121,6 +127,14 @@ function mapContact(row: DbContactRow): Contact {
     labels: parseJson<string[]>(row.labels_json, []),
     customFields: parseJson<Record<string, string>>(row.custom_fields_json, {}),
     segmentIds: segmentRows.map((segment) => segment.segment_id),
+    notes: notesRows.map((n) => ({
+      id: n.id,
+      contactId: n.contact_id,
+      author: n.author,
+      body: n.body,
+      createdAt: n.created_at,
+      updatedAt: n.updated_at
+    })),
     createdAt: row.created_at
   };
 }
@@ -186,6 +200,15 @@ export function initDb() {
       contact_id text not null,
       segment_id text not null,
       primary key (contact_id, segment_id)
+    );
+
+    create table if not exists notes (
+      id text primary key,
+      contact_id text not null,
+      author text not null,
+      body text not null,
+      created_at text not null,
+      updated_at text not null
     );
 
     create table if not exists templates (
@@ -648,6 +671,26 @@ export function openConversation(contactId: string, channelId: string) {
   return id;
 }
 
+export function updateConversationStatus(id: string, status: string) {
+  db.prepare("update conversations set status = ?, updated_at = ? where id = ?").run(status, now(), id);
+}
+
+export function createNote(contactId: string, author: string, body: string) {
+  const id = randomUUID();
+  const timestamp = now();
+  db.prepare("insert into notes (id, contact_id, author, body, created_at, updated_at) values (?, ?, ?, ?, ?, ?)").run(id, contactId, author, body, timestamp, timestamp);
+  return { id, contactId, author, body, createdAt: timestamp, updatedAt: timestamp };
+}
+
+export function updateNote(id: string, body: string) {
+  const timestamp = now();
+  db.prepare("update notes set body = ?, updated_at = ? where id = ?").run(body, timestamp, id);
+}
+
+export function deleteNote(id: string) {
+  db.prepare("delete from notes where id = ?").run(id);
+}
+
 export function addMessage(input: {
   conversationId: string;
   channelId: string;
@@ -681,11 +724,21 @@ export function addMessage(input: {
     timestamp
   );
 
+  const existing = db.prepare("select status, last_message_at from conversations where id = ?").get(input.conversationId) as any;
+
   db.prepare("update conversations set updated_at = ?, last_message_at = ? where id = ?").run(
     timestamp,
     timestamp,
     input.conversationId
   );
+
+  if (existing && existing.status === 'resolved') {
+    const lastTime = new Date(existing.last_message_at).getTime();
+    const nowTime = new Date(timestamp).getTime();
+    if ((nowTime - lastTime) / (1000 * 60 * 60) > 24) {
+      db.prepare(`update conversations set status = 'open' where id = ?`).run(input.conversationId);
+    }
+  }
 
   const row = db.prepare("select * from messages where id = ?").get(id);
   return mapMessage(row);
@@ -722,7 +775,7 @@ export function listConversations(): Conversation[] {
         id: row.id,
         contactId: row.contact_id,
         channelId: row.channel_id,
-        status: row.status,
+        status: row.status as Conversation["status"],
         updatedAt: row.updated_at,
         lastMessageAt: row.last_message_at,
         contact,

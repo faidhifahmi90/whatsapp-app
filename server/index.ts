@@ -460,6 +460,41 @@ app.post("/api/contacts", requireAuth, async (req: SessionRequest, res) => {
   refreshClients("contacts");
   res.json({ contact });
 });
+
+app.post("/api/contacts/:id/notes", requireAuth, (req: SessionRequest, res) => {
+  const contactId = req.params.id;
+  const { body } = req.body;
+  if (!body?.trim()) return res.status(400).json({ error: "Note body required" });
+  
+  const note = createNote(contactId, req.user?.name ?? "System", body);
+  refreshClients("contacts");
+  res.json({ note });
+});
+
+app.put("/api/notes/:id", requireAuth, (req: SessionRequest, res) => {
+  const { body } = req.body;
+  if (!body?.trim()) return res.status(400).json({ error: "Note body required" });
+  
+  updateNote(req.params.id, body);
+  refreshClients("contacts");
+  res.json({ success: true });
+});
+
+app.delete("/api/notes/:id", requireAuth, (req: SessionRequest, res) => {
+  deleteNote(req.params.id);
+  refreshClients("contacts");
+  res.json({ success: true });
+});
+
+app.post("/api/conversations/:id/status", requireAuth, (req: SessionRequest, res) => {
+  const { status } = req.body;
+  if (!["open", "kiv", "resolved", "attention", "pending"].includes(status)) {
+    return res.status(400).json({ error: "Invalid status" });
+  }
+  updateConversationStatus(req.params.id, status);
+  refreshClients("campaign"); // using campaign identifier to bump overarching inbox/messages state
+  res.json({ success: true });
+});
 app.post("/api/contacts/import/preview", requireAuth, upload.single("file"), (req: SessionRequest, res) => {
   if (!req.file) {
     return res.status(400).json({ error: "CSV file is required" });

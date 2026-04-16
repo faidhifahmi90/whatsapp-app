@@ -481,6 +481,82 @@ function DashboardShell(props: {
   );
 }
 
+function InternalNotesWidget(props: { contact: Contact; onRefresh: () => Promise<void> }) {
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
+  const [isAddingMode, setIsAddingMode] = useState(false);
+  const [draftBody, setDraftBody] = useState("");
+
+  const handleSave = async () => {
+    if (!draftBody.trim()) return;
+    if (editingNoteId) {
+      await api(`/api/notes/${editingNoteId}`, { method: "PUT", body: JSON.stringify({ body: draftBody }) });
+    } else {
+      await api(`/api/contacts/${props.contact.id}/notes`, { method: "POST", body: JSON.stringify({ body: draftBody }) });
+    }
+    setEditingNoteId(null);
+    setIsAddingMode(false);
+    setDraftBody("");
+    await props.onRefresh();
+  };
+
+  const handleDelete = async (id: string) => {
+    await api(`/api/notes/${id}`, { method: "DELETE" });
+    await props.onRefresh();
+  };
+
+  return (
+    <InfoCard 
+      title="Internal Notes" 
+      action={(!isAddingMode && !editingNoteId) ? "+ New" : undefined}
+      onActionClick={() => {
+        setDraftBody("");
+        setIsAddingMode(true);
+      }}
+    >
+      {(isAddingMode || editingNoteId) ? (
+        <div className="space-y-2">
+          <textarea 
+            autoFocus
+            className="atrium-input bg-surface-container w-full min-h-[60px] text-xs resize-none" 
+            placeholder="Type your note here..."
+            value={draftBody}
+            onChange={e => setDraftBody(e.target.value)}
+          />
+          <div className="flex justify-end gap-2">
+            <button onClick={() => { setIsAddingMode(false); setEditingNoteId(null); }} className="text-[10px] font-bold text-slate-400">Cancel</button>
+            <button onClick={() => void handleSave()} className="text-[10px] font-bold text-primary">Save</button>
+          </div>
+        </div>
+      ) : null}
+
+      {!isAddingMode && !editingNoteId && (!props.contact.notes || props.contact.notes.length === 0) ? (
+         <p className="text-[11px] text-slate-400 italic">No notes found.</p>
+      ) : null}
+
+      <div className="space-y-2 mt-2">
+        {props.contact.notes?.map(note => (
+          editingNoteId !== note.id && (
+            <div key={note.id} className="group relative rounded-lg bg-background p-2">
+              <p className="text-[11px] leading-snug text-on-surface whitespace-pre-wrap">{note.body}</p>
+              <span className="mt-1 block text-[9px] text-slate-400">
+                {formatRelativeChatTime(note.updatedAt)} by {note.author}
+              </span>
+              <div className="absolute right-2 top-2 hidden gap-2 bg-background pl-2 group-hover:flex">
+                <button onClick={() => { setEditingNoteId(note.id); setDraftBody(note.body); setIsAddingMode(false); }} className="text-secondary hover:text-primary">
+                  <Icon name="edit" className="text-[12px]" />
+                </button>
+                <button onClick={() => void handleDelete(note.id)} className="text-slate-400 hover:text-red-500">
+                  <Icon name="delete" className="text-[12px]" />
+                </button>
+              </div>
+            </div>
+          )
+        ))}
+      </div>
+    </InfoCard>
+  );
+}
+
 function InboxPage(props: {
   data: BootstrapData;
   selectedConversationId: string | null;
@@ -489,6 +565,8 @@ function InboxPage(props: {
   onSelectConversation: (id: string | null) => void;
 }) {
   const [messageBody, setMessageBody] = useState("");
+  const [filterStr, setFilterStr] = useState("");
+  const [filterStatus, setFilterStatus] = useState<Conversation["status"]>("open");
   const approvedTemplates = props.data.templates.filter((t) => t.twilioContentSid);
   const [templateId, setTemplateId] = useState(approvedTemplates[0]?.id ?? "");
   const [channelId, setChannelId] = useState(props.data.channels[0]?.id ?? "");
@@ -500,6 +578,32 @@ function InboxPage(props: {
     props.data.conversations.find((conversation) => conversation.id === props.selectedConversationId) ??
     props.data.conversations[0];
   const chosenTemplate = approvedTemplates.find((template) => template.id === templateId) ?? approvedTemplates[0];
+  const [headerMediaUrl, setHeaderMediaUrl] = useState(chosenTemplate?.mediaUrl || "");
+
+  const filteredConversations = useMemo(() => {
+    return props.data.conversations.filter(c => {
+      // 1. Status Check
+      if (c.status !== filterStatus) return false;
+      // 2. Search check
+      if (filterStr) {
+        const lower = filterStr.toLowerCase();
+        const contact = c.contact;
+        const phoneMatch = contact.phone.toLowerCase().includes(lower);
+        const nameMatch = fullName(contact).toLowerCase().includes(lower);
+        const labelsMatch = contact.labels.some(l => l.toLowerCase().includes(lower));
+        if (!phoneMatch && !nameMatch && !labelsMatch) return false;
+      }
+      return true;
+    });
+  }, [props.data.conversations, filterStatus, filterStr]);
+
+  useEffect(() => {
+    if (chosenTemplate?.mediaUrl) {
+      setHeaderMediaUrl(chosenTemplate.mediaUrl);
+    } else {
+      setHeaderMediaUrl("");
+    }
+  }, [chosenTemplate?.id]);
 
   useEffect(() => {
     if (!props.selectedConversationId && props.data.conversations[0]) {
@@ -541,7 +645,8 @@ function InboxPage(props: {
         contactId: selectedConversation.contactId,
         channelId,
         templateId: targetTemplateId,
-        variables: templateVariables
+        variables: templateVariables,
+        headerMediaUrl: headerMediaUrl || undefined
       })
     });
     setTemplateModalOpen(false);
@@ -561,13 +666,24 @@ function InboxPage(props: {
             <span className="rounded-full bg-primary px-2 py-0.5 text-[10px] font-bold text-on-primary">{props.unreadCount} New</span>
           </div>
           <div className="flex gap-1 rounded-xl bg-surface-container-high p-1">
-            <button className="flex-1 rounded-lg bg-surface-container-lowest py-2 text-[10px] font-bold text-primary shadow-sm">Open</button>
-            <button className="flex-1 rounded-lg py-2 text-[10px] font-semibold text-slate-500 transition-colors hover:bg-slate-200/50">Pending</button>
-            <button className="flex-1 rounded-lg py-2 text-[10px] font-semibold text-slate-500 transition-colors hover:bg-slate-200/50">Resolved</button>
+            <button onClick={() => setFilterStatus("open")} className={`flex-1 rounded-lg py-2 text-[10px] font-bold shadow-sm transition-colors ${filterStatus === "open" ? "bg-surface-container-lowest text-primary" : "text-slate-500 hover:bg-slate-200/50"}`}>Open</button>
+            <button onClick={() => setFilterStatus("kiv")} className={`flex-1 rounded-lg py-2 text-[10px] font-bold shadow-sm transition-colors ${filterStatus === "kiv" ? "bg-surface-container-lowest text-primary" : "text-slate-500 hover:bg-slate-200/50"}`}>KIV</button>
+            <button onClick={() => setFilterStatus("attention")} className={`flex-1 rounded-lg py-2 text-[10px] font-bold shadow-sm transition-colors ${filterStatus === "attention" ? "bg-surface-container-lowest text-primary" : "text-slate-500 hover:bg-slate-200/50"}`}>Attention</button>
+            <button onClick={() => setFilterStatus("pending")} className={`flex-1 rounded-lg py-2 text-[10px] font-bold shadow-sm transition-colors ${filterStatus === "pending" ? "bg-surface-container-lowest text-primary" : "text-slate-500 hover:bg-slate-200/50"}`}>Pending</button>
+            <button onClick={() => setFilterStatus("resolved")} className={`flex-1 rounded-lg py-2 text-[10px] font-bold shadow-sm transition-colors ${filterStatus === "resolved" ? "bg-surface-container-lowest text-primary" : "text-slate-500 hover:bg-slate-200/50"}`}>Resolved</button>
+          </div>
+          <div className="relative">
+            <input 
+              className="atrium-input bg-surface-container-lowest pl-9 text-sm" 
+              placeholder="Search by phone, label, name..." 
+              value={filterStr} 
+              onChange={e => setFilterStr(e.target.value)} 
+            />
+            <Icon name="search" className="absolute left-3 top-2.5 text-[18px] text-slate-400" />
           </div>
         </div>
         <div className="max-h-[24rem] flex-1 space-y-1 overflow-y-auto px-2 pb-4 xl:max-h-none">
-          {props.data.conversations.map((conversation) => {
+          {filteredConversations.map((conversation) => {
             const latest = conversation.messages[conversation.messages.length - 1];
             const active = conversation.id === selectedConversation?.id;
             return (
@@ -629,18 +745,47 @@ function InboxPage(props: {
               </h3>
               <p className="flex items-center gap-1 text-[11px] font-medium text-secondary">
                 <span className="h-1.5 w-1.5 rounded-full bg-secondary" />
-                Online • WhatsApp Business
+                Live on {selectedConversation?.channel.whatsappNumber ?? "N/A"}
               </p>
             </div>
           </div>
-          <div className="flex gap-2 self-end sm:self-auto">
+          
+          <div className="flex items-center gap-2 self-end sm:self-auto">
+            {selectedConversation && (
+              <div className="flex items-center gap-2 mr-2">
+                <span className="text-xs font-semibold text-slate-400 uppercase tracking-tight">Status:</span>
+                <select 
+                  className="atrium-input py-1.5 text-xs font-semibold text-primary w-fit bg-primary/5 border-none shadow-none"
+                  value={selectedConversation.status}
+                  onChange={async (e) => {
+                     await api(`/api/conversations/${selectedConversation.id}/status`, {
+                       method: "POST", body: JSON.stringify({ status: e.target.value })
+                     });
+                     await props.onRefresh(selectedConversation.id);
+                  }}
+                >
+                  <option value="open">Open</option>
+                  <option value="kiv">KIV</option>
+                  <option value="attention">Attention</option>
+                  <option value="pending">Pending</option>
+                  <option value="resolved">Resolved</option>
+                </select>
+              </div>
+            )}
             <button className="rounded-xl border border-outline-variant/30 p-2.5 text-slate-600 transition-colors hover:bg-slate-50">
               <Icon name="call" className="text-xl" />
             </button>
             <button className="rounded-xl border border-outline-variant/30 p-2.5 text-slate-600 transition-colors hover:bg-slate-50">
               <Icon name="videocam" className="text-xl" />
             </button>
-            <button className="rounded-xl bg-primary px-4 py-2 text-xs font-bold text-on-primary">Resolve</button>
+            {selectedConversation?.status !== "resolved" && (
+              <button onClick={async () => {
+                if (selectedConversation) {
+                  await api(`/api/conversations/${selectedConversation.id}/status`, { method: "POST", body: JSON.stringify({ status: "resolved" }) });
+                  await props.onRefresh(selectedConversation.id);
+                }
+              }} className="rounded-xl bg-primary px-4 py-2 text-xs font-bold text-on-primary">Resolve</button>
+            )}
           </div>
         </div>
 
@@ -735,6 +880,19 @@ function InboxPage(props: {
                     </div>
                   )}
                   
+                  {chosenTemplate?.mediaUrl && (
+                    <div className="flex flex-col mt-4">
+                      <Field label="Dynamic Web Image Link (Optional, overrides template header)">
+                        <input className="atrium-input" placeholder="https://example.com/image.png" value={headerMediaUrl} onChange={(e) => setHeaderMediaUrl(e.target.value)} />
+                      </Field>
+                      {chosenTemplate.mediaUrl.includes('{{') && (
+                        <p className="mt-2 text-xs text-slate-500">
+                          Template media link: <code className="bg-slate-100 px-1 rounded text-primary">{chosenTemplate.mediaUrl}</code>
+                        </p>
+                      )}
+                    </div>
+                  )}
+
                   <div className="pt-4">
                     <button
                       className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3 font-bold text-on-primary shadow-lg shadow-primary/30 transition-all hover:bg-primary/90"
@@ -746,7 +904,7 @@ function InboxPage(props: {
                 </div>
                 
                 <div className="flex justify-center md:w-[320px]">
-                  <TemplateLivePreview template={chosenTemplate} variables={templateVariables} />
+                  <TemplateLivePreview template={chosenTemplate} variables={templateVariables} overrideMediaUrl={headerMediaUrl} />
                 </div>
               </div>
             </div>
@@ -815,10 +973,7 @@ function InboxPage(props: {
                 <InfoLine icon="location_on" value={deriveLocation(selectedConversation.contact)} />
               </InfoCard>
 
-              <InfoCard action="+ New" title="Internal Notes">
-                <NoteCard text={`Client prefers WhatsApp for urgent updates and template confirmations. Latest ask: ${latestInbound?.body ?? "No recent inbound note."}`} meta="Today by tomorrowX" />
-                <NoteCard text={`Assigned to ${selectedConversation.channel.name} and tagged with ${selectedConversation.contact.labels[0] ?? "priority"} workflows.`} meta="Auto note" />
-              </InfoCard>
+              <InternalNotesWidget contact={selectedConversation.contact} onRefresh={async () => void props.onRefresh()} />
 
               <InfoCard title="Latest Activity">
                 <TimelineEntry accent icon="check" title="Conversation updated" meta={formatLongDate(selectedConversation.updatedAt)} />
@@ -847,11 +1002,20 @@ function CampaignsPage(props: { data: BootstrapData; onRefresh: (preferredConver
   const [recurringInterval, setRecurringInterval] = useState<Campaign["recurringInterval"]>("none");
   const [recurringUntil, setRecurringUntil] = useState("");
   const [templateVariables, setTemplateVariables] = useState<string[]>([]);
-  const [headerMediaUrl, setHeaderMediaUrl] = useState("");
+  
+  const selectedTemplate = approvedTemplates.find((template) => template.id === templateId) ?? approvedTemplates[0];
+  const [headerMediaUrl, setHeaderMediaUrl] = useState(selectedTemplate?.mediaUrl || "");
   const [feedback, setFeedback] = useState<string | null>(null);
 
-  const selectedTemplate = approvedTemplates.find((template) => template.id === templateId) ?? approvedTemplates[0];
   const previewContact = props.data.contacts[0];
+
+  useEffect(() => {
+    if (selectedTemplate?.mediaUrl) {
+      setHeaderMediaUrl(selectedTemplate.mediaUrl);
+    } else {
+      setHeaderMediaUrl("");
+    }
+  }, [selectedTemplate?.id]);
   const recipientOptions =
     recipientMode === "contacts"
       ? props.data.contacts.map((contact) => ({ id: contact.id, label: fullName(contact), subtitle: contact.company || contact.phone }))
@@ -2954,12 +3118,12 @@ function LegendPill(props: { color: string; label: string; textColor: string }) 
   );
 }
 
-function InfoCard(props: { title: string; action?: string; children: React.ReactNode }) {
+function InfoCard(props: { title: string; action?: string; onActionClick?: () => void; children: React.ReactNode }) {
   return (
     <div className="space-y-3 rounded-2xl bg-surface-container-lowest p-4">
       <div className="flex items-center justify-between">
         <h5 className="text-[10px] font-bold uppercase tracking-widest text-slate-400">{props.title}</h5>
-        {props.action ? <button className="text-[10px] font-bold text-primary">{props.action}</button> : null}
+        {props.action ? <button onClick={props.onActionClick} className="text-[10px] font-bold text-primary">{props.action}</button> : null}
       </div>
       {props.children}
     </div>
