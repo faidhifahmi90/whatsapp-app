@@ -182,6 +182,7 @@ async function sendTemplateMessage(input: {
   }
 
   const conversationId = input.conversationId ?? openConversation(contact.id, channel.id);
+  const renderedBody = renderTemplate(template, contact, input.customVariables);
   const finalMediaUrl = input.mediaUrlOverride || template.mediaUrl;
   
   // If the sender explicitly overrides the media url dynamically, we must bypass the static Twilio Content API template and let the classic message API map the template manually via WhatsApp.
