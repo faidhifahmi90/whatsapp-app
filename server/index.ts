@@ -47,7 +47,11 @@ import {
   updateChannel,
   deleteChannel,
   updateUser,
-  deleteUser
+  deleteUser,
+  createNote,
+  updateNote,
+  deleteNote,
+  updateConversationStatus
 } from "./db.js";
 import {
   buildContentVariables,
@@ -466,7 +470,8 @@ app.post("/api/contacts/:id/notes", requireAuth, (req: SessionRequest, res) => {
   const { body } = req.body;
   if (!body?.trim()) return res.status(400).json({ error: "Note body required" });
   
-  const note = createNote(contactId, req.user?.name ?? "System", body);
+  const user = req.session.userId ? getUserForSession(req.session.userId) : null;
+  const note = createNote(contactId, user?.firstName ?? "System", body);
   refreshClients("contacts");
   res.json({ note });
 });
