@@ -466,12 +466,12 @@ app.post("/api/contacts", requireAuth, async (req: SessionRequest, res) => {
 });
 
 app.post("/api/contacts/:id/notes", requireAuth, (req: SessionRequest, res) => {
-  const contactId = req.params.id;
+  const contactId = req.params.id as string;
   const { body } = req.body;
   if (!body?.trim()) return res.status(400).json({ error: "Note body required" });
   
   const user = req.session.userId ? getUserForSession(req.session.userId) : null;
-  const note = createNote(contactId, user?.firstName ?? "System", body);
+  const note = createNote(contactId, user?.name ?? "System", body);
   refreshClients("contacts");
   res.json({ note });
 });
@@ -480,13 +480,13 @@ app.put("/api/notes/:id", requireAuth, (req: SessionRequest, res) => {
   const { body } = req.body;
   if (!body?.trim()) return res.status(400).json({ error: "Note body required" });
   
-  updateNote(req.params.id, body);
+  updateNote(req.params.id as string, body);
   refreshClients("contacts");
   res.json({ success: true });
 });
 
 app.delete("/api/notes/:id", requireAuth, (req: SessionRequest, res) => {
-  deleteNote(req.params.id);
+  deleteNote(req.params.id as string);
   refreshClients("contacts");
   res.json({ success: true });
 });
@@ -496,7 +496,7 @@ app.post("/api/conversations/:id/status", requireAuth, (req: SessionRequest, res
   if (!["open", "kiv", "resolved", "attention", "pending"].includes(status)) {
     return res.status(400).json({ error: "Invalid status" });
   }
-  updateConversationStatus(req.params.id, status);
+  updateConversationStatus(req.params.id as string, status);
   refreshClients("campaign"); // using campaign identifier to bump overarching inbox/messages state
   res.json({ success: true });
 });
