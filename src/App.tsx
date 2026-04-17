@@ -1506,13 +1506,17 @@ function ContactsPage(props: {
       const { headers, previewRows } = await api<{ headers: string[]; previewRows: Record<string, string>[] }>("/api/contacts/import/preview", { method: "POST", body: formData });
       
       const initialMap: Record<string, string> = {};
+      const cleanDefs = props.data.customFieldDefinitions.map(d => ({ original: d, clean: d.toLowerCase().replace(/[^a-z0-9]/g, "") }));
       for (const h of headers) {
         const lh = h.toLowerCase().replace(/[^a-z0-9]/g, "");
+        const matchedCustom = cleanDefs.find(d => d.clean === lh);
+        
         if (lh.includes("first")) initialMap[h] = "firstName";
         else if (lh.includes("last")) initialMap[h] = "lastName";
         else if (lh.includes("phone") || lh.includes("mobile")) initialMap[h] = "phone";
         else if (lh.includes("email")) initialMap[h] = "email";
         else if (lh.includes("company")) initialMap[h] = "company";
+        else if (matchedCustom) initialMap[h] = matchedCustom.original;
         else if (lh.includes("identification") || lh.includes("id")) initialMap[h] = "identification_number";
         else if (lh.includes("tag") || lh.includes("label")) initialMap[h] = "labels";
         else initialMap[h] = "ignore";
@@ -1964,14 +1968,21 @@ function ContactsPage(props: {
                         value={mappingState.map[h]}
                         onChange={(e) => setMappingState((prev) => (prev ? { ...prev, map: { ...prev.map, [h]: e.target.value } } : null))}
                       >
-                        <option value="ignore">Skip / Ignore</option>
-                        <option value="firstName">First Name</option>
-                        <option value="lastName">Last Name</option>
-                        <option value="phone">Phone Number (Required)</option>
-                        <option value="email">Email Address</option>
-                        <option value="company">Company</option>
-                        <option value="labels">Tags / Labels</option>
-                        <option value="custom">Create Custom Field...</option>
+                        <optgroup label="Standard Fields">
+                          <option value="ignore">Skip / Ignore</option>
+                          <option value="firstName">First Name</option>
+                          <option value="lastName">Last Name</option>
+                          <option value="phone">Phone Number (Required)</option>
+                          <option value="email">Email Address</option>
+                          <option value="company">Company</option>
+                          <option value="labels">Tags / Labels</option>
+                        </optgroup>
+                        <optgroup label="Custom Fields">
+                          <option value="custom">Create Custom Field...</option>
+                          {props.data.customFieldDefinitions.map(def => (
+                             <option key={def} value={def}>Custom: {def}</option>
+                          ))}
+                        </optgroup>
                       </select>
                       {mappingState.map[h] === "custom" && (
                         <input
