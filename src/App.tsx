@@ -1513,12 +1513,31 @@ function ContactsPage(props: {
         
         if (lh.includes("first")) initialMap[h] = "firstName";
         else if (lh.includes("last")) initialMap[h] = "lastName";
+        else if (lh.includes("phone") && lh.includes("user")) initialMap[h] = "phone";
         else if (lh.includes("phone") || lh.includes("mobile")) initialMap[h] = "phone";
         else if (lh.includes("email")) initialMap[h] = "email";
         else if (lh.includes("company")) initialMap[h] = "company";
-        else if (matchedCustom) initialMap[h] = matchedCustom.original;
-        else if (lh.includes("identification") || lh.includes("id")) initialMap[h] = "identification_number";
+        else if (lh.includes("datejoined")) initialMap[h] = "date_joined";
+        else if (lh.includes("identification") || lh.includes("nric") || lh.includes("idno")) initialMap[h] = "identification_number";
         else if (lh.includes("tag") || lh.includes("label")) initialMap[h] = "labels";
+        
+        else if (lh.includes("registrationno") || lh.includes("vehicleregistration")) initialMap[h] = "vehicle_registrationNo";
+        else if (lh.includes("ownername")) initialMap[h] = "vehicle_vehicleOwnerName";
+        else if (lh.includes("vehicletype")) initialMap[h] = "vehicle_vehicleType";
+        else if (lh.includes("vehiclemodel")) initialMap[h] = "vehicle_vehicleModel";
+        else if (lh.includes("makeyear")) initialMap[h] = "vehicle_makeYear";
+        else if (lh.includes("marketvalue")) initialMap[h] = "vehicle_marketValue";
+        
+        else if (lh.includes("orderno")) initialMap[h] = "order_orderNo";
+        else if (lh.includes("orderstatus")) initialMap[h] = "order_orderStatus";
+        else if (lh.includes("covernote") || lh.includes("ecnoteno")) initialMap[h] = "order_coverNoteNo";
+        else if (lh.includes("netwrittenpremium")) initialMap[h] = "order_netWrittenPremium";
+        else if (lh.includes("grosstransaction")) initialMap[h] = "order_grossTransaction";
+        else if (lh.includes("nettransaction")) initialMap[h] = "order_netTransaction";
+        else if (lh.includes("paymentmethod")) initialMap[h] = "order_paymentMethod";
+        else if (lh.includes("orderdate") || lh === "date") initialMap[h] = "order_orderDate";
+
+        else if (matchedCustom) initialMap[h] = matchedCustom.original;
         else initialMap[h] = "ignore";
       }
       setMappingState({ step: "mapping", headers, previewRows, map: initialMap, customFieldNames: {} });
@@ -1881,6 +1900,10 @@ function ContactsPage(props: {
                         <div>
                           <div className="text-sm font-bold text-on-surface">{fullName(contact)}</div>
                           {contact.company && <div className="text-xs text-on-surface-variant">{contact.company}</div>}
+                          <div className="flex gap-2 mt-1">
+                             {contact.vehicles && contact.vehicles.length > 0 && <span className="bg-primary/10 text-primary text-[10px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">{contact.vehicles.length} Vehicle{contact.vehicles.length > 1 ? "s" : ""}</span>}
+                             {contact.orders && contact.orders.length > 0 && <span className="bg-secondary/10 text-secondary text-[10px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">{contact.orders.length} Order{contact.orders.length > 1 ? "s" : ""}</span>}
+                          </div>
                         </div>
                       </div>
                     </td>
@@ -1970,12 +1993,32 @@ function ContactsPage(props: {
                       >
                         <optgroup label="Standard Fields">
                           <option value="ignore">Skip / Ignore</option>
+                          <option value="identification_number">Identification Number / NRIC (Required for Fallbacks)</option>
                           <option value="firstName">First Name</option>
                           <option value="lastName">Last Name</option>
                           <option value="phone">Phone Number (Required)</option>
                           <option value="email">Email Address</option>
                           <option value="company">Company</option>
+                          <option value="date_joined">Date Joined</option>
                           <option value="labels">Tags / Labels</option>
+                        </optgroup>
+                        <optgroup label="Insurance: Vehicle">
+                          <option value="vehicle_registrationNo">Vehicle: Registration No</option>
+                          <option value="vehicle_vehicleOwnerName">Vehicle: Owner Name</option>
+                          <option value="vehicle_vehicleType">Vehicle: Type</option>
+                          <option value="vehicle_vehicleModel">Vehicle: Model</option>
+                          <option value="vehicle_makeYear">Vehicle: Make Year</option>
+                          <option value="vehicle_marketValue">Vehicle: Market Value</option>
+                        </optgroup>
+                        <optgroup label="Insurance: Order">
+                          <option value="order_orderNo">Order: Order No</option>
+                          <option value="order_orderStatus">Order: Status</option>
+                          <option value="order_coverNoteNo">Order: Cover Note No</option>
+                          <option value="order_netWrittenPremium">Order: Net Written Premium</option>
+                          <option value="order_grossTransaction">Order: Gross Transaction</option>
+                          <option value="order_netTransaction">Order: Net Transaction</option>
+                          <option value="order_paymentMethod">Order: Payment Method</option>
+                          <option value="order_orderDate">Order: Order Date</option>
                         </optgroup>
                         <optgroup label="Custom Fields">
                           <option value="custom">Create Custom Field...</option>

@@ -559,12 +559,19 @@ app.post("/api/contacts/import/evaluate", requireAuth, upload.single("file"), (r
     const customFields: Record<string, string> = {};
     const translated: Record<string, string> = {};
 
+    const vehicle: Record<string, string> = {};
+    const order: Record<string, string> = {};
+
     for (const [originalHeader, val] of Object.entries(row)) {
       const targetHeader = mapping[originalHeader] || originalHeader;
       if (targetHeader === "ignore" || !val) continue;
 
-      if (["firstName", "lastName", "phone", "email", "company", "labels"].includes(targetHeader)) {
+      if (["firstName", "lastName", "phone", "email", "company", "labels", "identification_number", "date_joined"].includes(targetHeader)) {
         translated[targetHeader] = val;
+      } else if (targetHeader.startsWith("vehicle_")) {
+        vehicle[targetHeader.replace("vehicle_", "")] = val;
+      } else if (targetHeader.startsWith("order_")) {
+        order[targetHeader.replace("order_", "")] = val;
       } else {
         customFields[targetHeader] = val;
       }
@@ -628,12 +635,19 @@ app.post("/api/contacts/import", requireAuth, upload.single("file"), (req: Sessi
     let customFields: Record<string, string> = {};
     const translated: Record<string, string> = {};
 
+    const vehicle: Record<string, string> = {};
+    const order: Record<string, string> = {};
+
     for (const [originalHeader, val] of Object.entries(row)) {
       const targetHeader = mapping[originalHeader] || originalHeader;
       if (targetHeader === "ignore" || !val) continue;
 
-      if (["firstName", "lastName", "phone", "email", "company", "labels"].includes(targetHeader)) {
+      if (["firstName", "lastName", "phone", "email", "company", "labels", "identification_number", "date_joined"].includes(targetHeader)) {
         translated[targetHeader] = val;
+      } else if (targetHeader.startsWith("vehicle_")) {
+        vehicle[targetHeader.replace("vehicle_", "")] = val;
+      } else if (targetHeader.startsWith("order_")) {
+        order[targetHeader.replace("order_", "")] = val;
       } else {
         customFields[targetHeader] = val;
       }
@@ -667,7 +681,13 @@ app.post("/api/contacts/import", requireAuth, upload.single("file"), (req: Sessi
       email: translated.email ?? "",
       company: translated.company ?? "",
       labels: translated.labels ? translated.labels.split("|").map((label) => label.trim()).filter(Boolean) : [],
-      customFields
+      customFields: {
+         ...customFields,
+         ...(translated.identification_number ? { identification_number: translated.identification_number } : {}),
+         ...(translated.date_joined ? { date_joined: translated.date_joined } : {})
+      },
+      vehicles: Object.keys(vehicle).length ? [vehicle] : [],
+      orders: Object.keys(order).length ? [order] : []
     };
   }).filter((c) => c.phone);
 

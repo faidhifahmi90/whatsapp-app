@@ -119,6 +119,18 @@ function mapContact(row: DbContactRow): Contact {
     )
     .all(row.id) as any[];
 
+  const vehiclesRows = db
+    .prepare(
+      `select id, contact_id, registration_no, vehicle_owner_name, vehicle_type, vehicle_model, make_year, market_value, created_at from vehicles where contact_id = ? order by created_at asc`
+    )
+    .all(row.id) as any[];
+
+  const ordersRows = db
+    .prepare(
+      `select id, contact_id, registration_no, order_no, order_status, cover_note_no, net_written_premium, gross_transaction, net_transaction, payment_method, order_date, created_at from orders where contact_id = ? order by created_at desc`
+    )
+    .all(row.id) as any[];
+
   return {
     id: row.id,
     firstName: row.first_name,
@@ -136,6 +148,31 @@ function mapContact(row: DbContactRow): Contact {
       body: n.body,
       createdAt: n.created_at,
       updatedAt: n.updated_at
+    })),
+    vehicles: vehiclesRows.map((v) => ({
+      id: v.id,
+      contactId: v.contact_id,
+      registrationNo: v.registration_no,
+      vehicleOwnerName: v.vehicle_owner_name,
+      vehicleType: v.vehicle_type,
+      vehicleModel: v.vehicle_model,
+      makeYear: v.make_year,
+      marketValue: v.market_value,
+      createdAt: v.created_at
+    })),
+    orders: ordersRows.map((o) => ({
+      id: o.id,
+      contactId: o.contact_id,
+      registrationNo: o.registration_no,
+      orderNo: o.order_no,
+      orderStatus: o.order_status,
+      coverNoteNo: o.cover_note_no,
+      netWrittenPremium: o.net_written_premium,
+      grossTransaction: o.gross_transaction,
+      netTransaction: o.net_transaction,
+      paymentMethod: o.payment_method,
+      orderDate: o.order_date,
+      createdAt: o.created_at
     })),
     createdAt: row.created_at
   };
@@ -218,6 +255,33 @@ export function initDb() {
       body text not null,
       created_at text not null,
       updated_at text not null
+    );
+
+    create table if not exists vehicles (
+      id text primary key,
+      contact_id text not null,
+      registration_no text not null unique,
+      vehicle_owner_name text,
+      vehicle_type text,
+      vehicle_model text,
+      make_year text,
+      market_value text,
+      created_at text not null
+    );
+
+    create table if not exists orders (
+      id text primary key,
+      contact_id text not null,
+      registration_no text not null,
+      order_no text not null unique,
+      order_status text,
+      cover_note_no text,
+      net_written_premium text,
+      gross_transaction text,
+      net_transaction text,
+      payment_method text,
+      order_date text,
+      created_at text not null
     );
 
     create table if not exists templates (
@@ -512,6 +576,8 @@ export function importContacts(
     company?: string | null;
     labels?: string[];
     customFields?: Record<string, string>;
+    vehicles?: Array<Record<string, string>>;
+    orders?: Array<Record<string, string>>;
   }>,
   segmentIds: string[],
   segmentMode: "add" | "replace" | "remove"
@@ -526,6 +592,16 @@ export function importContacts(
       segmentMode
     });
     if (saved) {
+      if (contact.vehicles?.length) {
+         for (const v of contact.vehicles) {
+            if (v.registrationNo) upsertVehicle({ contactId: saved.id, registrationNo: v.registrationNo, vehicleOwnerName: v.vehicleOwnerName, vehicleType: v.vehicleType, vehicleModel: v.vehicleModel, makeYear: v.makeYear, marketValue: v.marketValue });
+         }
+      }
+      if (contact.orders?.length) {
+         for (const o of contact.orders) {
+            if (o.orderNo && o.registrationNo) upsertOrder({ contactId: saved.id, registrationNo: o.registrationNo, orderNo: o.orderNo, orderStatus: o.orderStatus, coverNoteNo: o.coverNoteNo, netWrittenPremium: o.netWrittenPremium, grossTransaction: o.grossTransaction, netTransaction: o.netTransaction, paymentMethod: o.paymentMethod, orderDate: o.orderDate });
+         }
+      }
       imported.push(saved);
     }
   }
@@ -1041,4 +1117,69 @@ export function registerCustomFields(names: string[]) {
 export function listCustomFieldDefinitions(): string[] {
   const rows = db.prepare("select name from custom_field_registry order by name asc").all() as { name: string }[];
   return rows.map(r => r.name);
+}
+
+export function upsertVehicle(data: {
+  contactId: string;
+  registrationNo: string;
+  vehicleOwnerName?: string | null;
+  vehicleType?: string | null;
+  vehicleModel?: string | null;
+  makeYear?: string | null;
+  marketValue?: string | null;
+}) {
+  const existing = db.prepare("select id from vehicles where registration_no = ?").get(data.registrationNo) as { id: string } | undefined;
+  if (existing) {
+    db.prepare(`
+      update vehicles set
+        contact_id = ?, vehicle_owner_name = ?, vehicle_type = ?, vehicle_model = ?, make_year = ?, market_value = ?
+      where id = ?
+    `).run(
+      data.contactId, data.vehicleOwnerName || null, data.vehicleType || null, data.vehicleModel || null, data.makeYear || null, data.marketValue || null, existing.id
+    );
+    return existing.id;
+  } else {
+    const id = randomUUID();
+    db.prepare(`
+      insert into vehicles (id, contact_id, registration_no, vehicle_owner_name, vehicle_type, vehicle_model, make_year, market_value, created_at)
+      values (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      id, data.contactId, data.registrationNo, data.vehicleOwnerName || null, data.vehicleType || null, data.vehicleModel || null, data.makeYear || null, data.marketValue || null, now()
+    );
+    return id;
+  }
+}
+
+export function upsertOrder(data: {
+  contactId: string;
+  registrationNo: string;
+  orderNo: string;
+  orderStatus?: string | null;
+  coverNoteNo?: string | null;
+  netWrittenPremium?: string | null;
+  grossTransaction?: string | null;
+  netTransaction?: string | null;
+  paymentMethod?: string | null;
+  orderDate?: string | null;
+}) {
+  const existing = db.prepare("select id from orders where order_no = ?").get(data.orderNo) as { id: string } | undefined;
+  if (existing) {
+    db.prepare(`
+      update orders set
+        contact_id = ?, registration_no = ?, order_status = ?, cover_note_no = ?, net_written_premium = ?, gross_transaction = ?, net_transaction = ?, payment_method = ?, order_date = ?
+      where id = ?
+    `).run(
+      data.contactId, data.registrationNo, data.orderStatus || null, data.coverNoteNo || null, data.netWrittenPremium || null, data.grossTransaction || null, data.netTransaction || null, data.paymentMethod || null, data.orderDate || null, existing.id
+    );
+    return existing.id;
+  } else {
+    const id = randomUUID();
+    db.prepare(`
+      insert into orders (id, contact_id, registration_no, order_no, order_status, cover_note_no, net_written_premium, gross_transaction, net_transaction, payment_method, order_date, created_at)
+      values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      id, data.contactId, data.registrationNo, data.orderNo, data.orderStatus || null, data.coverNoteNo || null, data.netWrittenPremium || null, data.grossTransaction || null, data.netTransaction || null, data.paymentMethod || null, data.orderDate || null, now()
+    );
+    return id;
+  }
 }

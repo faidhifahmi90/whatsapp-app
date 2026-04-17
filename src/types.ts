@@ -24,6 +24,33 @@ export type Note = {
   updatedAt: string;
 };
 
+export type Vehicle = {
+  id: string;
+  contactId: string; // Maps to NRIC owner / Contact User
+  registrationNo: string;
+  vehicleOwnerName?: string | null;
+  vehicleType?: string | null;
+  vehicleModel?: string | null;
+  makeYear?: string | null;
+  marketValue?: string | null;
+  createdAt: string;
+};
+
+export type Order = {
+  id: string;
+  contactId: string;
+  registrationNo: string; // Link to Vehicle
+  orderNo: string;
+  orderStatus?: string | null;
+  coverNoteNo?: string | null;
+  netWrittenPremium?: string | null;
+  grossTransaction?: string | null;
+  netTransaction?: string | null;
+  paymentMethod?: string | null;
+  orderDate?: string | null;
+  createdAt: string;
+};
+
 export type Segment = {
   id: string;
   name: string;
@@ -42,6 +69,8 @@ export type Contact = {
   customFields: Record<string, string>;
   segmentIds: string[];
   notes: Note[];
+  vehicles: Vehicle[];
+  orders: Order[];
   createdAt: string;
 };
 
