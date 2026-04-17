@@ -1395,6 +1395,11 @@ function ContactProfileModal(props: { contact: Contact; onClose: () => void; onR
      return acc + (isNaN(amount) ? 0 : amount);
   }, 0);
 
+  const fallbackName = props.contact.vehicles?.[0]?.vehicleOwnerName || "Unknown Contact";
+  const displayName = form.firstName || form.lastName ? `${form.firstName} ${form.lastName}`.trim() : fallbackName;
+  const splitName = displayName.split(" ");
+  const avatarText = (splitName[0]?.charAt(0) || "U") + (splitName[1]?.charAt(0) || "");
+
   async function handleSave() {
      await api("/api/contacts", {
         method: "POST",
@@ -1415,10 +1420,10 @@ function ContactProfileModal(props: { contact: Contact; onClose: () => void; onR
           
           <div className="flex flex-col md:flex-row md:items-end gap-6 relative z-10 text-on-primary-fixed">
             <div className="h-28 w-28 flex-shrink-0 flex items-center justify-center rounded-[2rem] bg-surface-container-lowest shadow-xl text-primary font-headline text-4xl border-4 border-surface-container-lowest/50">
-               {form.firstName ? form.firstName.charAt(0) : "U"}{form.lastName ? form.lastName.charAt(0) : ""}
+               {avatarText}
             </div>
             <div className="flex-1 pb-2">
-               <h2 className="font-headline text-4xl font-bold">{form.firstName} {form.lastName}</h2>
+               <h2 className="font-headline text-4xl font-bold">{displayName}</h2>
                <div className="flex flex-wrap gap-4 mt-3 text-sm font-medium opacity-90">
                   <span className="flex items-center gap-1.5"><Icon className="text-base" name="call" /> {form.phone}</span>
                   {form.email && <span className="flex items-center gap-1.5"><Icon className="text-base" name="mail" /> {form.email}</span>}
@@ -1490,12 +1495,13 @@ function ContactProfileModal(props: { contact: Contact; onClose: () => void; onR
               <div className="mt-12">
                  <h4 className="text-xs font-bold text-secondary uppercase tracking-widest mb-4">Insured Vehicles</h4>
                  <div className="overflow-x-auto rounded-xl border border-outline-variant/30">
-                    <table className="w-full text-left text-sm bg-surface-container-lowest">
+                    <table className="w-full text-left text-sm bg-surface-container-lowest whitespace-nowrap">
                        <thead>
                           <tr className="bg-surface-container-low text-[10px] uppercase text-on-surface-variant">
                              <th className="px-5 py-3 border-b border-outline-variant/20 font-bold">Registration No</th>
                              <th className="px-5 py-3 border-b border-outline-variant/20 font-bold">Owner Name</th>
                              <th className="px-5 py-3 border-b border-outline-variant/20 font-bold">Details</th>
+                             <th className="px-5 py-3 border-b border-outline-variant/20 font-bold">Year</th>
                              <th className="px-5 py-3 border-b border-outline-variant/20 font-bold text-right">Market Value</th>
                           </tr>
                        </thead>
@@ -1504,7 +1510,8 @@ function ContactProfileModal(props: { contact: Contact; onClose: () => void; onR
                              <tr key={v.id} className="hover:bg-surface-container-low/50">
                                 <td className="px-5 py-3 font-semibold font-mono text-primary">{v.registrationNo}</td>
                                 <td className="px-5 py-3 text-on-surface-variant">{v.vehicleOwnerName || "—"}</td>
-                                <td className="px-5 py-3 text-on-surface-variant">{v.makeYear} {v.vehicleModel || v.vehicleType || "—"}</td>
+                                <td className="px-5 py-3 text-on-surface-variant">{v.vehicleModel || v.vehicleType || "—"}</td>
+                                <td className="px-5 py-3 text-on-surface-variant">{v.makeYear || "—"}</td>
                                 <td className="px-5 py-3 font-mono text-right font-medium">{v.marketValue || "—"}</td>
                              </tr>
                           ))}
@@ -1518,22 +1525,24 @@ function ContactProfileModal(props: { contact: Contact; onClose: () => void; onR
               <div className="mt-12">
                  <h4 className="text-xs font-bold text-secondary uppercase tracking-widest mb-4">Insurance Policies & Orders</h4>
                  <div className="overflow-x-auto rounded-xl border border-outline-variant/30">
-                    <table className="w-full text-left text-sm bg-surface-container-lowest">
+                    <table className="w-full text-left text-sm bg-surface-container-lowest whitespace-nowrap">
                        <thead>
                           <tr className="bg-surface-container-low text-[10px] uppercase text-on- surface-variant">
-                             <th className="px-5 py-3 border-b border-outline-variant/20 font-bold">Cover Note / Order No</th>
+                             <th className="px-5 py-3 border-b border-outline-variant/20 font-bold">Order No</th>
+                             <th className="px-5 py-3 border-b border-outline-variant/20 font-bold">Cover Note / Method</th>
                              <th className="px-5 py-3 border-b border-outline-variant/20 font-bold">Reg No</th>
                              <th className="px-5 py-3 border-b border-outline-variant/20 font-bold">Date</th>
                              <th className="px-5 py-3 border-b border-outline-variant/20 font-bold">Status</th>
-                             <th className="px-5 py-3 border-b border-outline-variant/20 font-bold text-right">Premium / Net</th>
+                             <th className="px-5 py-3 border-b border-outline-variant/20 font-bold text-right">Premium / Gross / Net</th>
                           </tr>
                        </thead>
                        <tbody className="divide-y divide-outline-variant/10">
                           {props.contact.orders.map(o => (
-                             <tr key={o.id} className="hover:bg-surface-container-low/50">
+                             <tr key={o.id} className="hover:bg-surface-container-low/50 align-top">
+                                <td className="px-5 py-4 font-mono font-bold text-secondary">{o.orderNo}</td>
                                 <td className="px-5 py-4">
-                                   <div className="font-semibold text-secondary">{o.coverNoteNo || "—"}</div>
-                                   <div className="text-xs text-on-surface-variant mt-0.5 font-mono">{o.orderNo}</div>
+                                   <div className="font-medium text-on-surface">{o.coverNoteNo || "—"}</div>
+                                   {o.paymentMethod && <div className="text-[10px] text-on-surface-variant mt-1 uppercase tracking-wider">{o.paymentMethod}</div>}
                                 </td>
                                 <td className="px-5 py-4 font-mono font-medium">{o.registrationNo}</td>
                                 <td className="px-5 py-4 text-on-surface-variant">{o.orderDate || "—"}</td>
@@ -1541,8 +1550,9 @@ function ContactProfileModal(props: { contact: Contact; onClose: () => void; onR
                                    <span className={`px-2 py-1 text-[10px] rounded font-bold uppercase ${o.orderStatus?.toLowerCase() === 'paid' ? 'bg-primary/10 text-primary' : 'bg-surface-container text-on-surface-variant'}`}>{o.orderStatus || 'Pending'}</span>
                                 </td>
                                 <td className="px-5 py-4 font-mono text-right font-medium">
-                                   <div className="text-on-surface">{o.netWrittenPremium || o.netTransaction || "—"}</div>
-                                   {o.paymentMethod && <div className="text-[10px] text-on-surface-variant mt-1 uppercase">{o.paymentMethod}</div>}
+                                   <div className="text-on-surface flex justify-between gap-4"><span className="text-on-surface-variant text-[10px] uppercase">Net</span> {o.netTransaction || "—"}</div>
+                                   <div className="text-on-surface flex justify-between gap-4 mt-1"><span className="text-on-surface-variant text-[10px] uppercase">Prem</span> {o.netWrittenPremium || "—"}</div>
+                                   <div className="text-on-surface flex justify-between gap-4 mt-1"><span className="text-on-surface-variant text-[10px] uppercase">Gross</span> {o.grossTransaction || "—"}</div>
                                 </td>
                              </tr>
                           ))}
