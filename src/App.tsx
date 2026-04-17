@@ -1537,14 +1537,19 @@ function ContactProfileModal(props: { contact: Contact; onClose: () => void; onR
                           </tr>
                        </thead>
                        <tbody className="divide-y divide-outline-variant/10">
-                          {props.contact.orders.map(o => (
+                          {props.contact.orders.map(o => {
+                             const linkedVehicle = props.contact.vehicles?.find(v => v.registrationNo === o.registrationNo);
+                             return (
                              <tr key={o.id} className="hover:bg-surface-container-low/50 align-top">
                                 <td className="px-5 py-4 font-mono font-bold text-secondary">{o.orderNo}</td>
                                 <td className="px-5 py-4">
                                    <div className="font-medium text-on-surface">{o.coverNoteNo || "—"}</div>
                                    {o.paymentMethod && <div className="text-[10px] text-on-surface-variant mt-1 uppercase tracking-wider">{o.paymentMethod}</div>}
                                 </td>
-                                <td className="px-5 py-4 font-mono font-medium">{o.registrationNo}</td>
+                                <td className="px-5 py-4">
+                                  <div className="font-mono font-medium">{o.registrationNo}</div>
+                                  {linkedVehicle?.vehicleOwnerName && <div className="text-[10px] text-on-surface-variant mt-1.5 uppercase tracking-wider leading-tight">{linkedVehicle.vehicleOwnerName}</div>}
+                                </td>
                                 <td className="px-5 py-4 text-on-surface-variant">{o.orderDate || "—"}</td>
                                 <td className="px-5 py-4">
                                    <span className={`px-2 py-1 text-[10px] rounded font-bold uppercase ${o.orderStatus?.toLowerCase() === 'paid' ? 'bg-primary/10 text-primary' : 'bg-surface-container text-on-surface-variant'}`}>{o.orderStatus || 'Pending'}</span>
@@ -1555,7 +1560,7 @@ function ContactProfileModal(props: { contact: Contact; onClose: () => void; onR
                                    <div className="text-on-surface flex justify-between gap-4 mt-1"><span className="text-on-surface-variant text-[10px] uppercase">Gross</span> {o.grossTransaction || "—"}</div>
                                 </td>
                              </tr>
-                          ))}
+                          )})}
                        </tbody>
                     </table>
                  </div>
@@ -3541,7 +3546,9 @@ function Icon(props: { name: string; className?: string; fill?: boolean }) {
 }
 
 function fullName(contact: Contact) {
-  return `${contact.firstName} ${contact.lastName}`.trim();
+  const name = `${contact.firstName} ${contact.lastName}`.trim();
+  if (name) return name;
+  return contact.vehicles?.[0]?.vehicleOwnerName || "Unknown Contact";
 }
 
 function formatClockTime(value: string) {
