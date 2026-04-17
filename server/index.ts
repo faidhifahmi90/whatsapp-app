@@ -51,7 +51,11 @@ import {
   createNote,
   updateNote,
   deleteNote,
-  updateConversationStatus
+  updateConversationStatus,
+  updateUserLogin,
+  clearContactsAndFields,
+  registerCustomFields,
+  listCustomFieldDefinitions
 } from "./db.js";
 import {
   buildContentVariables,
@@ -407,6 +411,7 @@ app.post("/api/auth/google", async (req: SessionRequest, res) => {
     }
 
     req.session.userId = user.id;
+    updateUserLogin(user.id);
     return res.json({ user });
   } catch (error) {
     console.error("Google Auth Error:", error);
@@ -426,6 +431,11 @@ app.get("/api/bootstrap", requireAuth, (req: SessionRequest, res) => {
 
 app.post("/api/contacts", requireAuth, async (req: SessionRequest, res) => {
   const before = req.body.phone ? findContactByPhone(req.body.phone) : null;
+  const customFields = req.body.customFields ?? {};
+  if (Object.keys(customFields).length > 0) {
+    registerCustomFields(Object.keys(customFields));
+  }
+
   const contact = upsertContact({
     firstName: req.body.firstName,
     lastName: req.body.lastName,
@@ -433,7 +443,7 @@ app.post("/api/contacts", requireAuth, async (req: SessionRequest, res) => {
     email: req.body.email,
     company: req.body.company,
     labels: Array.isArray(req.body.labels) ? req.body.labels : [],
-    customFields: req.body.customFields ?? {},
+    customFields,
     segmentIds: Array.isArray(req.body.segmentIds) ? req.body.segmentIds : [],
     segmentMode: req.body.segmentMode ?? "replace"
   });
@@ -463,6 +473,12 @@ app.post("/api/contacts", requireAuth, async (req: SessionRequest, res) => {
 
   refreshClients("contacts");
   res.json({ contact });
+});
+
+app.delete("/api/contacts/clear", requireAuth, (_req: SessionRequest, res) => {
+  clearContactsAndFields();
+  refreshClients("contacts");
+  res.json({ success: true });
 });
 
 app.post("/api/contacts/:id/notes", requireAuth, (req: SessionRequest, res) => {
@@ -516,6 +532,76 @@ app.post("/api/contacts/import/preview", requireAuth, upload.single("file"), (re
   return res.json({ headers, previewRows });
 });
 
+app.post("/api/contacts/import/evaluate", requireAuth, upload.single("file"), (req: SessionRequest, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: "CSV file is required" });
+  }
+
+  const records = parse(req.file.buffer.toString("utf-8"), {
+    columns: true,
+    skip_empty_lines: true
+  }) as Record<string, string>[];
+
+  let mapping: Record<string, string> = {};
+  if (req.body.mapping) {
+    try { mapping = JSON.parse(req.body.mapping); } catch {}
+  }
+
+  const conflicts: Array<{
+    phone: string;
+    firstName: string;
+    lastName: string;
+    originalFields: Record<string, string>;
+    incomingFields: Record<string, string>;
+  }> = [];
+
+  records.forEach((row) => {
+    const customFields: Record<string, string> = {};
+    const translated: Record<string, string> = {};
+
+    for (const [originalHeader, val] of Object.entries(row)) {
+      const targetHeader = mapping[originalHeader] || originalHeader;
+      if (targetHeader === "ignore" || !val) continue;
+
+      if (["firstName", "lastName", "phone", "email", "company", "labels"].includes(targetHeader)) {
+        translated[targetHeader] = val;
+      } else {
+        customFields[targetHeader] = val;
+      }
+    }
+    
+    if (!translated.phone) return;
+    
+    const existing = findContactByPhone(translated.phone);
+    if (!existing) return;
+
+    let hasConflict = false;
+    // For evaluating conflicts, we only care about overlap.
+    const overlappingKeys = Object.keys(customFields).filter(k => existing.customFields[k] !== undefined);
+    
+    if (overlappingKeys.length > 0) {
+      for (const k of overlappingKeys) {
+        if (existing.customFields[k] !== customFields[k]) {
+          hasConflict = true;
+          break;
+        }
+      }
+    }
+    
+    if (hasConflict) {
+      conflicts.push({
+        phone: translated.phone,
+        firstName: existing.firstName,
+        lastName: existing.lastName,
+        originalFields: existing.customFields,
+        incomingFields: customFields
+      });
+    }
+  });
+
+  return res.json({ conflicts });
+});
+
 app.post("/api/contacts/import", requireAuth, upload.single("file"), (req: SessionRequest, res) => {
   if (!req.file) {
     return res.status(400).json({ error: "CSV file is required" });
@@ -533,8 +619,13 @@ app.post("/api/contacts/import", requireAuth, upload.single("file"), (req: Sessi
     } catch {}
   }
 
+  let resolvers: Record<string, Record<string, string>> = {};
+  if (req.body.resolvers) {
+    try { resolvers = JSON.parse(req.body.resolvers); } catch {}
+  }
+
   const parsedContacts = records.map((row) => {
-    const customFields: Record<string, string> = {};
+    let customFields: Record<string, string> = {};
     const translated: Record<string, string> = {};
 
     for (const [originalHeader, val] of Object.entries(row)) {
@@ -546,6 +637,27 @@ app.post("/api/contacts/import", requireAuth, upload.single("file"), (req: Sessi
       } else {
         customFields[targetHeader] = val;
       }
+    }
+    
+    if (translated.phone && resolvers[translated.phone]) {
+       const mappedResolvers = resolvers[translated.phone];
+       for (const [k, action] of Object.entries(mappedResolvers)) {
+          if (action === "keep") {
+             delete customFields[k];
+          } else if (action === "overwrite") {
+             // Leave as is, it natively overwrites due to upsert merge order
+          } else if (action.startsWith("rename:")) {
+             const newKey = action.split(":")[1];
+             if (newKey) {
+                customFields[newKey] = customFields[k];
+                delete customFields[k];
+             }
+          }
+       }
+    }
+    
+    if (Object.keys(customFields).length > 0) {
+      registerCustomFields(Object.keys(customFields));
     }
 
     return {

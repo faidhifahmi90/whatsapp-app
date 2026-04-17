@@ -1,8 +1,10 @@
 export type User = {
   id: string;
   name: string;
+  preferredName?: string | null;
   email: string;
   role: string;
+  lastLoginAt?: string | null;
 };
 
 export type Channel = {
@@ -134,4 +136,5 @@ export type BootstrapData = {
   campaigns: Campaign[];
   automations: Automation[];
   users: User[];
+  customFieldDefinitions: string[];
 };

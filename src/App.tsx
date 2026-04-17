@@ -1388,14 +1388,23 @@ function ContactsPage(props: {
   onOpenConversation: (contactId: string, channelId: string, templateId?: string) => Promise<void>;
   onRefresh: (preferredConversationId?: string | null) => Promise<void>;
 }) {
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<{
+    firstName: string;
+    lastName: string;
+    phone: string;
+    email: string;
+    company: string;
+    labels: string;
+    customFields: Record<string, string>;
+    segmentMode: string;
+  }>({
     firstName: "",
     lastName: "",
     phone: "",
     email: "",
     company: "",
     labels: "",
-    customFields: "",
+    customFields: {},
     segmentMode: "replace"
   });
   const [selectedSegments, setSelectedSegments] = useState<string[]>([]);
@@ -1403,10 +1412,13 @@ function ContactsPage(props: {
   const [segmentColor, setSegmentColor] = useState("#7ae582");
   const [csvFile, setCsvFile] = useState<File | null>(null);
   const [mappingState, setMappingState] = useState<{
+    step: "mapping" | "resolving";
     headers: string[];
     previewRows: Record<string, string>[];
     map: Record<string, string>;
     customFieldNames: Record<string, string>;
+    conflicts?: Array<{ phone: string; firstName: string; lastName: string; originalFields: Record<string, string>; incomingFields: Record<string, string> }>;
+    resolvers?: Record<string, Record<string, string>>;
   } | null>(null);
 
   const [isAddContactOpen, setIsAddContactOpen] = useState(false);
@@ -1449,15 +1461,8 @@ function ContactsPage(props: {
 
   async function saveContact(event: FormEvent) {
     event.preventDefault();
-    const customFields = Object.fromEntries(
-      form.customFields
-        .split("\n")
-        .map((line) => line.trim())
-        .filter(Boolean)
-        .map((line) => {
-          const [key, ...value] = line.split(":");
-          return [key.trim(), value.join(":").trim()];
-        })
+    const cleanCustomFields = Object.fromEntries(
+      Object.entries(form.customFields).filter(([_k, v]) => Boolean(v.trim()))
     );
 
     await api("/api/contacts", {
@@ -1469,7 +1474,7 @@ function ContactsPage(props: {
         email: form.email,
         company: form.company,
         labels: form.labels.split(",").map((label) => label.trim()).filter(Boolean),
-        customFields,
+        customFields: cleanCustomFields,
         segmentIds: selectedSegments,
         segmentMode: form.segmentMode
       })
@@ -1482,7 +1487,7 @@ function ContactsPage(props: {
       email: "",
       company: "",
       labels: "",
-      customFields: "",
+      customFields: {},
       segmentMode: "replace"
     });
     setSelectedSegments([]);
@@ -1512,8 +1517,36 @@ function ContactsPage(props: {
         else if (lh.includes("tag") || lh.includes("label")) initialMap[h] = "labels";
         else initialMap[h] = "ignore";
       }
-      setMappingState({ headers, previewRows, map: initialMap, customFieldNames: {} });
+      setMappingState({ step: "mapping", headers, previewRows, map: initialMap, customFieldNames: {} });
       return;
+    }
+
+    const finalMapping: Record<string, string> = {};
+    for (const h of mappingState.headers) {
+      if (mappingState.map[h] === "custom") {
+        finalMapping[h] = mappingState.customFieldNames[h] || h;
+      } else {
+        finalMapping[h] = mappingState.map[h];
+      }
+    }
+    
+    if (mappingState.step === "mapping") {
+       const fd = new FormData();
+       fd.append("file", csvFile);
+       fd.append("mapping", JSON.stringify(finalMapping));
+       const { conflicts } = await api<{ conflicts: any[] }>("/api/contacts/import/evaluate", { method: "POST", body: fd });
+       
+       if (conflicts.length > 0) {
+          const resolvers: Record<string, Record<string, string>> = {};
+          conflicts.forEach(c => {
+             resolvers[c.phone] = {};
+             Object.keys(c.incomingFields).filter(k => c.originalFields[k] !== undefined).forEach(k => {
+                resolvers[c.phone][k] = "overwrite"; // default
+             });
+          });
+          setMappingState({ ...mappingState, step: "resolving", conflicts, resolvers });
+          return;
+       }
     }
 
     const finalMapping: Record<string, string> = {};
@@ -1530,6 +1563,9 @@ function ContactsPage(props: {
     formData.append("segmentIds", selectedSegments.join(","));
     formData.append("segmentMode", form.segmentMode);
     formData.append("mapping", JSON.stringify(finalMapping));
+    if (mappingState.resolvers) {
+       formData.append("resolvers", JSON.stringify(mappingState.resolvers));
+    }
     
     await api("/api/contacts/import", {
       method: "POST",
@@ -1562,9 +1598,25 @@ function ContactsPage(props: {
       <div className="mb-8 grid grid-cols-1 gap-6">
         <div className="flex flex-col justify-between rounded-[2rem] bg-surface-container-low p-8">
           <div>
-            <span className="font-headline text-sm font-bold uppercase tracking-[0.18em] text-tertiary">Audience Vitality</span>
-            <h2 className="mt-2 font-headline text-4xl font-extrabold text-primary">{props.data.contacts.length.toLocaleString()} Active Leads</h2>
-            <p className="mt-2 max-w-lg text-on-surface-variant">
+            <div className="flex justify-between items-start w-full">
+              <div>
+                <span className="font-headline text-sm font-bold uppercase tracking-[0.18em] text-tertiary">Audience Vitality</span>
+                <h2 className="mt-2 font-headline text-4xl font-extrabold text-primary">{props.data.contacts.length.toLocaleString()} Active Leads</h2>
+              </div>
+              <button 
+                className="bg-red-50 text-red-600 font-bold px-4 py-2 rounded-xl text-xs hover:bg-red-100 transition-colors"
+                onClick={async () => {
+                  if (window.confirm("FATAL WARNING: Are you incredibly sure you want to PERMANENTLY ERASE all contacts, internal notes, and segments? This action absolutely CANNOT be undone.")) {
+                     await api("/api/contacts/clear", { method: "DELETE" });
+                     await props.onRefresh();
+                  }
+                }}
+              >
+                 <Icon name="delete_forever" className="mr-1 text-sm align-text-bottom" />
+                 Clear Directory
+              </button>
+            </div>
+            <p className="mt-2 text-on-surface-variant">
               Your contact base is live for CSV updates, real-time conversations, and shared team segmentation.
             </p>
           </div>
@@ -1608,15 +1660,31 @@ function ContactsPage(props: {
             <Field label="Labels">
               <input className="atrium-input" placeholder="vip, support" value={form.labels} onChange={(event) => setForm((current) => ({ ...current, labels: event.target.value }))} />
             </Field>
-            <div className="md:col-span-2">
-              <Field label="Custom fields">
-                <textarea
-                  className="atrium-input min-h-[110px]"
-                  placeholder={"city: Kuala Lumpur\nproduct: Premium Plan"}
-                  value={form.customFields}
-                  onChange={(event) => setForm((current) => ({ ...current, customFields: event.target.value }))}
-                />
-              </Field>
+            <div className="md:col-span-2 space-y-4">
+              <div className="rounded-2xl bg-surface-container-low p-4">
+                 <div className="flex justify-between items-center mb-4">
+                    <p className="text-xs font-bold uppercase tracking-[0.16em] text-outline">Custom Fields</p>
+                    <button type="button" onClick={() => {
+                       const key = window.prompt("New Custom Field Name:");
+                       if (key && key.trim()) setForm(c => ({...c, customFields: {...c.customFields, [key.trim().toLowerCase()]: ""}}));
+                    }} className="text-primary text-xs font-bold bg-primary/10 px-3 py-1 rounded-full hover:bg-primary/20">+ Add Native Field</button>
+                 </div>
+                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {Array.from(new Set([...props.data.customFieldDefinitions, ...Object.keys(form.customFields)])).map(fieldKey => (
+                       <Field label={fieldKey} key={fieldKey}>
+                          <input 
+                             className="atrium-input"
+                             placeholder={`Enter ${fieldKey}...`}
+                             value={form.customFields[fieldKey] || ""}
+                             onChange={e => setForm(c => ({ ...c, customFields: { ...c.customFields, [fieldKey]: e.target.value } }))}
+                          />
+                       </Field>
+                    ))}
+                    {props.data.customFieldDefinitions.length === 0 && Object.keys(form.customFields).length === 0 && (
+                       <p className="text-xs text-slate-400 italic">No global custom fields defined yet.</p>
+                    )}
+                 </div>
+              </div>
             </div>
             <Field label="Segment update mode">
               <select className="atrium-input" value={form.segmentMode} onChange={(event) => setForm((current) => ({ ...current, segmentMode: event.target.value }))}>
@@ -1882,62 +1950,100 @@ function ContactsPage(props: {
           <div className="flex max-h-full w-full max-w-3xl flex-col overflow-hidden rounded-3xl bg-surface-container-lowest shadow-[0_40px_120px_-48px_rgba(0,69,61,0.5)]">
             <div className="flex items-center justify-between border-b border-outline-variant/20 px-8 py-6">
               <div>
-                <h2 className="font-headline text-2xl font-bold text-primary">Map CSV Columns</h2>
-                <p className="text-sm text-on-surface-variant">Review header mappings before executing import.</p>
+                <h2 className="font-headline text-2xl font-bold text-primary">{mappingState.step === "mapping" ? "Map CSV Columns" : "Resolve Field Conflicts"}</h2>
+                <p className="text-sm text-on-surface-variant">
+                  {mappingState.step === "mapping" ? "Review header mappings before executing import." : `We found ${mappingState.conflicts?.length || 0} existing contacts with divergent custom fields. Please instruct us how to proceed.`}
+                </p>
               </div>
               <button
                 className="rounded-full p-2 text-on-surface-variant transition-colors hover:bg-surface-container"
-                onClick={() => {
-                  setMappingState(null);
-                  setCsvFile(null);
-                }}
+                onClick={() => { setMappingState(null); setCsvFile(null); }}
               >
                 <Icon name="close" />
               </button>
             </div>
             <div className="flex-1 overflow-y-auto px-8 py-6">
-              <div className="grid gap-6 md:grid-cols-2">
-                {mappingState.headers.map((h) => (
-                  <div className="flex flex-col gap-2 rounded-xl border border-outline-variant/30 bg-surface-container-low p-4" key={h}>
-                    <p className="text-xs font-bold uppercase tracking-wider text-outline">{h}</p>
-                    <select
-                      className="atrium-input bg-surface-container-lowest py-2"
-                      value={mappingState.map[h]}
-                      onChange={(e) => setMappingState((prev) => (prev ? { ...prev, map: { ...prev.map, [h]: e.target.value } } : null))}
-                    >
-                      <option value="ignore">Skip / Ignore</option>
-                      <option value="firstName">First Name</option>
-                      <option value="lastName">Last Name</option>
-                      <option value="phone">Phone Number (Required)</option>
-                      <option value="email">Email Address</option>
-                      <option value="company">Company</option>
-                      <option value="identification_number">Identification Number (Custom Field)</option>
-                      <option value="labels">Tags / Labels</option>
-                      <option value="custom">Create Custom Field...</option>
-                    </select>
-                    {mappingState.map[h] === "custom" && (
-                      <input
-                        className="atrium-input mt-2 py-2"
-                        placeholder="Type custom JSON key"
-                        value={mappingState.customFieldNames[h] || ""}
-                        onChange={(e) =>
-                          setMappingState((prev) =>
-                            prev ? { ...prev, customFieldNames: { ...prev.customFieldNames, [h]: e.target.value } } : null
-                          )
-                        }
-                      />
-                    )}
-                  </div>
-                ))}
-              </div>
+              {mappingState.step === "mapping" ? (
+                <div className="grid gap-6 md:grid-cols-2">
+                  {mappingState.headers.map((h) => (
+                    <div className="flex flex-col gap-2 rounded-xl border border-outline-variant/30 bg-surface-container-low p-4" key={h}>
+                      <p className="text-xs font-bold uppercase tracking-wider text-outline">{h}</p>
+                      <select
+                        className="atrium-input bg-surface-container-lowest py-2"
+                        value={mappingState.map[h]}
+                        onChange={(e) => setMappingState((prev) => (prev ? { ...prev, map: { ...prev.map, [h]: e.target.value } } : null))}
+                      >
+                        <option value="ignore">Skip / Ignore</option>
+                        <option value="firstName">First Name</option>
+                        <option value="lastName">Last Name</option>
+                        <option value="phone">Phone Number (Required)</option>
+                        <option value="email">Email Address</option>
+                        <option value="company">Company</option>
+                        <option value="labels">Tags / Labels</option>
+                        <option value="custom">Create Custom Field...</option>
+                      </select>
+                      {mappingState.map[h] === "custom" && (
+                        <input
+                          className="atrium-input mt-2 py-2"
+                          placeholder="Type custom JSON key"
+                          value={mappingState.customFieldNames[h] || ""}
+                          onChange={(e) =>
+                            setMappingState((prev) =>
+                              prev ? { ...prev, customFieldNames: { ...prev.customFieldNames, [h]: e.target.value } } : null
+                            )
+                          }
+                        />
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex flex-col gap-8">
+                  {mappingState.conflicts?.map((conflict) => (
+                    <div key={conflict.phone} className="rounded-xl border border-outline-variant/30 bg-surface-container-low p-5">
+                       <h3 className="font-bold text-lg mb-4">{conflict.firstName} {conflict.lastName} <span className="text-sm font-normal text-on-surface-variant ml-2">{conflict.phone}</span></h3>
+                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                          {Object.keys(conflict.incomingFields).filter(k => conflict.originalFields[k] !== undefined).map(fieldKey => (
+                             <div key={fieldKey} className="bg-surface-container-lowest p-4 rounded-xl border border-outline-variant/10">
+                                <p className="font-bold text-xs uppercase text-primary mb-3">{fieldKey}</p>
+                                <div className="space-y-3">
+                                   <label className="flex items-start gap-3 cursor-pointer">
+                                      <input type="radio" className="mt-1" name={`${conflict.phone}-${fieldKey}`} 
+                                         checked={mappingState.resolvers?.[conflict.phone]?.[fieldKey] === "keep"}
+                                         onChange={() => setMappingState(prev => !prev || !prev.resolvers ? null : { ...prev, resolvers: { ...prev.resolvers, [conflict.phone]: { ...prev.resolvers[conflict.phone], [fieldKey]: "keep" } } })}
+                                      />
+                                      <div className="text-sm"><span className="font-bold block">Keep Existing</span><span className="text-on-surface-variant font-mono text-xs">{conflict.originalFields[fieldKey]}</span></div>
+                                   </label>
+                                   <label className="flex items-start gap-3 cursor-pointer">
+                                      <input type="radio" className="mt-1" name={`${conflict.phone}-${fieldKey}`}
+                                         checked={mappingState.resolvers?.[conflict.phone]?.[fieldKey] === "overwrite"}
+                                         onChange={() => setMappingState(prev => !prev || !prev.resolvers ? null : { ...prev, resolvers: { ...prev.resolvers, [conflict.phone]: { ...prev.resolvers[conflict.phone], [fieldKey]: "overwrite" } } })}
+                                      />
+                                      <div className="text-sm"><span className="font-bold block">Overwite from CSV</span><span className="text-on-surface-variant font-mono text-xs">{conflict.incomingFields[fieldKey]}</span></div>
+                                   </label>
+                                   <label className="flex items-start gap-3 cursor-pointer">
+                                      <input type="radio" className="mt-1" name={`${conflict.phone}-${fieldKey}`}
+                                         checked={mappingState.resolvers?.[conflict.phone]?.[fieldKey]?.startsWith("rename:")}
+                                         onChange={() => {
+                                            const newName = window.prompt(`Rename incoming ${fieldKey} to a new custom field:`, `${fieldKey}_v2`);
+                                            if (newName) setMappingState(prev => !prev || !prev.resolvers ? null : { ...prev, resolvers: { ...prev.resolvers, [conflict.phone]: { ...prev.resolvers[conflict.phone], [fieldKey]: `rename:${newName}` } } });
+                                         }}
+                                      />
+                                      <div className="text-sm"><span className="font-bold block">Create N+1 Field</span><span className="text-on-surface-variant text-xs">Save as new attribute and preserve both values</span></div>
+                                   </label>
+                                </div>
+                             </div>
+                          ))}
+                       </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
             <div className="flex items-center justify-end gap-3 border-t border-outline-variant/20 bg-surface-container-low px-8 py-6">
               <button
                 className="rounded-xl px-6 py-3 font-bold text-primary transition-colors hover:bg-primary/5"
-                onClick={() => {
-                  setMappingState(null);
-                  setCsvFile(null);
-                }}
+                onClick={() => { setMappingState(null); setCsvFile(null); }}
               >
                 Cancel
               </button>
@@ -1945,8 +2051,8 @@ function ContactsPage(props: {
                 className="flex items-center gap-2 rounded-xl bg-primary px-8 py-3 font-bold text-on-primary transition-transform hover:scale-[1.02]"
                 onClick={(e) => void importCsv(e)}
               >
-                Execute Import
-                <Icon name="check_circle" />
+                {mappingState.step === "mapping" ? "Evaluate Conflicts" : "Execute Final Import"}
+                <Icon name={mappingState.step === "mapping" ? "arrow_forward" : "check_circle"} />
               </button>
             </div>
           </div>
@@ -2760,6 +2866,7 @@ function SettingsStudioPage(props: { data: BootstrapData; onRefresh: (preferredC
   });
   const [userForm, setUserForm] = useState({
     name: "",
+    preferredName: "",
     email: "",
     role: "agent"
   });
@@ -2815,7 +2922,7 @@ function SettingsStudioPage(props: { data: BootstrapData; onRefresh: (preferredC
         body: JSON.stringify(userForm)
       });
     }
-    setUserForm({ name: "", email: "", role: "agent" });
+    setUserForm({ name: "", preferredName: "", email: "", role: "agent" });
     await props.onRefresh();
   }
 
@@ -2828,7 +2935,7 @@ function SettingsStudioPage(props: { data: BootstrapData; onRefresh: (preferredC
 
   function startEditingUser(user: BootstrapData["users"][number]) {
     setEditingUserId(user.id);
-    setUserForm({ name: user.name, email: user.email, role: user.role });
+    setUserForm({ name: user.name, preferredName: user.preferredName || "", email: user.email, role: user.role });
   }
 
   return (
@@ -2887,8 +2994,11 @@ function SettingsStudioPage(props: { data: BootstrapData; onRefresh: (preferredC
         <div className="rounded-[2rem] bg-surface-container-lowest p-6 shadow-sm">
           <SectionTitle icon="group" title={editingUserId ? "Edit Team Member" : "Add Team Member"} />
           <form className="space-y-4" onSubmit={saveUser}>
-            <Field label="Name">
+            <Field label="Full Name">
               <input className="atrium-input" value={userForm.name} onChange={(event) => setUserForm((current) => ({ ...current, name: event.target.value }))} />
+            </Field>
+            <Field label="Preferred Name (Agent Alias)">
+              <input className="atrium-input" placeholder="e.g. John" value={userForm.preferredName} onChange={(event) => setUserForm((current) => ({ ...current, preferredName: event.target.value }))} />
             </Field>
             <Field label="Email">
               <input className="atrium-input" value={userForm.email} onChange={(event) => setUserForm((current) => ({ ...current, email: event.target.value }))} />
@@ -2907,7 +3017,7 @@ function SettingsStudioPage(props: { data: BootstrapData; onRefresh: (preferredC
                 <button 
                   type="button" 
                   className="rounded-xl border border-outline-variant/30 px-5 py-3 text-sm font-bold text-on-surface hover:bg-surface-container"
-                  onClick={() => { setEditingUserId(null); setUserForm({ name: "", email: "", role: "agent" }); }}
+                  onClick={() => { setEditingUserId(null); setUserForm({ name: "", preferredName: "", email: "", role: "agent" }); }}
                 >
                   Cancel
                 </button>
@@ -2918,13 +3028,13 @@ function SettingsStudioPage(props: { data: BootstrapData; onRefresh: (preferredC
             {props.data.users.map((user) => (
               <div className="flex items-center justify-between rounded-2xl bg-surface-container-low p-4 group" key={user.id}>
                 <div className="flex items-center gap-3">
-                  <Avatar label={user.name} size="h-10 w-10" />
+                  <Avatar label={user.preferredName || user.name} size="h-10 w-10" />
                   <div>
                     <div className="flex items-center gap-2">
                       <p className="font-bold text-on-surface">{user.name}</p>
                       <span className="rounded-full bg-primary-fixed/20 px-2 py-0.5 text-[10px] uppercase tracking-widest font-bold text-primary">{user.role}</span>
                     </div>
-                    <p className="text-xs text-on-surface-variant font-medium mt-1">{user.email}</p>
+                    <p className="text-xs text-on-surface-variant font-medium mt-1">{user.email}{user.preferredName && ` • Alias: ${user.preferredName}`}{user.lastLoginAt && ` • Last Seen: ${new Date(user.lastLoginAt).toLocaleDateString()}`}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">

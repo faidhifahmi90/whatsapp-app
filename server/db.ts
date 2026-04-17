@@ -65,8 +65,10 @@ function mapUser(row: any): User {
   return {
     id: row.id,
     name: row.name,
+    preferredName: row.preferred_name || null,
     email: row.email,
-    role: row.role
+    role: row.role,
+    lastLoginAt: row.last_login_at || null
   };
 }
 
@@ -164,6 +166,13 @@ export function initDb() {
       email text not null unique,
       password_hash text not null,
       role text not null,
+      preferred_name text,
+      last_login_at text,
+      created_at text not null
+    );
+
+    create table if not exists custom_field_registry (
+      name text primary key,
       created_at text not null
     );
 
@@ -303,6 +312,9 @@ export function initDb() {
   try {
     db.prepare(`alter table campaigns add column metadata_json text`).run();
   } catch (e) {}
+  
+  try { db.prepare(`alter table users add column preferred_name text`).run(); } catch (e) {}
+  try { db.prepare(`alter table users add column last_login_at text`).run(); } catch (e) {}
 
   seedIfEmpty();
   cleanupDummyData();
@@ -334,7 +346,7 @@ export function getUserByEmail(email: string) {
 }
 
 export function getUserForSession(id: string) {
-  const row = db.prepare("select id, name, email, role from users where id = ?").get(id);
+  const row = db.prepare("select * from users where id = ?").get(id);
   return row ? mapUser(row) : null;
 }
 
@@ -347,14 +359,18 @@ export function createUser(input: { name: string; email: string; role: string })
 }
 
 export function listUsers() {
-  return (db.prepare("select id, name, email, role from users order by created_at asc").all() as any[]).map(mapUser);
+  return (db.prepare("select * from users order by created_at asc").all() as any[]).map(mapUser);
 }
 
-export function updateUser(id: string, input: { name: string; email: string; role: string }) {
+export function updateUser(id: string, input: { name: string; email: string; role: string; preferredName?: string }) {
   db.prepare(
-    `update users set name = ?, email = ?, role = ? where id = ?`
-  ).run(input.name, input.email, input.role, id);
+    `update users set name = ?, email = ?, role = ?, preferred_name = ? where id = ?`
+  ).run(input.name, input.email, input.role, input.preferredName || null, id);
   return getUserForSession(id);
+}
+
+export function updateUserLogin(id: string) {
+  db.prepare(`update users set last_login_at = ? where id = ?`).run(now(), id);
 }
 
 export function deleteUser(id: string) {
@@ -994,10 +1010,35 @@ export function getBootstrapData(userId: string): BootstrapData {
     conversations,
     campaigns: listCampaigns(),
     automations: listAutomations(),
-    users: listUsers()
+    users: listUsers(),
+    customFieldDefinitions: listCustomFieldDefinitions()
   };
 }
 
 export function findCampaign(id: string) {
   return listCampaigns().find((campaign) => campaign.id === id) ?? null;
+}
+
+export function clearContactsAndFields() {
+  db.prepare("delete from contacts").run();
+  db.prepare("delete from contact_segments").run();
+  db.prepare("delete from notes").run();
+  db.prepare("delete from custom_field_registry").run();
+}
+
+export function registerCustomFields(names: string[]) {
+  if (!names.length) return;
+  const stmt = db.prepare("insert or ignore into custom_field_registry (name, created_at) values (?, ?)");
+  const transaction = db.transaction(() => {
+     for (const name of names) {
+        if (!name.trim()) continue;
+        stmt.run(name.trim(), now());
+     }
+  });
+  transaction();
+}
+
+export function listCustomFieldDefinitions(): string[] {
+  const rows = db.prepare("select name from custom_field_registry order by name asc").all() as { name: string }[];
+  return rows.map(r => r.name);
 }
