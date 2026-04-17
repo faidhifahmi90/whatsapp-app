@@ -1549,15 +1549,6 @@ function ContactsPage(props: {
        }
     }
 
-    const finalMapping: Record<string, string> = {};
-    for (const h of mappingState.headers) {
-      if (mappingState.map[h] === "custom") {
-        finalMapping[h] = mappingState.customFieldNames[h] || h;
-      } else {
-        finalMapping[h] = mappingState.map[h];
-      }
-    }
-
     const formData = new FormData();
     formData.append("file", csvFile);
     formData.append("segmentIds", selectedSegments.join(","));
