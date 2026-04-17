@@ -1383,6 +1383,181 @@ function CampaignsPage(props: { data: BootstrapData; onRefresh: (preferredConver
   );
 }
 
+function ContactProfileModal(props: { contact: Contact; onClose: () => void; onRefresh: () => Promise<void>; customFieldDefinitions: string[] }) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [form, setForm] = useState({ ...props.contact, customFields: { ...props.contact.customFields } });
+  
+  const totalVehicles = props.contact.vehicles?.length || 0;
+  const totalAmountPaid = (props.contact.orders || []).reduce((acc, order) => {
+     let amount = 0;
+     if (order.netTransaction) amount = parseFloat(order.netTransaction.replace(/[^0-9.-]+/g, ""));
+     else if (order.netWrittenPremium) amount = parseFloat(order.netWrittenPremium.replace(/[^0-9.-]+/g, ""));
+     return acc + (isNaN(amount) ? 0 : amount);
+  }, 0);
+
+  async function handleSave() {
+     await api("/api/contacts", {
+        method: "POST",
+        body: JSON.stringify(form)
+     });
+     setIsEditing(false);
+     await props.onRefresh();
+  }
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-[#091b18]/60 backdrop-blur-sm">
+      <div className="flex max-h-full w-full max-w-4xl flex-col overflow-hidden rounded-[2.5rem] bg-surface-container-lowest shadow-[0_40px_120px_-48px_rgba(0,69,61,0.5)]">
+        {/* Banner Header */}
+        <div className="bg-gradient-to-r from-primary-fixed to-tertiary-fixed px-10 py-10 relative">
+          <button onClick={props.onClose} className="absolute top-6 right-6 h-10 w-10 flex items-center justify-center rounded-full bg-surface-container-lowest/20 hover:bg-surface-container-lowest/40 transition-colors text-surface-container-lowest">
+            <Icon name="close" />
+          </button>
+          
+          <div className="flex flex-col md:flex-row md:items-end gap-6 relative z-10 text-on-primary-fixed">
+            <div className="h-28 w-28 flex-shrink-0 flex items-center justify-center rounded-[2rem] bg-surface-container-lowest shadow-xl text-primary font-headline text-4xl border-4 border-surface-container-lowest/50">
+               {form.firstName ? form.firstName.charAt(0) : "U"}{form.lastName ? form.lastName.charAt(0) : ""}
+            </div>
+            <div className="flex-1 pb-2">
+               <h2 className="font-headline text-4xl font-bold">{form.firstName} {form.lastName}</h2>
+               <div className="flex flex-wrap gap-4 mt-3 text-sm font-medium opacity-90">
+                  <span className="flex items-center gap-1.5"><Icon className="text-base" name="call" /> {form.phone}</span>
+                  {form.email && <span className="flex items-center gap-1.5"><Icon className="text-base" name="mail" /> {form.email}</span>}
+                  {form.company && <span className="flex items-center gap-1.5"><Icon className="text-base" name="business" /> {form.company}</span>}
+               </div>
+            </div>
+            
+            <div className="flex gap-4 pb-2">
+               <div className="bg-surface-container-lowest/20 backdrop-blur px-5 py-3 rounded-2xl border border-surface-container-lowest/20 border-b-surface-container-lowest/40">
+                  <p className="text-[10px] font-bold tracking-widest uppercase opacity-80 mb-0.5">Vehicles</p>
+                  <p className="text-2xl font-bold font-mono">{totalVehicles}</p>
+               </div>
+               <div className="bg-surface-container-lowest/20 backdrop-blur px-5 py-3 rounded-2xl border border-surface-container-lowest/20 border-b-surface-container-lowest/40">
+                  <p className="text-[10px] font-bold tracking-widest uppercase opacity-80 mb-0.5">Total Paid</p>
+                  <p className="text-2xl font-bold font-mono">${totalAmountPaid.toLocaleString()}</p>
+               </div>
+            </div>
+          </div>
+        </div>
+        
+        {/* Scrollable Content */}
+        <div className="flex-1 overflow-y-auto p-10 bg-surface-container-lowest">
+           <div className="flex justify-between items-center mb-8 border-b border-outline-variant/20 pb-4">
+              <h3 className="font-headline text-xl font-bold text-on-surface">Data Profile</h3>
+              <div className="flex gap-3">
+                 {isEditing ? (
+                    <>
+                       <button onClick={() => setIsEditing(false)} className="px-5 py-2 rounded-xl text-sm font-bold text-on-surface-variant hover:bg-surface-container transition-colors">Cancel</button>
+                       <button onClick={() => void handleSave()} className="px-5 py-2 rounded-xl text-sm font-bold bg-primary text-on-primary hover:opacity-90 transition-opacity">Save Profile</button>
+                    </>
+                 ) : (
+                    <button onClick={() => setIsEditing(true)} className="flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-bold bg-secondary-fixed text-on-secondary-fixed hover:bg-secondary-fixed-dim transition-colors">
+                       <Icon className="text-[18px]" name="edit" /> Edit
+                    </button>
+                 )}
+              </div>
+           </div>
+
+           <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-12 gap-y-10">
+              <div className="space-y-6">
+                 <h4 className="text-xs font-bold text-secondary uppercase tracking-widest">Standard Identifiers</h4>
+                 <div className="grid grid-cols-2 gap-4">
+                    <Field label="First Name"><input disabled={!isEditing} className={`atrium-input bg-transparent disabled:opacity-70 disabled:border-transparent disabled:px-0`} value={form.firstName} onChange={e => setForm(f => ({ ...f, firstName: e.target.value }))} /></Field>
+                    <Field label="Last Name"><input disabled={!isEditing} className={`atrium-input bg-transparent disabled:opacity-70 disabled:border-transparent disabled:px-0`} value={form.lastName} onChange={e => setForm(f => ({ ...f, lastName: e.target.value }))} /></Field>
+                    <Field label="Phone No."><input disabled={!isEditing} className={`atrium-input bg-transparent disabled:opacity-70 disabled:border-transparent disabled:px-0`} value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} /></Field>
+                    <Field label="Identification No. (NRIC)">
+                       <input disabled={!isEditing} className={`atrium-input bg-transparent disabled:opacity-70 disabled:border-transparent disabled:px-0`} value={form.customFields["identification_number"] || ""} onChange={e => setForm(f => ({ ...f, customFields: { ...f.customFields, identification_number: e.target.value } }))} placeholder="Not provided" />
+                    </Field>
+                    <div className="col-span-2">
+                       <Field label="Email Address"><input disabled={!isEditing} className={`atrium-input bg-transparent disabled:opacity-70 disabled:border-transparent disabled:px-0`} value={form.email || ""} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} placeholder="Not provided" /></Field>
+                    </div>
+                 </div>
+              </div>
+
+              <div className="space-y-6 lg:border-l lg:border-outline-variant/20 lg:pl-12">
+                 <h4 className="text-xs font-bold text-secondary uppercase tracking-widest">Custom Attributes</h4>
+                 {props.customFieldDefinitions.filter(k => k !== "identification_number").map(key => (
+                    <Field key={key} label={key.replace(/_/g, " ")}>
+                       <input disabled={!isEditing} className={`atrium-input bg-transparent disabled:opacity-70 disabled:border-transparent disabled:px-0`} value={form.customFields[key] || ""} onChange={e => setForm(f => ({ ...f, customFields: { ...f.customFields, [key]: e.target.value } }))} placeholder="—" />
+                    </Field>
+                 ))}
+                 {props.customFieldDefinitions.filter(k => k !== "identification_number").length === 0 && (
+                    <p className="text-sm text-on-surface-variant italic">No custom fields mapped to this profile.</p>
+                 )}
+              </div>
+           </div>
+
+           {(props.contact.vehicles && props.contact.vehicles.length > 0) && (
+              <div className="mt-12">
+                 <h4 className="text-xs font-bold text-secondary uppercase tracking-widest mb-4">Insured Vehicles</h4>
+                 <div className="overflow-x-auto rounded-xl border border-outline-variant/30">
+                    <table className="w-full text-left text-sm bg-surface-container-lowest">
+                       <thead>
+                          <tr className="bg-surface-container-low text-[10px] uppercase text-on-surface-variant">
+                             <th className="px-5 py-3 border-b border-outline-variant/20 font-bold">Registration No</th>
+                             <th className="px-5 py-3 border-b border-outline-variant/20 font-bold">Owner Name</th>
+                             <th className="px-5 py-3 border-b border-outline-variant/20 font-bold">Details</th>
+                             <th className="px-5 py-3 border-b border-outline-variant/20 font-bold text-right">Market Value</th>
+                          </tr>
+                       </thead>
+                       <tbody className="divide-y divide-outline-variant/10">
+                          {props.contact.vehicles.map(v => (
+                             <tr key={v.id} className="hover:bg-surface-container-low/50">
+                                <td className="px-5 py-3 font-semibold font-mono text-primary">{v.registrationNo}</td>
+                                <td className="px-5 py-3 text-on-surface-variant">{v.vehicleOwnerName || "—"}</td>
+                                <td className="px-5 py-3 text-on-surface-variant">{v.makeYear} {v.vehicleModel || v.vehicleType || "—"}</td>
+                                <td className="px-5 py-3 font-mono text-right font-medium">{v.marketValue || "—"}</td>
+                             </tr>
+                          ))}
+                       </tbody>
+                    </table>
+                 </div>
+              </div>
+           )}
+
+           {(props.contact.orders && props.contact.orders.length > 0) && (
+              <div className="mt-12">
+                 <h4 className="text-xs font-bold text-secondary uppercase tracking-widest mb-4">Insurance Policies & Orders</h4>
+                 <div className="overflow-x-auto rounded-xl border border-outline-variant/30">
+                    <table className="w-full text-left text-sm bg-surface-container-lowest">
+                       <thead>
+                          <tr className="bg-surface-container-low text-[10px] uppercase text-on- surface-variant">
+                             <th className="px-5 py-3 border-b border-outline-variant/20 font-bold">Cover Note / Order No</th>
+                             <th className="px-5 py-3 border-b border-outline-variant/20 font-bold">Reg No</th>
+                             <th className="px-5 py-3 border-b border-outline-variant/20 font-bold">Date</th>
+                             <th className="px-5 py-3 border-b border-outline-variant/20 font-bold">Status</th>
+                             <th className="px-5 py-3 border-b border-outline-variant/20 font-bold text-right">Premium / Net</th>
+                          </tr>
+                       </thead>
+                       <tbody className="divide-y divide-outline-variant/10">
+                          {props.contact.orders.map(o => (
+                             <tr key={o.id} className="hover:bg-surface-container-low/50">
+                                <td className="px-5 py-4">
+                                   <div className="font-semibold text-secondary">{o.coverNoteNo || "—"}</div>
+                                   <div className="text-xs text-on-surface-variant mt-0.5 font-mono">{o.orderNo}</div>
+                                </td>
+                                <td className="px-5 py-4 font-mono font-medium">{o.registrationNo}</td>
+                                <td className="px-5 py-4 text-on-surface-variant">{o.orderDate || "—"}</td>
+                                <td className="px-5 py-4">
+                                   <span className={`px-2 py-1 text-[10px] rounded font-bold uppercase ${o.orderStatus?.toLowerCase() === 'paid' ? 'bg-primary/10 text-primary' : 'bg-surface-container text-on-surface-variant'}`}>{o.orderStatus || 'Pending'}</span>
+                                </td>
+                                <td className="px-5 py-4 font-mono text-right font-medium">
+                                   <div className="text-on-surface">{o.netWrittenPremium || o.netTransaction || "—"}</div>
+                                   {o.paymentMethod && <div className="text-[10px] text-on-surface-variant mt-1 uppercase">{o.paymentMethod}</div>}
+                                </td>
+                             </tr>
+                          ))}
+                       </tbody>
+                    </table>
+                 </div>
+              </div>
+           )}
+
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ContactsPage(props: {
   data: BootstrapData;
   onOpenConversation: (contactId: string, channelId: string, templateId?: string) => Promise<void>;
@@ -1422,6 +1597,7 @@ function ContactsPage(props: {
   } | null>(null);
 
   const [isAddContactOpen, setIsAddContactOpen] = useState(false);
+  const [viewingContact, setViewingContact] = useState<Contact | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [page, setPage] = useState(1);
   const [visibleColumns, setVisibleColumns] = useState<string[]>(["profile", "phone", "segments", "activity", "optIn"]);
@@ -1941,6 +2117,12 @@ function ContactsPage(props: {
                   <td className="px-8 py-5">
                     <div className="flex justify-end gap-2">
                       <button
+                        className="rounded-xl border border-outline-variant/20 px-3 py-2 text-xs font-bold text-on-surface-variant transition-all hover:bg-surface-container-low hover:text-primary"
+                        onClick={() => setViewingContact(contact)}
+                      >
+                        Profile
+                      </button>
+                      <button
                         className="rounded-xl border border-outline-variant/20 px-3 py-2 text-xs font-bold text-primary transition-all hover:bg-surface-container-low"
                         onClick={() => void props.onOpenConversation(contact.id, props.data.channels[0]?.id ?? "", props.data.templates[0]?.id)}
                       >
@@ -2102,6 +2284,15 @@ function ContactsPage(props: {
             </div>
           </div>
         </div>
+      )}
+
+      {viewingContact !== null && (
+        <ContactProfileModal 
+          contact={viewingContact} 
+          onClose={() => setViewingContact(null)} 
+          customFieldDefinitions={props.data.customFieldDefinitions}
+          onRefresh={props.onRefresh} 
+        />
       )}
     </div>
   );
