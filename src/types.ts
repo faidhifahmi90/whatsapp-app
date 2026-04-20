@@ -167,13 +167,15 @@ export type Automation = {
   isActive: boolean;
 };
 
-export type JourneyInstance = {
+export type LandingPage = {
   id: string;
-  automationId: string;
-  contactId: string;
-  currentNodeId: string;
-  nextExecutionAt: string;
-  status: "active" | "completed" | "paused";
+  name: string;
+  slug: string;
+  title: string;
+  description: string;
+  sections: any[];
+  theme: any;
+  isPublished: boolean;
   createdAt: string;
 };
 
@@ -192,6 +194,7 @@ export type BootstrapData = {
   conversations: Conversation[];
   campaigns: Campaign[];
   automations: Automation[];
+  landingPages: LandingPage[];
   users: User[];
   customFieldDefinitions: string[];
 };

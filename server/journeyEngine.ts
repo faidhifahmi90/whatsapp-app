@@ -93,7 +93,10 @@ async function executeAction(node: JourneyNode, contact: Contact) {
          contactId: contact.id,
          channelId: node.config.channelId,
          runAt: now(),
-         payload: { templateId: node.config.templateId }
+         payload: { 
+           templateId: node.config.templateId,
+           variables: node.config.templateVariables || []
+         }
        });
     }
   }

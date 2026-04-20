@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { JourneyNode, JourneyNodeCategory, BootstrapData } from "../types";
+import { Icon, TemplateLivePreview } from "../App";
 
 // Node definitions based on requirements
 const Palettes: Record<JourneyNodeCategory, { label: string; icon: string; color: string; items: any[] }> = {
@@ -250,19 +251,37 @@ export default function JourneyDesigner(props: {
 
       {/* Right Sidebar: Configuration */}
       {selectedNodeId && (
-        <div className="w-80 border-l border-outline-variant/20 bg-surface-container-lowest p-6 h-full shadow-2xl relative z-10 overflow-y-auto">
-           <div className="flex justify-between items-center mb-6 pb-4 border-b border-outline-variant/10">
-              <h3 className="font-headline text-lg font-bold text-primary">Node Settings</h3>
-              <button onClick={() => setSelectedNodeId(null)} className="h-8 w-8 flex items-center justify-center rounded-full hover:bg-surface-container text-outline transition-colors"><span className="material-symbols-rounded">close</span></button>
-           </div>
+        <div className={`transition-all duration-500 ease-in-out border-l border-outline-variant/20 bg-surface-container-lowest h-full shadow-2xl relative z-10 overflow-y-auto ${selectedNode?.type === 'send_whatsapp' ? 'w-[640px]' : 'w-80'}`}>
+           <div className="p-6">
+              <div className="flex justify-between items-center mb-6 pb-4 border-b border-outline-variant/10">
+                 <h3 className="font-headline text-lg font-bold text-primary">Node Settings</h3>
+                 <button onClick={() => setSelectedNodeId(null)} className="h-8 w-8 flex items-center justify-center rounded-full hover:bg-surface-container text-outline transition-colors">
+                   <Icon name="close" />
+                 </button>
+              </div>
 
-           {selectedNode && (
-             <div className="space-y-6">
-                <NodeConfigurator node={selectedNode} data={props.data} onChange={(config) => {
-                   setNodes(nodes.map(n => n.id === selectedNodeId ? { ...n, config } : n));
-                }} />
-             </div>
-           )}
+              {selectedNode && (
+                <div className={`${selectedNode.type === 'send_whatsapp' ? 'grid grid-cols-2 gap-8' : 'space-y-6'}`}>
+                   <div className="space-y-6">
+                      <NodeConfigurator node={selectedNode} data={props.data} onChange={(config) => {
+                         setNodes(nodes.map(n => n.id === selectedNodeId ? { ...n, config } : n));
+                      }} />
+                   </div>
+                   
+                   {selectedNode.type === 'send_whatsapp' && (
+                     <div className="sticky top-0">
+                       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">Live Preview</p>
+                       <div className="scale-[0.85] origin-top border-4 border-slate-900 rounded-[3.5rem] overflow-hidden shadow-2xl">
+                         <TemplateLivePreview 
+                           template={props.data.templates.find(t => t.id === selectedNode.config.templateId)} 
+                           variables={selectedNode.config.templateVariables || []} 
+                         />
+                       </div>
+                     </div>
+                   )}
+                </div>
+              )}
+           </div>
         </div>
       )}
     </div>
@@ -283,6 +302,7 @@ function AddButton({ onClick }: { onClick: () => void }) {
 function NodeConfigurator({ node, data, onChange }: { node: JourneyNode; data: BootstrapData; onChange: (config: any) => void }) {
     // Shared config logic
     if (node.type === 'send_whatsapp' || node.type === 'send_generic_message') {
+      const selectedTmpl = data.templates.find(t => t.id === node.config.templateId);
       return (
         <div className="space-y-4">
            <div className="bg-primary/5 p-4 rounded-2xl border border-primary/10">
@@ -291,12 +311,38 @@ function NodeConfigurator({ node, data, onChange }: { node: JourneyNode; data: B
              <select 
                className="atrium-input bg-surface-container-lowest"
                value={node.config.templateId || ""}
-               onChange={e => onChange({ ...node.config, templateId: e.target.value })}
+               onChange={e => onChange({ ...node.config, templateId: e.target.value, templateVariables: [] })}
              >
                 <option value="">Select a template...</option>
                 {data.templates.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
              </select>
            </div>
+
+           {selectedTmpl?.placeholders?.length ? (
+              <div className="space-y-4 p-5 rounded-[2rem] bg-slate-50 border border-slate-100 shadow-inner">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-2">
+                  <span className="material-symbols-rounded text-sm">variable</span> Automated Variables ({selectedTmpl.placeholders.length})
+                </p>
+                {selectedTmpl.placeholders.map((ph, idx) => (
+                  <div key={ph + idx} className="space-y-1.5">
+                    <label className="block text-[10px] font-bold text-slate-500 ml-1">Variable: {ph}</label>
+                    <input 
+                      type="text"
+                      className="atrium-input bg-white" 
+                      placeholder={`Value for ${ph}...`}
+                      value={(node.config.templateVariables || [])[idx] || ""}
+                      onChange={(e) => {
+                        const next = [...(node.config.templateVariables || [])];
+                        // Ensure the array is long enough
+                        while (next.length <= idx) next.push("");
+                        next[idx] = e.target.value;
+                        onChange({ ...node.config, templateVariables: next });
+                      }}
+                    />
+                  </div>
+                ))}
+              </div>
+           ) : null}
            
            <div className="bg-emerald-50/50 p-4 rounded-2xl border border-emerald-100">
              <label className="block text-xs font-bold text-emerald-900 mb-2">Sender Channel</label>

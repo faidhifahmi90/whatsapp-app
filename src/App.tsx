@@ -12,7 +12,8 @@ import type {
   Template,
   Vehicle,
   Order,
-  JourneyNode
+  JourneyNode,
+  LandingPage
 } from "./types";
 import JourneyDesigner from "./components/JourneyDesigner";
 
@@ -28,6 +29,7 @@ const primaryNavItems = [
 const studioNavItems = [
   { to: "/templates", label: "Templates", icon: "description" },
   { to: "/automations", label: "Automations", icon: "hub" },
+  { to: "/landing-pages", label: "Landing Pages", icon: "auto_stories" },
   { to: "/settings", label: "Settings", icon: "settings" }
 ];
 
@@ -226,7 +228,7 @@ function formatWhatsAppText(text: string) {
   return html;
 }
 
-function TemplateLivePreview(props: { template?: Template; variables: string[]; overrideMediaUrl?: string }) {
+export function TemplateLivePreview(props: { template?: Template; variables: string[]; overrideMediaUrl?: string }) {
   if (!props.template) {
     return (
       <div className="flex h-[500px] w-full flex-col items-center justify-center rounded-[3rem] border border-slate-100 bg-slate-50/50 shadow-inner">
@@ -342,6 +344,10 @@ function DashboardShell(props: {
     "/analytics": {
       title: "Campaign Reports",
       searchPlaceholder: "Search campaign reports..."
+    },
+    "/landing-pages": {
+      title: "Landing Pages",
+      searchPlaceholder: "Search landing pages..."
     }
   } as Record<string, { title: string; searchPlaceholder: string }>;
 
@@ -526,6 +532,7 @@ function DashboardShell(props: {
           <Route path="/analytics" element={<AnalyticsPage data={props.data} />} />
           <Route path="/templates" element={<TemplatesStudioPage data={props.data} onRefresh={props.onRefresh} />} />
           <Route path="/automations" element={<AutomationsStudioPage data={props.data} onRefresh={props.onRefresh} />} />
+          <Route path="/landing-pages" element={<LandingPagesPage data={props.data} onRefresh={props.onRefresh} />} />
           <Route path="/settings" element={<SettingsStudioPage data={props.data} onRefresh={props.onRefresh} />} />
           <Route path="*" element={<Navigate to="/inbox" replace />} />
         </Routes>
@@ -3673,13 +3680,15 @@ function AutomationsStudioPage(props: { data: BootstrapData; onRefresh: (preferr
       </div>
 
       {activeTab === 'simple' ? (
-        <div className="grid gap-8 lg:grid-cols-[400px_1fr]">
+        <div className="grid gap-8 lg:grid-cols-[800px_1fr]">
           <div className="rounded-[2.5rem] bg-surface-container-lowest p-8 shadow-xl shadow-surface-container-low/5 border border-outline-variant/5">
-            <div className="mb-8">
-               <h3 className="font-headline text-2xl font-bold text-primary">New Workflow</h3>
-               <p className="mt-1 text-sm text-outline font-medium">Create a simple trigger-based responder.</p>
-            </div>
-            <form className="space-y-6" onSubmit={saveAutomation}>
+            <div className="flex flex-col lg:flex-row gap-10">
+              <div className="flex-1 space-y-6">
+                <div className="mb-4">
+                   <h3 className="font-headline text-2xl font-bold text-primary">New Workflow</h3>
+                   <p className="mt-1 text-sm text-outline font-medium">Create a simple trigger-based responder.</p>
+                </div>
+                <form className="space-y-6" onSubmit={saveAutomation}>
               <Field label="Workflow name">
                 <input className="atrium-input" value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} />
               </Field>
@@ -3752,8 +3761,26 @@ function AutomationsStudioPage(props: { data: BootstrapData; onRefresh: (preferr
               <Field label="Delay (Minutes)">
                 <input className="atrium-input" value={form.delayMinutes} onChange={(event) => setForm((current) => ({ ...current, delayMinutes: event.target.value }))} />
               </Field>
-              <button className="w-full rounded-2xl bg-primary px-5 py-4 text-sm font-bold text-on-primary shadow-lg shadow-primary/20 hover:opacity-95 transition-all">Enable automation</button>
-            </form>
+                <div className="pt-4">
+                  <button type="submit" className="w-full py-4 rounded-2xl bg-primary text-sm font-bold text-on-primary shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all">
+                    Activate Automation
+                  </button>
+                </div>
+                </form>
+              </div>
+
+              {form.templateId && (
+                <div className="w-[320px] shrink-0">
+                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">Live Message Preview</p>
+                   <div className="rounded-[3rem] border-[8px] border-slate-900 bg-slate-950 overflow-hidden shadow-2xl scale-90 origin-top">
+                      <TemplateLivePreview 
+                        template={props.data.templates.find(t => t.id === form.templateId)} 
+                        variables={form.templateVariables} 
+                      />
+                   </div>
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="grid gap-4 content-start">
@@ -4351,7 +4378,7 @@ function Avatar(props: { label: string; size?: string }) {
   );
 }
 
-function Icon(props: { name: string; className?: string; fill?: boolean }) {
+export function Icon(props: { name: string; className?: string; fill?: boolean }) {
   return (
     <span className={`material-symbols-rounded ${props.className ?? ""}`} style={props.fill ? { fontVariationSettings: "'FILL' 1, 'wght' 500, 'GRAD' 0, 'opsz' 24" } : undefined}>
       {props.name}
@@ -4459,4 +4486,769 @@ function buildAnalyticsSummary(data: BootstrapData) {
     trendBars: [40, 65, 55, 85, 70, 45, 60, 90, 75, 95, 65, 50],
     highlightedBar: 3
   };
+}
+
+function EditableText(props: { value: string; tagName?: string; className?: string; style?: any; onChange: (next: string) => void }) {
+  const Tag = (props.tagName || 'div') as any;
+  const [localValue, setLocalValue] = useState(props.value);
+
+  useEffect(() => {
+    setLocalValue(props.value);
+  }, [props.value]);
+
+  return (
+    <Tag
+      contentEditable
+      suppressContentEditableWarning
+      className={`outline-none transition-all focus:ring-2 focus:ring-primary/20 rounded-md px-1 -mx-1 cursor-text ${props.className ?? ""}`}
+      style={props.style}
+      onBlur={(e: any) => {
+        const next = e.currentTarget.textContent || "";
+        setLocalValue(next);
+        props.onChange(next);
+      }}
+      dangerouslySetInnerHTML={{ __html: localValue }}
+    />
+  );
+}
+
+function SmartBuilderWizard(props: { onComplete: (config: any) => void; onClose: () => void }) {
+  const [step, setStep] = useState(1);
+  const [formData, setFormData] = useState({
+    name: "",
+    industry: "saas",
+    goal: "lead",
+    style: "modern"
+  });
+  const [isBuilding, setIsBuilding] = useState(false);
+
+  async function handleBuild() {
+    setIsBuilding(true);
+    try {
+      const resp = await api("/api/ai/smart-build", {
+        method: "POST",
+        body: JSON.stringify(formData)
+      });
+      props.onComplete(resp);
+    } catch (err) {
+      alert("Failed to build page. Check your connection.");
+      setIsBuilding(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/40 backdrop-blur-md">
+      <div className="w-full max-w-2xl bg-white shadow-2xl rounded-[3rem] overflow-hidden animate-slide-up border border-white/20">
+         <div className="bg-primary p-12 text-on-primary relative overflow-hidden">
+            <div className="absolute top-0 right-0 h-full w-full bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.2),transparent)]" />
+            <h2 className="font-headline text-4xl font-extrabold mb-2 relative z-10">Smart Site Builder</h2>
+            <p className="text-on-primary/70 font-medium relative z-10 italic">Answer 3 questions and watch the AI build your business.</p>
+            <div className="mt-8 flex items-center gap-4 relative z-10">
+               {[1,2,3].map(s => (
+                 <div key={s} className={`h-1.5 flex-1 rounded-full bg-white/20 overflow-hidden`}>
+                   <div className={`h-full bg-white transition-all duration-500 ${step >= s ? 'w-full' : 'w-0'}`} />
+                 </div>
+               ))}
+            </div>
+         </div>
+
+         <div className="p-12">
+            {isBuilding ? (
+               <div className="flex flex-col items-center justify-center py-20 animate-pulse">
+                  <div className="h-24 w-24 rounded-full border-8 border-primary/20 border-t-primary animate-spin mb-8" />
+                  <p className="text-xl font-bold text-primary">Generating Copy & Structure...</p>
+                  <p className="text-sm text-slate-400 mt-2 italic">Thinking like an expert marketer...</p>
+               </div>
+            ) : (
+               <>
+                  {step === 1 && (
+                     <div className="space-y-6">
+                        <Field label="Business Name">
+                           <input 
+                             autoFocus
+                             className="atrium-input text-xl py-6 rounded-3xl" 
+                             placeholder="e.g. Acme Coffee Roasters" 
+                             value={formData.name}
+                             onChange={e => setFormData({...formData, name: e.target.value})}
+                           />
+                        </Field>
+                        <Field label="What is your niche?">
+                           <div className="grid grid-cols-3 gap-4">
+                              {['saas', 'coffee', 'legal'].map(n => (
+                                 <button 
+                                   key={n}
+                                   onClick={() => setFormData({...formData, industry: n})}
+                                   className={`py-4 rounded-2xl border-2 font-bold text-sm capitalize transition-all ${formData.industry === n ? 'border-primary bg-primary/5 text-primary' : 'border-slate-100 text-slate-400 hover:border-slate-200'}`}
+                                 >
+                                   {n}
+                                 </button>
+                              ))}
+                           </div>
+                        </Field>
+                     </div>
+                  )}
+
+                  {step === 2 && (
+                     <div className="space-y-6">
+                         <p className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4">What is the main goal?</p>
+                         <div className="space-y-3">
+                            {[
+                               { id: 'lead', label: 'Capture Leads', desc: 'Add forms and high-converting CTAs.' },
+                               { id: 'info', label: 'Share Information', desc: 'Rich feature lists and detailed descriptions.' }
+                            ].map(g => (
+                               <button 
+                                 key={g.id}
+                                 onClick={() => setFormData({...formData, goal: g.id})}
+                                 className={`w-full p-6 text-left rounded-3xl border-2 transition-all flex items-center justify-between ${formData.goal === g.id ? 'border-primary bg-primary/5' : 'border-slate-100 hover:border-slate-200'}`}
+                               >
+                                  <div>
+                                     <p className={`font-bold ${formData.goal === g.id ? 'text-primary' : 'text-slate-700'}`}>{g.label}</p>
+                                     <p className="text-xs text-slate-400 font-medium">{g.desc}</p>
+                                  </div>
+                                  <div className={`h-6 w-6 rounded-full border-2 flex items-center justify-center ${formData.goal === g.id ? 'border-primary bg-primary' : 'border-slate-200'}`}>
+                                     {formData.goal === g.id && <Icon name="check" className="text-white text-xs" />}
+                                  </div>
+                               </button>
+                            ))}
+                         </div>
+                     </div>
+                  )}
+
+                  {step === 3 && (
+                     <div className="space-y-6">
+                        <p className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4">Choose a visual style</p>
+                        <div className="grid grid-cols-2 gap-4">
+                           {[
+                              { id: 'modern', color: 'bg-indigo-500' },
+                              { id: 'corporate', color: 'bg-slate-900' },
+                              { id: 'playful', color: 'bg-rose-500' },
+                              { id: 'bold', color: 'bg-black' }
+                           ].map(s => (
+                              <button 
+                                 key={s.id}
+                                 onClick={() => setFormData({...formData, style: s.id})}
+                                 className={`p-4 rounded-3xl border-2 transition-all flex items-center gap-4 ${formData.style === s.id ? 'border-primary bg-primary/5' : 'border-slate-100 hover:border-slate-200'}`}
+                              >
+                                 <div className={`h-10 w-10 rounded-xl ${s.color}`} />
+                                 <span className="font-bold text-sm capitalize">{s.id}</span>
+                              </button>
+                           ))}
+                        </div>
+                     </div>
+                  )}
+
+                  <div className="mt-12 flex items-center justify-between gap-6">
+                     <button onClick={props.onClose} className="px-8 py-4 font-bold text-slate-400 hover:text-slate-600 transition-colors">Discard</button>
+                     <div className="flex gap-4">
+                        {step > 1 && <button onClick={() => setStep(step - 1)} className="px-8 py-4 rounded-2xl bg-slate-100 font-bold text-slate-500 hover:bg-slate-200 transition-all">Back</button>}
+                        <button 
+                           disabled={step === 1 && !formData.name}
+                           onClick={() => step < 3 ? setStep(step + 1) : handleBuild()}
+                           className="px-10 py-4 rounded-2xl bg-primary text-on-primary font-bold shadow-xl shadow-primary/20 hover:scale-[1.03] active:scale-[0.98] transition-all disabled:opacity-50"
+                        >
+                           {step < 3 ? 'Next Step' : 'Magic Build ✨'}
+                        </button>
+                     </div>
+                  </div>
+               </>
+            )}
+      </div>
+    </div>
+    </div>
+  );
+}
+
+function LandingPagesPage(props: { data: BootstrapData; onRefresh: () => Promise<void> }) {
+  const [editorPageId, setEditorPageId] = useState<string | null>(null);
+  const [showWizard, setShowWizard] = useState(false);
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this page?")) return;
+    await api(`/api/landing-pages/${id}`, { method: "DELETE" });
+    await props.onRefresh();
+  };
+
+  return (
+    <StudioPageShell title="Landing Pages" subtitle="Generate high-converting mobile-first pages linked directly to your CRM.">
+      <div className="mb-10 flex flex-col md:flex-row gap-6">
+        <button 
+          onClick={() => setShowWizard(true)}
+          className="flex-1 group relative overflow-hidden p-10 rounded-[3rem] bg-primary text-on-primary shadow-[0_32px_64px_-16px_rgba(37,99,235,0.4)] hover:scale-[1.01] active:scale-[0.99] transition-all duration-500"
+        >
+          <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:scale-125 transition-transform">
+             <Icon name="auto_fix_high" className="text-8xl" />
+          </div>
+          <div className="relative z-10 flex items-center gap-6">
+             <div className="h-20 w-20 rounded-[2rem] bg-white/20 backdrop-blur-md flex items-center justify-center">
+                <Icon name="magic_button" className="text-4xl" />
+             </div>
+             <div className="text-left">
+                <h3 className="font-headline text-3xl font-extrabold mb-1">Smart AI Builder</h3>
+                <p className="text-on-primary/70 font-medium text-sm">Generate a complete, high-converting site from scratch in 30 seconds.</p>
+             </div>
+          </div>
+          <div className="mt-8 flex items-center gap-2 text-sm font-bold opacity-80">
+             Get started now <Icon name="arrow_forward" className="text-sm" />
+          </div>
+        </button>
+
+        <button 
+          onClick={() => setEditorPageId("new")}
+          className="p-10 rounded-[3rem] border-2 border-dashed border-outline-variant/30 hover:border-primary/40 hover:bg-primary/5 transition-all group lg:min-w-[400px] text-left"
+        >
+          <div className="flex items-center gap-4 text-outline group-hover:text-primary transition-colors">
+             <Icon name="add_circle" className="text-4xl" />
+             <div>
+                <h3 className="text-xl font-bold">Blank Template</h3>
+                <p className="text-[10px] font-bold uppercase tracking-widest opacity-60">Design manually</p>
+             </div>
+          </div>
+        </button>
+      </div>
+
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        {props.data.landingPages.map(page => (
+          <div key={page.id} className="group relative rounded-[2.5rem] bg-white border border-slate-100 p-8 shadow-sm hover:shadow-2xl hover:-translate-y-1 transition-all duration-500">
+            <div className="mb-6 flex items-start justify-between">
+              <div className="h-14 w-14 rounded-2xl bg-primary/5 flex items-center justify-center text-primary transform group-hover:scale-110 transition-transform">
+                <Icon name="web" className="text-2xl" />
+              </div>
+              <div className="flex items-center gap-2">
+                <button onClick={() => setEditorPageId(page.id)} className="p-2 rounded-lg text-slate-400 hover:bg-slate-50 hover:text-primary transition-colors"><Icon name="edit" className="text-sm" /></button>
+                <button onClick={() => handleDelete(page.id)} className="p-2 rounded-lg text-slate-400 hover:bg-error/10 hover:text-error transition-colors"><Icon name="delete" className="text-sm" /></button>
+              </div>
+            </div>
+            
+            <h3 className="text-lg font-extrabold text-slate-800 line-clamp-1">{page.name}</h3>
+            <p className="text-xs text-slate-400 font-bold tracking-wider mt-1">/l/{page.slug}</p>
+            
+            <div className="mt-6 flex items-center justify-between">
+              <span className={`text-[10px] font-bold uppercase tracking-widest px-3 py-1 rounded-full ${page.isPublished ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-500'}`}>
+                {page.isPublished ? 'Published' : 'Draft'}
+              </span>
+              <a 
+                href={`/l/${page.slug}`} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-xs font-bold text-primary hover:underline flex items-center gap-1"
+              >
+                View Live <Icon name="open_in_new" className="text-[12px]" />
+              </a>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {showWizard && (
+        <SmartBuilderWizard 
+           onClose={() => setShowWizard(false)}
+           onComplete={(config) => {
+              setEditorPageId("new");
+              (window as any)._lpPrefill = config;
+              setShowWizard(false);
+           }}
+        />
+      )}
+
+      {editorPageId && (
+        <LandingPageEditor 
+          pageId={editorPageId} 
+          data={props.data} 
+          onClose={() => {
+            setEditorPageId(null);
+            (window as any)._lpPrefill = null;
+          }} 
+          onRefresh={props.onRefresh} 
+        />
+      )}
+    </StudioPageShell>
+  );
+}
+
+function LandingPageEditor(props: { pageId: string | null; data: BootstrapData; onClose: () => void; onRefresh: () => Promise<void> }) {
+  const isNew = props.pageId === "new";
+  const existingPage = props.data.landingPages.find(p => p.id === props.pageId);
+
+  const prefill = (window as any)._lpPrefill;
+
+  const [form, setForm] = useState({
+    name: (isNew && prefill) ? prefill.name : (existingPage?.name || ""),
+    slug: (isNew && prefill) ? prefill.slug : (existingPage?.slug || ""),
+    title: (isNew && prefill) ? prefill.title : (existingPage?.title || ""),
+    description: (isNew && prefill) ? prefill.description : (existingPage?.description || ""),
+    sections: (isNew && prefill) ? prefill.sections : (existingPage?.sections || []),
+    theme: (isNew && prefill) ? prefill.theme : (existingPage?.theme || { backgroundColor: '#ffffff', textColor: '#000000', primaryColor: '#2563eb' }),
+    isPublished: existingPage?.isPublished ?? false
+  });
+
+  const [magicPrompt, setMagicPrompt] = useState("");
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  
+  // Wix-style editor states
+  const [activeTab, setActiveTab] = useState<'layers' | 'design' | 'magic'>('layers');
+  const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
+  const [showGallery, setShowGallery] = useState(false);
+
+  const generateWithGemini = async () => {
+    if (!magicPrompt) return;
+    setIsGenerating(true);
+    
+    setTimeout(() => {
+      const generatedSections = [
+        {
+          type: 'hero',
+          title: `${magicPrompt.split(' ').slice(0, 3).join(' ')}: The Future is Here`,
+          subtitle: `Revolutionary approach to ${magicPrompt}. Built for scale, designed for impact.`,
+          cta: 'Unlock Access'
+        },
+        {
+          type: 'features',
+          items: [
+            { icon: '🚀', title: 'High Performance', text: 'Optimized for modern demands.' },
+            { icon: '💎', title: 'Premium Feel', text: 'Crafted with attention to every pixel.' }
+          ]
+        },
+        {
+          type: 'pricing',
+          title: 'Flexible Plans',
+          plans: [
+            { name: 'Starter', price: '$29', features: ['Basic access', 'Email support'] },
+            { name: 'Pro', price: '$99', features: ['Full access', 'Priority support', 'Custom API'], featured: true }
+          ]
+        },
+        {
+          type: 'testimonials',
+          title: 'Trusted by Leaders',
+          items: [
+            { name: 'Sarah Chen', role: 'CEO at CloudScale', quote: 'TomorrowX transformed how we handle outreach. The speed is unmatched.' },
+            { name: 'Marcus Bell', role: 'Operations Director', quote: 'The most intuitive automation platform we\'ve ever used.' }
+          ]
+        },
+        {
+          type: 'form',
+          title: 'Join the Vanguard',
+          subtitle: 'Limited spots available for early adopters.',
+          fields: [
+            { label: 'Full Name', name: 'name', type: 'text', placeholder: 'John Doe' },
+            { label: 'WhatsApp', name: 'phone', type: 'tel', placeholder: '+1 234 567 8900' }
+          ]
+        }
+      ];
+      setForm(prev => ({ 
+        ...prev, 
+        sections: generatedSections,
+        name: prev.name || magicPrompt.substring(0, 20),
+        slug: prev.slug || magicPrompt.toLowerCase().replace(/\s+/g, '-').substring(0, 20),
+        title: prev.title || magicPrompt
+      }));
+      setIsGenerating(false);
+      setMagicPrompt("");
+    }, 1500);
+  };
+
+  const addSection = (type: string) => {
+    const defaults: Record<string, any> = {
+      hero: { type: 'hero', title: 'New Hero Section', subtitle: 'Describe your value proposition here.', cta: 'Check it out' },
+      features: { type: 'features', items: [{ icon: '✨', title: 'Feature One', text: 'Benefit description' }] },
+      pricing: { type: 'pricing', title: 'Our Pricing', plans: [{ name: 'Basic', price: '$0', features: ['Feature A'] }] },
+      testimonials: { type: 'testimonials', title: 'What They Say', items: [{ name: 'User', quote: 'Amazing product!' }] },
+      faq: { type: 'faq', title: 'Questions?', items: [{ q: 'How does it work?', a: 'Like magic.' }] },
+      form: { type: 'form', title: 'Connect With Us', subtitle: 'Leave your details.', fields: [{ label: 'Email', name: 'email', type: 'email', placeholder: 'email@example.com' }] }
+    };
+    setForm(prev => ({ ...prev, sections: [...prev.sections, defaults[type]] }));
+  };
+
+  const removeSection = (idx: number) => {
+    setForm(prev => ({ ...prev, sections: prev.sections.filter((_: any, i: number) => i !== idx) }));
+  };
+
+  const moveSection = (idx: number, dir: 'up' | 'down') => {
+    const nextIdx = dir === 'up' ? idx - 1 : idx + 1;
+    if (nextIdx < 0 || nextIdx >= form.sections.length) return;
+    const nextSections = [...form.sections];
+    [nextSections[idx], nextSections[nextIdx]] = [nextSections[nextIdx], nextSections[idx]];
+    setForm(prev => ({ ...prev, sections: nextSections }));
+  };
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      const endpoint = isNew ? "/api/landing-pages" : `/api/landing-pages/${props.pageId}`;
+      const method = isNew ? "POST" : "PUT";
+      await api(endpoint, {
+        method,
+        body: JSON.stringify(form)
+      });
+      await props.onRefresh();
+      props.onClose();
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  return (
+    <>
+      {/* Main Editor Shell */}
+      <div className="fixed inset-0 z-[60] flex bg-slate-950/20 backdrop-blur-sm">
+        <div className="flex h-full w-full max-w-7xl mx-auto overflow-hidden bg-white shadow-2xl md:rounded-l-[3rem] animate-slide-up">
+
+          {/* Sidebar */}
+          <div className="w-80 border-r border-slate-100 flex flex-col bg-[#fcfdfd]">
+            <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+              <h2 className="font-headline text-lg font-extrabold text-primary">Atrium Studio</h2>
+              <button onClick={props.onClose} className="p-2 rounded-lg hover:bg-slate-100 text-slate-400 transition-colors">
+                <Icon name="close" />
+              </button>
+            </div>
+
+            {/* Tabs */}
+            <div className="flex border-b border-slate-100">
+              {(['layers', 'design', 'magic'] as const).map(tab => (
+                <button
+                  key={tab}
+                  onClick={() => setActiveTab(tab)}
+                  className={`flex-1 py-3 text-[10px] font-bold uppercase tracking-widest transition-all ${activeTab === tab ? 'text-primary border-b-2 border-primary bg-primary/5' : 'text-slate-400 hover:text-slate-600'}`}
+                >
+                  {tab}
+                </button>
+              ))}
+            </div>
+
+            {/* Tab Body */}
+            <div className="flex-1 overflow-y-auto p-6 scrollbar-hide">
+
+              {/* Magic */}
+              {activeTab === 'magic' && (
+                <div className="space-y-6 animate-fade-in">
+                  <div className="p-5 rounded-3xl bg-primary/5 border border-primary/10 shadow-inner">
+                    <p className="text-[10px] font-bold text-primary uppercase tracking-[0.2em] mb-3 flex items-center gap-2">
+                      <Icon name="magic_button" className="text-sm" /> Magic AI Generator
+                    </p>
+                    <textarea
+                      className="atrium-input bg-white text-xs min-h-[120px] resize-none"
+                      placeholder="Describe your page..."
+                      value={magicPrompt}
+                      onChange={e => setMagicPrompt(e.target.value)}
+                    />
+                    <button
+                      disabled={isGenerating || !magicPrompt}
+                      onClick={generateWithGemini}
+                      className="mt-3 w-full py-4 rounded-2xl bg-primary text-xs font-bold text-on-primary shadow-lg shadow-primary/20 disabled:opacity-50 flex items-center justify-center gap-2 active:scale-95 transition-all"
+                    >
+                      {isGenerating ? <span className="animate-spin text-sm">⌛</span> : <Icon name="auto_fix_high" className="text-sm" />}
+                      {isGenerating ? 'Generating...' : 'Build with Gemini'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Layers */}
+              {activeTab === 'layers' && (
+                <div className="space-y-4 animate-fade-in">
+                  <div className="flex items-center justify-between">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Page Layers</p>
+                    <button
+                      onClick={() => setShowGallery(true)}
+                      className="px-3 py-1.5 rounded-full bg-primary text-[10px] font-bold text-on-primary shadow-lg shadow-primary/20 hover:scale-105 active:scale-95 transition-all flex items-center gap-1"
+                    >
+                      <Icon name="add" className="text-xs" /> Add
+                    </button>
+                  </div>
+                  {form.sections.length === 0 ? (
+                    <div className="text-center py-12 text-slate-300">
+                      <Icon name="layers" className="text-5xl mb-3 opacity-20" />
+                      <p className="font-bold text-sm">No sections yet</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {form.sections.map((section: any, idx: number) => (
+                        <div
+                          key={idx}
+                          onClick={() => setSelectedIdx(idx === selectedIdx ? null : idx)}
+                          className={`p-4 rounded-2xl border cursor-pointer transition-all ${selectedIdx === idx ? 'border-primary bg-primary/5' : 'border-slate-100 hover:border-slate-200 bg-white'}`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <p className="font-bold text-xs text-slate-600 capitalize">{section.type}</p>
+                            <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
+                              <button onClick={() => moveSection(idx, 'up')} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400"><Icon name="arrow_upward" className="text-xs" /></button>
+                              <button onClick={() => moveSection(idx, 'down')} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400"><Icon name="arrow_downward" className="text-xs" /></button>
+                              <button onClick={() => removeSection(idx)} className="p-1.5 rounded-lg hover:bg-error/10 text-slate-400 hover:text-error"><Icon name="delete" className="text-xs" /></button>
+                            </div>
+                          </div>
+
+                          {selectedIdx === idx && section.type === 'hero' && (
+                            <div className="mt-3 pt-3 border-t border-primary/10">
+                              <p className="text-[10px] font-bold text-slate-400 uppercase mb-2">Layout</p>
+                              <div className="flex gap-2">
+                                {['standard', 'centered', 'split'].map(l => (
+                                  <button key={l}
+                                    onClick={e => { e.stopPropagation(); const next = [...form.sections]; next[idx] = { ...next[idx], layout: l }; setForm({ ...form, sections: next }); }}
+                                    className={`flex-1 py-1.5 rounded-lg text-[9px] font-bold uppercase transition-all ${(section.layout === l || (!section.layout && l === 'standard')) ? 'bg-primary text-on-primary' : 'bg-slate-100 text-slate-400'}`}
+                                  >{l}</button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {selectedIdx === idx && section.type === 'features' && (
+                            <div className="mt-3 pt-3 border-t border-primary/10">
+                              <p className="text-[10px] font-bold text-slate-400 uppercase mb-2">Layout</p>
+                              <div className="flex gap-2">
+                                {['grid', 'centered'].map(l => (
+                                  <button key={l}
+                                    onClick={e => { e.stopPropagation(); const next = [...form.sections]; next[idx] = { ...next[idx], layout: l }; setForm({ ...form, sections: next }); }}
+                                    className={`flex-1 py-1.5 rounded-lg text-[9px] font-bold uppercase transition-all ${(section.layout === l || (!section.layout && l === 'grid')) ? 'bg-primary text-on-primary' : 'bg-slate-100 text-slate-400'}`}
+                                  >{l}</button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Design */}
+              {activeTab === 'design' && (
+                <div className="space-y-6 animate-fade-in">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Brand & SEO</p>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Page Name</label>
+                      <input className="atrium-input text-xs" placeholder="My Landing Page" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">URL Slug</label>
+                      <input className="atrium-input text-xs" placeholder="my-landing-page" value={form.slug} onChange={e => setForm({ ...form, slug: e.target.value })} />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Primary Color</label>
+                      <div className="flex items-center gap-3">
+                        <input type="color" className="h-10 w-10 rounded-xl border border-slate-100 cursor-pointer" value={form.theme.primaryColor} onChange={e => setForm({ ...form, theme: { ...form.theme, primaryColor: e.target.value } })} />
+                        <span className="text-xs font-mono text-slate-500">{form.theme.primaryColor}</span>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Background</label>
+                      <div className="flex items-center gap-3">
+                        <input type="color" className="h-10 w-10 rounded-xl border border-slate-100 cursor-pointer" value={form.theme.backgroundColor} onChange={e => setForm({ ...form, theme: { ...form.theme, backgroundColor: e.target.value } })} />
+                        <span className="text-xs font-mono text-slate-500">{form.theme.backgroundColor}</span>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Meta Title</label>
+                      <input className="atrium-input text-xs" placeholder="Page title" value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Meta Description</label>
+                      <textarea className="atrium-input text-xs resize-none min-h-[80px]" placeholder="Page description" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Save */}
+            <div className="p-6 border-t border-slate-100 bg-[#fcfdfd]">
+              <button
+                disabled={isSaving || !form.name || !form.slug}
+                onClick={handleSave}
+                className="w-full py-4 rounded-2xl bg-primary text-sm font-bold text-on-primary shadow-xl shadow-primary/20 disabled:opacity-50 active:scale-95 transition-all"
+              >
+                {isSaving ? 'Finalizing...' : (isNew ? 'Publish to Cloud' : 'Sync Changes')}
+              </button>
+            </div>
+          </div>
+
+          {/* Canvas */}
+          <div className="flex-1 bg-slate-100 overflow-y-auto p-12 scrollbar-hide">
+            <div className="mx-auto max-w-4xl min-h-[800px] bg-white shadow-2xl rounded-[3rem] overflow-hidden border border-slate-200">
+              {form.sections.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-[500px] text-slate-300">
+                  <Icon name="design_services" className="text-6xl mb-4 opacity-20" />
+                  <p className="font-bold text-xl">The canvas is blank.</p>
+                  <p className="text-sm mt-2">Use Magic AI or add sections from the sidebar.</p>
+                </div>
+              ) : (
+                <div className="w-full" style={{ backgroundColor: form.theme.backgroundColor, color: form.theme.textColor }}>
+                  {form.sections.map((section: any, idx: number) => (
+                    <div
+                      key={idx}
+                      className={`relative group/section transition-all cursor-pointer ${selectedIdx === idx ? 'ring-2 ring-primary ring-inset' : 'hover:bg-primary/[0.01]'}`}
+                      onClick={e => { e.stopPropagation(); setSelectedIdx(idx); setActiveTab('layers'); }}
+                    >
+                      {/* Floating controls */}
+                      <div className="absolute right-6 top-6 opacity-0 group-hover/section:opacity-100 transition-opacity z-50 flex items-center gap-2 pointer-events-none">
+                        <div className="flex bg-white/90 backdrop-blur-md rounded-2xl shadow-xl border border-slate-100 overflow-hidden pointer-events-auto">
+                          <button onClick={e => { e.stopPropagation(); moveSection(idx, 'up'); }} className="p-2.5 hover:bg-slate-50 text-slate-400 hover:text-primary transition-colors"><Icon name="arrow_upward" className="text-sm" /></button>
+                          <button onClick={e => { e.stopPropagation(); moveSection(idx, 'down'); }} className="p-2.5 hover:bg-slate-50 text-slate-400 hover:text-primary border-l border-slate-100 transition-colors"><Icon name="arrow_downward" className="text-sm" /></button>
+                          <button onClick={e => { e.stopPropagation(); removeSection(idx); }} className="p-2.5 hover:bg-error/5 text-slate-400 hover:text-error border-l border-slate-100 transition-colors"><Icon name="delete" className="text-sm" /></button>
+                        </div>
+                      </div>
+
+                      {section.type === 'hero' && (
+                        <div className={`py-24 px-12 border-b border-black/5 ${section.layout === 'centered' ? 'text-center' : section.layout === 'split' ? 'flex flex-col md:flex-row items-center gap-12' : 'text-left'}`}>
+                          <div className={section.layout === 'split' ? 'flex-1' : 'w-full'}>
+                            <EditableText tagName="h1" className={`text-5xl font-extrabold mb-6 ${section.layout === 'centered' ? 'mx-auto max-w-3xl' : ''}`} style={{ color: form.theme.primaryColor }} value={section.title} onChange={val => { const next = [...form.sections]; next[idx] = { ...next[idx], title: val }; setForm({ ...form, sections: next }); }} />
+                            <EditableText tagName="p" className={`text-xl opacity-70 leading-relaxed mb-10 ${section.layout === 'centered' ? 'max-w-2xl mx-auto' : 'max-w-xl'}`} value={section.subtitle} onChange={val => { const next = [...form.sections]; next[idx] = { ...next[idx], subtitle: val }; setForm({ ...form, sections: next }); }} />
+                            {section.cta && (
+                              <EditableText tagName="button" className={`px-10 py-5 rounded-2xl font-extrabold text-lg shadow-xl text-white ${section.layout === 'centered' ? 'mx-auto block' : ''}`} style={{ backgroundColor: form.theme.primaryColor }} value={section.cta} onChange={val => { const next = [...form.sections]; next[idx] = { ...next[idx], cta: val }; setForm({ ...form, sections: next }); }} />
+                            )}
+                          </div>
+                          {section.layout === 'split' && (
+                            <div className="flex-1 h-64 rounded-3xl bg-primary/10 flex items-center justify-center">
+                              <Icon name="image" className="text-5xl text-primary/30" />
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {section.type === 'features' && (
+                        <div className="py-24 px-12 bg-slate-50/50 border-b border-black/5">
+                          <div className={section.layout === 'centered' ? 'max-w-2xl mx-auto' : 'grid grid-cols-1 md:grid-cols-3 gap-10'}>
+                            {(section.items || []).map((item: any, i: number) => (
+                              <div key={i} className={section.layout === 'centered' ? 'flex items-start gap-6 mb-8' : 'p-8 rounded-[2.5rem] bg-white shadow-sm border border-slate-100'}>
+                                <div className="text-4xl mb-4 flex-shrink-0">{item.icon}</div>
+                                <div>
+                                  <p className="font-extrabold text-lg mb-2">{item.title}</p>
+                                  <p className="opacity-60 text-sm leading-relaxed">{item.text}</p>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {section.type === 'pricing' && (
+                        <div className="py-20 px-12 bg-slate-50">
+                          <h2 className="text-3xl font-extrabold text-center mb-12">{section.title}</h2>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+                            {(section.plans || []).map((plan: any, i: number) => (
+                              <div key={i} className={`p-8 rounded-[2.5rem] border relative ${plan.featured ? 'bg-white border-primary shadow-2xl scale-105' : 'bg-white border-slate-100 shadow-sm'}`}>
+                                {plan.featured && <span className="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1 bg-primary text-on-primary text-[10px] font-bold uppercase rounded-full">Most Popular</span>}
+                                <h3 className="text-xl font-bold mb-1">{plan.name}</h3>
+                                <div className="text-4xl font-extrabold mb-6" style={{ color: form.theme.primaryColor }}>{plan.price}<span className="text-sm font-normal opacity-40 ml-1">/mo</span></div>
+                                <ul className="space-y-4 mb-8">{(plan.features || []).map((f: any, j: number) => <li key={j} className="flex items-center gap-2 text-sm opacity-70"><Icon name="check_circle" className="text-primary text-lg" /> {f}</li>)}</ul>
+                                <button className="w-full py-4 rounded-2xl font-bold" style={{ backgroundColor: plan.featured ? form.theme.primaryColor : '#f1f5f9', color: plan.featured ? '#fff' : '#475569' }}>Get Started</button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {section.type === 'testimonials' && (
+                        <div className="py-24 px-12 text-center bg-white border-y border-black/5">
+                          <h2 className="text-4xl font-extrabold mb-20">{section.title}</h2>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+                            {(section.items || []).map((item: any, i: number) => (
+                              <div key={i} className="text-left p-12 rounded-[3.5rem] bg-slate-50/50 border border-slate-100">
+                                <div className="flex gap-1 mb-8">{[1,2,3,4,5].map(s => <Icon key={s} name="star" className="text-amber-400 text-xl" />)}</div>
+                                <p className="text-2xl italic font-medium opacity-80 leading-relaxed mb-10">"{item.quote}"</p>
+                                <div className="flex items-center gap-5">
+                                  <div className="h-14 w-14 rounded-2xl bg-primary/10 flex items-center justify-center font-bold text-primary text-xl">{item.name[0]}</div>
+                                  <div>
+                                    <p className="font-bold text-base">{item.name}</p>
+                                    <p className="text-xs font-medium opacity-40 uppercase tracking-widest">{item.role}</p>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {section.type === 'faq' && (
+                        <div className="py-24 px-12 bg-slate-50/30">
+                          <div className="max-w-3xl mx-auto">
+                            <h2 className="text-3xl font-extrabold mb-12 text-center">{section.title || 'FAQ'}</h2>
+                            <div className="space-y-4">
+                              {(section.items || []).map((item: any, i: number) => (
+                                <div key={i} className="p-8 rounded-3xl bg-white border border-slate-100 shadow-sm">
+                                  <p className="font-bold mb-3">{item.q}</p>
+                                  <p className="opacity-60 text-sm leading-relaxed">{item.a}</p>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {section.type === 'form' && (
+                        <div className="py-24 px-12 flex justify-center border-b border-black/5">
+                          <div className="w-full max-w-md p-12 rounded-[3rem] shadow-2xl border border-slate-100 relative overflow-hidden">
+                            <div className="absolute -top-6 -right-6 h-20 w-20 bg-primary/10 rounded-full blur-2xl" />
+                            <h2 className="text-3xl font-extrabold mb-4">{section.title}</h2>
+                            <p className="text-base opacity-60 mb-10">{section.subtitle}</p>
+                            <div className="space-y-5">
+                              {(section.fields || []).map((f: any, i: number) => (
+                                <div key={i}>
+                                  <label className="block text-xs font-bold uppercase tracking-widest text-slate-400 mb-2 ml-1">{f.label}</label>
+                                  <div className="w-full h-12 bg-slate-50 border border-slate-100 rounded-2xl px-5 flex items-center text-slate-300 text-sm italic">{f.placeholder}</div>
+                                </div>
+                              ))}
+                            </div>
+                            <button className="w-full py-5 mt-10 rounded-2xl font-extrabold text-lg text-white shadow-xl" style={{ backgroundColor: form.theme.primaryColor }}>Continue</button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      {/* Section Gallery Modal */}
+      {showGallery && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-950/40 backdrop-blur-md">
+          <div className="bg-white w-full max-w-4xl rounded-[3rem] shadow-2xl overflow-hidden flex flex-col h-[80vh]">
+            <div className="p-8 border-b border-slate-100 flex items-center justify-between">
+              <div>
+                <h3 className="text-2xl font-extrabold text-primary">Add Section</h3>
+                <p className="text-sm text-slate-400">Choose a component to add to your page</p>
+              </div>
+              <button onClick={() => setShowGallery(false)} className="h-12 w-12 rounded-full hover:bg-slate-50 flex items-center justify-center text-slate-400 border border-slate-100">
+                <Icon name="close" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-8 scrollbar-hide">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
+                {[
+                  { id: 'hero', icon: 'auto_awesome', label: 'Hero Section', desc: 'Main headline & CTA' },
+                  { id: 'features', icon: 'grid_view', label: 'Features Grid', desc: 'Benefits & capabilities' },
+                  { id: 'pricing', icon: 'payments', label: 'Pricing Table', desc: 'Plans & packages' },
+                  { id: 'testimonials', icon: 'forum', label: 'Testimonials', desc: 'Social proof' },
+                  { id: 'faq', icon: 'help_outline', label: 'FAQ', desc: 'Questions & answers' },
+                  { id: 'form', icon: 'contact_page', label: 'Lead Form', desc: 'Contact & data collection' },
+                ].map(item => (
+                  <button
+                    key={item.id}
+                    onClick={() => { addSection(item.id); setShowGallery(false); setActiveTab('layers'); setSelectedIdx(form.sections.length); }}
+                    className="p-6 rounded-[2.5rem] bg-slate-50 border border-slate-100 hover:border-primary hover:bg-primary/5 text-left transition-all group"
+                  >
+                    <div className="h-12 w-12 rounded-2xl bg-white shadow-sm flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                      <Icon name={item.icon} className="text-2xl text-primary" />
+                    </div>
+                    <p className="font-bold text-slate-700">{item.label}</p>
+                    <p className="text-[10px] text-slate-400 mt-1">{item.desc}</p>
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="p-6 border-t border-slate-100 bg-slate-50 flex items-center justify-center">
+              <p className="text-xs text-slate-400 flex items-center gap-2">
+                <Icon name="info" className="text-sm" /> All sections are automatically themed to match your brand.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
 }

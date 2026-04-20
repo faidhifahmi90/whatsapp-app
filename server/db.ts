@@ -13,7 +13,8 @@ import type {
   Message,
   Segment,
   Template,
-  User
+  User,
+  LandingPage
 } from "../src/types.js";
 
 const dbPath = resolve(process.cwd(), "data", "whatsapp-center.sqlite");
@@ -374,6 +375,18 @@ export function initDb() {
       status text not null,
       created_at text not null
     );
+
+    create table if not exists landing_pages (
+      id text primary key,
+      name text not null,
+      slug text not null unique,
+      title text,
+      description text,
+      sections_json text,
+      theme_json text,
+      is_published integer not null default 0,
+      created_at text not null
+    );
   `);
 
   // Migrations for existing databases
@@ -491,15 +504,16 @@ export function listSegments() {
   return (db.prepare("select * from segments order by created_at asc").all() as any[]).map(mapSegment);
 }
 
-export function createSegment(input: { name: string; color: string }) {
+export function createSegment(input: { name: string; color: string }): Segment {
   const id = randomUUID();
+  const createdAt = now();
   db.prepare("insert into segments (id, name, color, created_at) values (?, ?, ?, ?)").run(
     id,
     input.name,
     input.color,
-    now()
+    createdAt
   );
-  return listSegments();
+  return { id, name: input.name, color: input.color, createdAt };
 }
 
 export function listContacts() {
@@ -517,7 +531,7 @@ export function findContactByPhone(phone: string) {
   return row ? mapContact(row) : null;
 }
 
-function mutateSegments(contactId: string, segmentIds: string[], mode: "add" | "replace" | "remove") {
+export function updateContactSegments(contactId: string, segmentIds: string[], mode: "add" | "replace" | "remove" = "replace") {
   const insert = db.prepare("insert or ignore into contact_segments (contact_id, segment_id) values (?, ?)");
   const remove = db.prepare("delete from contact_segments where contact_id = ? and segment_id = ?");
 
@@ -585,7 +599,7 @@ export function upsertContact(input: {
     );
   }
 
-  mutateSegments(id, input.segmentIds ?? [], input.segmentMode ?? "replace");
+  updateContactSegments(id, input.segmentIds ?? [], input.segmentMode ?? "replace");
   return findContact(id);
 }
 
@@ -1105,9 +1119,7 @@ export function getBootstrapData(userId: string): BootstrapData {
   return {
     user: getUserForSession(userId)!,
     stats: {
-      unreadCount: conversations.filter((conversation) =>
-        conversation.messages.some((message) => message.direction === "inbound" && message.status !== "read")
-      ).length,
+      unreadCount: conversations.filter((c) => c.status === "attention").length,
       contactCount: contacts.length,
       conversationCount: conversations.length,
       templateCount: listTemplates().length
@@ -1119,9 +1131,76 @@ export function getBootstrapData(userId: string): BootstrapData {
     conversations,
     campaigns: listCampaigns(),
     automations: listAutomations(),
+    landingPages: listLandingPages(),
     users: listUsers(),
     customFieldDefinitions: listCustomFieldDefinitions()
   };
+}
+
+export function listLandingPages(): LandingPage[] {
+  return (db.prepare("select * from landing_pages order by created_at desc").all() as any[]).map((row) => ({
+    id: row.id,
+    name: row.name,
+    slug: row.slug,
+    title: row.title,
+    description: row.description,
+    sections: parseJson<any[]>(row.sections_json, []),
+    theme: parseJson<any>(row.theme_json, {}),
+    isPublished: Boolean(row.is_published),
+    createdAt: row.created_at
+  }));
+}
+
+export function getLandingPage(id: string): LandingPage | null {
+  return listLandingPages().find(p => p.id === id) || null;
+}
+
+export function getLandingPageBySlug(slug: string): LandingPage | null {
+  return listLandingPages().find(p => p.slug === slug) || null;
+}
+
+export function createLandingPage(input: Omit<LandingPage, "id" | "createdAt">) {
+  const id = randomUUID();
+  db.prepare(`
+    insert into landing_pages (id, name, slug, title, description, sections_json, theme_json, is_published, created_at)
+    values (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    id,
+    input.name,
+    input.slug,
+    input.title,
+    input.description,
+    JSON.stringify(input.sections),
+    JSON.stringify(input.theme),
+    input.isPublished ? 1 : 0,
+    now()
+  );
+  return getLandingPage(id);
+}
+
+export function updateLandingPage(id: string, input: Partial<LandingPage>) {
+  const current = getLandingPage(id);
+  if (!current) return null;
+
+  db.prepare(`
+    update landing_pages set
+      name = ?, slug = ?, title = ?, description = ?, sections_json = ?, theme_json = ?, is_published = ?
+    where id = ?
+  `).run(
+    input.name ?? current.name,
+    input.slug ?? current.slug,
+    input.title ?? current.title,
+    input.description ?? current.description,
+    input.sections ? JSON.stringify(input.sections) : JSON.stringify(current.sections),
+    input.theme ? JSON.stringify(input.theme) : JSON.stringify(current.theme),
+    input.isPublished !== undefined ? (input.isPublished ? 1 : 0) : (current.isPublished ? 1 : 0),
+    id
+  );
+  return getLandingPage(id);
+}
+
+export function deleteLandingPage(id: string) {
+  db.prepare("delete from landing_pages where id = ?").run(id);
 }
 
 export function findCampaign(id: string) {

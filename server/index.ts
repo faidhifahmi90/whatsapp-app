@@ -43,6 +43,13 @@ import {
   upsertContact,
   getUserByEmail,
   updateTemplate,
+  listLandingPages,
+  createLandingPage,
+  updateLandingPage,
+  deleteLandingPage,
+  getLandingPageBySlug,
+  listSegments,
+  updateContactSegments,
   deleteTemplate,
   updateChannel,
   deleteChannel,
@@ -304,6 +311,7 @@ function queueAutomationIfNeeded(input: {
         runAt,
         payload: {
           templateId: automation.templateId,
+          variables: automation.templateVariables || [],
           triggerBody: input.body ?? null
         }
       });
@@ -1001,6 +1009,274 @@ app.delete("/api/channels/:id", requireAuth, (req: SessionRequest, res) => {
   res.json({ ok: true });
 });
 
+app.get("/api/landing-pages", requireAuth, (req: SessionRequest, res) => {
+  res.json(listLandingPages());
+});
+
+app.post("/api/landing-pages", requireAuth, (req: SessionRequest, res) => {
+  const page = createLandingPage(req.body);
+  refreshClients("landing-pages");
+  res.json(page);
+});
+
+app.put("/api/landing-pages/:id", requireAuth, (req: SessionRequest, res) => {
+  const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const page = updateLandingPage(id, req.body);
+  refreshClients("landing-pages");
+  res.json(page);
+});
+
+app.delete("/api/landing-pages/:id", requireAuth, (req: SessionRequest, res) => {
+  const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  deleteLandingPage(id);
+  refreshClients("landing-pages");
+  res.json({ ok: true });
+});
+
+// ~~~ PUBLIC LANDING PAGES ~~~
+app.get("/l/:slug", (req, res) => {
+  const page = getLandingPageBySlug(req.params.slug);
+  if (!page || !page.isPublished) {
+    return res.status(404).send("Page not found");
+  }
+
+  // Basic HTML template for the landing page
+  const html = `
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>${page.title || page.name}</title>
+      <meta name="description" content="${page.description || ''}">
+      <script src="https://cdn.tailwindcss.com"></script>
+      <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap">
+      <style>
+        body { font-family: 'Outfit', sans-serif; background-color: ${page.theme?.backgroundColor || '#ffffff'}; color: ${page.theme?.textColor || '#000000'}; }
+        .primary-btn { background-color: ${page.theme?.primaryColor || '#2563eb'}; color: white; border-radius: 9999px; transition: opacity 0.2s; }
+        .primary-btn:hover { opacity: 0.9; }
+      </style>
+    </head>
+    <body class="min-h-screen">
+      <main>
+        ${page.sections.map((section: any) => {
+          if (section.type === 'hero') {
+            return `
+              <header class="py-20 px-6 text-center">
+                <h1 class="text-5xl font-extrabold mb-6" style="color: ${page.theme?.primaryColor || 'inherit'}">${section.title}</h1>
+                <p class="text-xl max-w-2xl mx-auto opacity-80">${section.subtitle}</p>
+                ${section.cta ? `<div class="mt-10"><a href="#form" class="primary-btn px-10 py-4 font-bold inline-block shadow-lg">${section.cta}</a></div>` : ''}
+              </header>
+            `;
+          }
+          if (section.type === 'features') {
+            return `
+              <section class="py-20 px-6 bg-black/5">
+                <div class="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-10">
+                  ${section.items.map((item: any) => `
+                    <div class="p-8 rounded-3xl bg-white shadow-sm">
+                      <div class="text-3xl mb-4">${item.icon || '✨'}</div>
+                      <h3 class="text-xl font-bold mb-2">${item.title}</h3>
+                      <p class="opacity-70">${item.text}</p>
+                    </div>
+                  `).join('')}
+                </div>
+              </section>
+            `;
+          }
+          if (section.type === 'pricing') {
+            return `
+              <section class="py-24 px-6 bg-[#fcfdfd]">
+                <div class="max-w-5xl mx-auto">
+                  <h2 class="text-4xl font-extrabold text-center mb-16">${section.title}</h2>
+                  <div class="grid grid-cols-1 md:grid-cols-2 gap-10">
+                    ${section.plans.map((plan: any) => `
+                      <div class="p-10 rounded-[3rem] border border-black/5 bg-white shadow-xl ${plan.featured ? 'ring-2 ring-blue-500 scale-105 relative' : ''}">
+                        ${plan.featured ? '<div class="absolute -top-4 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-[10px] font-bold px-4 py-1 rounded-full uppercase tracking-widest">Popular</div>' : ''}
+                        <h3 class="text-2xl font-bold mb-2">${plan.name}</h3>
+                        <div class="text-5xl font-extrabold mb-8" style="color: ${page.theme?.primaryColor || '#000'}">${plan.price}<span class="text-sm font-normal opacity-40 ml-1">/mo</span></div>
+                        <ul class="space-y-4 mb-10">
+                          ${plan.features.map((f: any) => `
+                            <li class="flex items-center gap-3 text-sm opacity-70">
+                              <span class="text-blue-600">✓</span> ${f}
+                            </li>
+                          `).join('')}
+                        </ul>
+                        <a href="#form" class="primary-btn w-full py-4 font-bold text-center inline-block rounded-2xl shadow-md ${plan.featured ? '' : 'opacity-80'}">Select Plan</a>
+                      </div>
+                    `).join('')}
+                  </div>
+                </div>
+              </section>
+            `;
+          }
+          if (section.type === 'testimonials') {
+            return `
+              <section class="py-24 px-6 bg-white border-y border-black/5">
+                <div class="max-w-6xl mx-auto">
+                  <h2 class="text-4xl font-extrabold text-center mb-16">${section.title}</h2>
+                  <div class="grid grid-cols-1 md:grid-cols-2 gap-12">
+                    ${section.items.map((item: any) => `
+                      <div class="p-10 rounded-[2.5rem] bg-slate-50/50 border border-black/5 relative">
+                        <div class="text-blue-500 text-4xl font-serif italic mb-6">"</div>
+                        <p class="text-xl italic opacity-80 leading-relaxed mb-8">${item.quote}</p>
+                        <div class="flex items-center gap-4">
+                          <div class="w-12 h-12 rounded-full bg-slate-200 flex items-center justify-center font-bold text-slate-500">${item.name[0]}</div>
+                          <div>
+                            <div class="font-bold text-sm text-slate-900">${item.name}</div>
+                            <div class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">${item.role || 'Partner'}</div>
+                          </div>
+                        </div>
+                      </div>
+                    `).join('')}
+                  </div>
+                </div>
+              </section>
+            `;
+          }
+          if (section.type === 'faq') {
+            return `
+              <section class="py-24 px-6 bg-slate-50/50">
+                <div class="max-w-3xl mx-auto">
+                  <h2 class="text-3xl font-extrabold text-center mb-16">${section.title}</h2>
+                  <div class="space-y-4">
+                    ${section.items.map((item: any) => `
+                      <div class="p-8 rounded-[2rem] bg-white border border-black/5 shadow-sm">
+                        <h4 class="text-lg font-bold mb-3 flex items-center justify-between">
+                          ${item.q}
+                          <span class="opacity-20 text-2xl">+</span>
+                        </h4>
+                        <p class="text-sm opacity-60 leading-relaxed">${item.a}</p>
+                      </div>
+                    `).join('')}
+                  </div>
+                </div>
+              </section>
+            `;
+          }
+          if (section.type === 'form') {
+            return `
+              <section id="form" class="py-20 px-6 text-center">
+                <div class="max-w-xl mx-auto p-10 rounded-[3rem] border border-black/5 bg-white shadow-xl">
+                  <h2 class="text-3xl font-extrabold mb-4">${section.title}</h2>
+                  <p class="mb-8 opacity-70">${section.subtitle}</p>
+                  <form id="lpForm" class="space-y-4 text-left">
+                    ${section.fields.map((field: any) => `
+                      <div>
+                        <label class="block text-xs font-bold uppercase tracking-wider mb-2 opacity-50">${field.label}</label>
+                        <input type="${field.type || 'text'}" name="${field.name}" required class="w-full px-5 py-3 rounded-2xl border border-black/10 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500/20" placeholder="${field.placeholder || ''}">
+                      </div>
+                    `).join('')}
+                    <button type="submit" class="w-full primary-btn py-4 font-bold mt-6 shadow-md shadow-blue-500/20">Submit</button>
+                  </form>
+                  <div id="successMsg" class="hidden py-10">
+                    <div class="text-5xl mb-4">✅</div>
+                    <h3 class="text-2xl font-bold mb-2">Thank you!</h3>
+                    <p class="opacity-70">We've received your information and we'll reach out soon.</p>
+                  </div>
+                </div>
+              </section>
+            `;
+          }
+          return '';
+        }).join('')}
+      </main>
+      <footer class="py-10 text-center opacity-40 text-xs">
+        <p>&copy; ${new Date().getFullYear()} ${page.name}. Built with TomorrowX.</p>
+      </footer>
+
+      <script>
+        document.getElementById('lpForm')?.addEventListener('submit', async (e) => {
+          e.preventDefault();
+          const form = e.target;
+          const formData = new FormData(form);
+          const data = Object.fromEntries(formData.entries());
+          
+          const btn = form.querySelector('button');
+          btn.disabled = true;
+          btn.innerText = 'Submitting...';
+
+          try {
+            const resp = await fetch('/api/public/landing-pages/${page.slug}/submit', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(data)
+            });
+            if (resp.ok) {
+              form.classList.add('hidden');
+              document.getElementById('successMsg').classList.remove('hidden');
+            } else {
+              alert('Something went wrong. Please try again.');
+              btn.disabled = false;
+              btn.innerText = 'Submit';
+            }
+          } catch (err) {
+            alert('Failed to connect. Please check your internet.');
+            btn.disabled = false;
+            btn.innerText = 'Submit';
+          }
+        });
+      </script>
+    </body>
+    </html>
+  `;
+  res.send(html);
+});
+
+app.post("/api/public/landing-pages/:slug/submit", (req, res) => {
+  const page = getLandingPageBySlug(req.params.slug);
+  if (!page) return res.status(404).json({ error: "Page not found" });
+
+  const data = req.body;
+  const phone = data.phone;
+  if (!phone) return res.status(400).json({ error: "Phone is required" });
+
+  // 1. Find or create contact using unified upsertContact
+  const firstName = data.firstName || data.name || "Unknown";
+  const lastName = data.lastName || "";
+  const email = data.email || "";
+
+  // Mapping custom fields
+  const standardKeys = ["firstName", "lastName", "phone", "email", "name"];
+  const customFields: Record<string, string> = { source_landing_page: page.name };
+  for (const [key, val] of Object.entries(data)) {
+    if (!standardKeys.includes(key)) {
+      customFields[key] = String(val);
+    }
+  }
+
+  const contact = upsertContact({
+    firstName,
+    lastName,
+    phone,
+    email,
+    company: page.name,
+    customFields
+  });
+
+  if (!contact) return res.status(500).json({ error: "Failed to process contact" });
+
+  // 2. Add to "Landing Page Leads" segment
+  let segment = listSegments().find((s: any) => s.name === "Landing Page Leads");
+  if (!segment) {
+    segment = createSegment({ name: "Landing Page Leads", color: "#3B82F6" });
+  }
+  
+  if (segment) {
+    updateContactSegments(contact.id, [...contact.segmentIds, segment.id]);
+  }
+
+  // 3. Trigger automation
+  queueAutomationIfNeeded({
+    eventType: "segment_joined",
+    contactId: contact.id,
+    segmentIds: segment ? [...contact.segmentIds, segment.id] : contact.segmentIds,
+    body: `Submitted landing page: ${page.name}`
+  });
+
+  res.json({ success: true });
+});
+
 app.post("/api/segments", requireAuth, (req: SessionRequest, res) => {
   const segments = createSegment({
     name: req.body.name,
@@ -1120,6 +1396,98 @@ if (isProduction) {
 app.use((error: Error, _req: Request, res: Response, _next: NextFunction) => {
   console.error(error);
   res.status(500).json({ error: error.message });
+});
+
+// ~~~ SMART AI BUILDER API ~~~
+app.post("/api/ai/smart-build", (req, res) => {
+  const { name, industry, goal, style } = req.body;
+  
+  // Smart Intelligence Mappings
+  const palettes: Record<string, any> = {
+    modern: { primaryColor: '#6366f1', backgroundColor: '#ffffff', textColor: '#1e293b' },
+    corporate: { primaryColor: '#0f172a', backgroundColor: '#f8fafc', textColor: '#334155' },
+    playful: { primaryColor: '#f43f5e', backgroundColor: '#fff7ed', textColor: '#451a03' },
+    bold: { primaryColor: '#ffffff', backgroundColor: '#000000', textColor: '#ffffff' }
+  };
+
+  const industryDetails: Record<string, any> = {
+    coffee: {
+      hero: { title: `${name}: artisanal Energy to Your Door`, sub: 'Premium beans sourced directly from sustainable farms.' },
+      features: [
+        { icon: '☕', title: 'Freshly Roasted', text: 'Roasted in small batches daily.' },
+        { icon: '🚚', title: 'Local Delivery', text: 'Free delivery within 24 hours.' }
+      ]
+    },
+    saas: {
+      hero: { title: `Scale ${name} with Intelligent Automation`, sub: 'The only platform built for high-performance teams.' },
+      features: [
+        { icon: '⚡', title: 'Lightning Rapid', text: 'Sub-millisecond API response times.' },
+        { icon: '🛡️', title: 'Enterprise Secure', text: 'SOC2 Type II certified infrastructure.' }
+      ]
+    },
+    legal: {
+      hero: { title: `${name}: Expert Guidance When It Matters`, sub: 'Dedicated legal support for businesses and individuals.' },
+      features: [
+        { icon: '⚖️', title: 'Proven Results', text: 'Over $100M recovered for our clients.' },
+        { icon: '📞', title: '24/7 Support', text: 'Expert consulting available around the clock.' }
+      ]
+    }
+  };
+
+  const niche = industryDetails[industry] || industryDetails.saas;
+  const theme = palettes[style] || palettes.modern;
+
+  const sections: any[] = [
+    { 
+      type: 'hero', 
+      title: niche.hero.title, 
+      subtitle: niche.hero.sub, 
+      cta: goal === 'lead' ? 'Start Free Trial' : 'Book Consultation' 
+    },
+    { 
+      type: 'features', 
+      title: 'Why Choose Us',
+      items: niche.features 
+    },
+    {
+      type: 'testimonials',
+      title: 'Our Happy Clients',
+      items: [
+        { name: 'Alex Johnson', role: 'Ops Lead', quote: 'Absolutely game changing for our workflow.' },
+        { name: 'Maria Garcia', role: 'Founder', quote: 'The ROI was visible within the first week.' }
+      ]
+    },
+    {
+      type: 'faq',
+      title: 'Common Questions',
+      items: [
+        { q: `Is ${name} right for me?`, a: 'If you value speed and quality, then yes.' },
+        { q: 'Can I cancel anytime?', a: 'Of course, we offer flexible month-to-month plans.' }
+      ]
+    }
+  ];
+
+  if (goal === 'lead') {
+    sections.push({
+      type: 'form',
+      title: 'Get Started Today',
+      subtitle: 'Leave your details and our team will be in touch.',
+      fields: [
+        { label: 'Name', name: 'name', type: 'text', placeholder: 'Your Name' },
+        { label: 'WhatsApp', name: 'phone', type: 'tel', placeholder: '+1 234...' }
+      ]
+    });
+  }
+
+  res.json({
+    name: name,
+    slug: name.toLowerCase().replace(/\s+/g, '-'),
+    title: `${name} | Official Website`,
+    description: `Generated by Smart AI for ${name}`,
+    sections,
+    theme,
+    isPublished: false
+  });
 });
 
 server.listen(port, "0.0.0.0", () => {
