@@ -116,7 +116,6 @@ const secureCookie =
       : isProduction;
 const validateTwilioWebhooks = process.env.TWILIO_WEBHOOK_VALIDATE === "true";
 const publicBaseUrl = process.env.PUBLIC_BASE_URL;
-const twilioAuthToken = process.env.TWILIO_AUTH_TOKEN;
 
 if (trustProxy) {
   app.set("trust proxy", 1);
@@ -168,7 +167,10 @@ function refreshClients(type: string, payload?: Record<string, unknown>) {
 }
 
 function validateTwilioSignature(req: Request, res: Response, next: NextFunction) {
-  if (!validateTwilioWebhooks || !twilioAuthToken) {
+  const settings = getSettings();
+  const currentToken = settings.TWILIO_AUTH_TOKEN || process.env.TWILIO_AUTH_TOKEN;
+
+  if (!validateTwilioWebhooks || !currentToken) {
     next();
     return;
   }
@@ -182,7 +184,7 @@ function validateTwilioSignature(req: Request, res: Response, next: NextFunction
   const requestUrl = publicBaseUrl
     ? new URL(req.originalUrl, publicBaseUrl).toString()
     : `${req.protocol}://${req.get("host")}${req.originalUrl}`;
-  const isValid = twilio.validateRequest(twilioAuthToken, signature, requestUrl, req.body as Record<string, string>);
+  const isValid = twilio.validateRequest(currentToken, signature, requestUrl, req.body as Record<string, string>);
 
   if (!isValid) {
     res.status(403).send("Invalid Twilio signature");
