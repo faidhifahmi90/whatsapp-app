@@ -4324,6 +4324,9 @@ function SettingsStudioPage(props: { data: BootstrapData; onRefresh: (preferredC
                     value={settingsForm.TWILIO_ACCOUNT_SID} 
                     onChange={e => setSettingsForm({ ...settingsForm, TWILIO_ACCOUNT_SID: e.target.value })} 
                   />
+                  {!settingsForm.TWILIO_ACCOUNT_SID && (
+                    <p className="mt-2 text-[10px] text-slate-400 font-medium italic">Falling back to system environment variable.</p>
+                  )}
                 </div>
 
                 <div>
@@ -4341,6 +4344,9 @@ function SettingsStudioPage(props: { data: BootstrapData; onRefresh: (preferredC
                     value={settingsForm.TWILIO_AUTH_TOKEN} 
                     onChange={e => setSettingsForm({ ...settingsForm, TWILIO_AUTH_TOKEN: e.target.value })} 
                   />
+                  {!settingsForm.TWILIO_AUTH_TOKEN && (
+                    <p className="mt-2 text-[10px] text-slate-400 font-medium italic">Falling back to secure environment rotation.</p>
+                  )}
                 </div>
 
                 <div>
