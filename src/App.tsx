@@ -1771,17 +1771,8 @@ function ContactProfileModal(props: { contact: Contact; onClose: () => void; onR
                   </div>
                </div>
             )}
-                                    <div className="text-[9px] text-on-surface-variant mt-1 uppercase">Net Premium</div>
-                                 </td>
-                              </tr>
-                           )})}
-                        </tbody>
-                     </table>
-                  </div>
-               </div>
-            )}
-         </div>
-      </div>
+          </div>
+       </div>
     </div>
   );
 }
