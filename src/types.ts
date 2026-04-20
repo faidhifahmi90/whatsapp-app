@@ -197,4 +197,5 @@ export type BootstrapData = {
   landingPages: LandingPage[];
   users: User[];
   customFieldDefinitions: string[];
+  settings: Record<string, string>;
 };

@@ -250,66 +250,71 @@ export function TemplateLivePreview(props: { template?: Template; variables: str
   const mediaSource = props.overrideMediaUrl || props.template.mediaUrl;
 
   return (
-    <div className="relative mx-auto w-[320px] shrink-0 overflow-hidden bg-[#EFEAE2] font-sans text-[15px] shadow-2xl ring-[12px] ring-slate-900 rounded-[3rem]">
-      {/* Smartphone Hardware Elements */}
-      <div className="absolute top-0 inset-x-0 h-6 bg-slate-900 z-20 flex justify-center rounded-b-[1.5rem] w-[140px] mx-auto">
-        <div className="w-12 h-1.5 bg-slate-800 rounded-full mt-2" />
-      </div>
-      
-      {/* WhatsApp Mock Header */}
-      <div className="bg-[#075E54] text-white px-4 pt-10 pb-3 flex items-center justify-between shadow-sm relative z-10">
+    <div className="relative mx-auto w-[320px] shrink-0 overflow-hidden bg-[#efeae2] font-sans text-[15px] shadow-2xl rounded-[2.5rem] border-[8px] border-white ring-1 ring-slate-100">
+      {/* Premium WhatsApp Header */}
+      <div className="bg-white/95 backdrop-blur-md px-4 pt-8 pb-3 flex items-center justify-between border-b border-slate-200/50 relative z-10">
         <div className="flex items-center gap-3">
-          <Icon name="arrow_back" className="text-lg" />
-          <div className="h-8 w-8 rounded-full bg-white/20 flex items-center justify-center font-bold text-sm">TX</div>
-          <span className="font-semibold text-base tracking-wide">TomorrowX</span>
+          <Icon name="arrow_back" className="text-slate-600" />
+          <div className="relative">
+            <div className="h-9 w-9 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-400 text-xs border border-slate-200">TX</div>
+            <div className="absolute -right-0.5 -bottom-0.5 h-3.5 w-3.5 rounded-full bg-white border-2 border-white flex items-center justify-center">
+              <Icon name="verified" className="text-[10px] text-[#00a884]" fill />
+            </div>
+          </div>
+          <div className="flex flex-col -space-y-0.5">
+            <span className="font-bold text-[14px] text-slate-900 leading-none">TomorrowX</span>
+            <span className="text-[10px] font-medium text-[#00a884]">Official Business</span>
+          </div>
         </div>
-        <div className="flex items-center gap-4">
-          <Icon name="videocam" className="text-lg opacity-80" />
-          <Icon name="call" className="text-lg opacity-80" />
+        <div className="flex items-center gap-4 text-slate-600">
           <Icon name="more_vert" className="text-lg opacity-80" />
         </div>
       </div>
 
-      <div className="p-4 pt-6 min-h-[460px] flex flex-col justify-end bg-[#EFEAE2] bg-[url('https://i.imgur.com/3N4oU9e.png')] bg-cover bg-center">
-        <div className="relative max-w-[90%] rounded-2xl rounded-tl-none bg-white p-2 shadow-[0_1px_1px_rgba(11,20,26,.15)] sm:p-2.5 z-10 self-start">
-          <svg viewBox="0 0 8 13" width="8" height="13" className="absolute -left-2 top-0 text-white"><path opacity=".13" fill="#0000000" d="M1.533 3.568 8 12.193V1H2.812C1.042 1 .474 2.156 1.533 3.568z"></path><path fill="currentColor" d="M1.533 2.568 8 11.193V0H2.812C1.042 0 .474 1.156 1.533 2.568z"></path></svg>
-          {mediaSource && (
-            <div className="mb-2 shrink-0 overflow-hidden rounded-xl bg-black/5 relative group cursor-pointer">
-              <img src={mediaSource} alt="Attached Media" className="h-auto w-full object-cover transition-transform group-hover:scale-105" />
+      {/* Chat Area */}
+      <div className="p-4 min-h-[440px] flex flex-col bg-[#efeae2]">
+        <div className="mx-auto mb-4 bg-white/60 px-3 py-1 rounded-lg text-[11px] font-bold text-slate-500 uppercase tracking-wider shadow-sm">Today</div>
+        
+        <div className="relative max-w-[92%] self-start z-10 group">
+          {/* Message Bubble */}
+          <div className="bg-white rounded-2xl rounded-tl-none shadow-[0_1px_0.5px_rgba(11,20,26,.13)] overflow-hidden">
+            {/* Bubble Tail */}
+            <svg viewBox="0 0 8 13" width="8" height="13" className="absolute -left-2 top-0 text-white"><path fill="currentColor" d="M1.533 2.568 8 11.193V0H2.812C1.042 0 .474 1.156 1.533 2.568z"></path></svg>
+            
+            {mediaSource && (
+              <div className="p-1.5 pb-0">
+                <div className="overflow-hidden rounded-xl bg-slate-50">
+                  <img src={mediaSource} alt="Attached Media" className="h-auto w-full object-cover transition-transform group-hover:scale-105 duration-700" />
+                </div>
+              </div>
+            )}
+            
+            <div className="p-2.5 pb-2">
+              <div 
+                className="whitespace-pre-wrap text-[#111b21] leading-[1.3] text-[15px] break-words"
+                dangerouslySetInnerHTML={{ __html: formatWhatsAppText(renderedBody) }}
+              />
+              <div className="mt-1 flex items-center justify-end gap-1 text-[10px] text-slate-400 font-medium tracking-tight">
+                <span>{new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+              </div>
             </div>
-          )}
-          <div 
-            className="whitespace-pre-wrap text-[#111b21] leading-[22px] break-words"
-            dangerouslySetInnerHTML={{ __html: formatWhatsAppText(renderedBody) }}
-          />
-          <div className="mt-1 flex items-center justify-end gap-1 text-[11px] text-[#667781]">
-            <span>10:42 AM</span>
+
+            {/* Integrated Buttons */}
+            {props.template.ctaLabel && (
+              <div className="border-t border-slate-100">
+                <button className="w-full py-3 px-4 flex items-center justify-center gap-2 text-[14px] font-semibold text-[#00a884] hover:bg-slate-50 transition-colors">
+                  <Icon name={props.template.ctaUrl ? "open_in_new" : "call"} className="text-lg" />
+                  {props.template.ctaLabel}
+                </button>
+              </div>
+            )}
           </div>
         </div>
-        
-        {props.template.ctaLabel && (
-          <div className="mt-2 max-w-[90%] self-start relative z-10">
-            <button className="flex w-full flex-col items-center justify-center gap-1 rounded-xl bg-white p-3 font-semibold text-[#00a884] shadow-[0_1px_0.5px_rgba(11,20,26,.13)]">
-              <div className="flex items-center gap-2">
-                <Icon name={props.template.ctaUrl ? "open_in_new" : "call"} className="text-[18px]" />
-                {props.template.ctaLabel}
-              </div>
-              {props.template.ctaUrl && <span className="text-[10px] opacity-70 underline truncate max-w-full">{props.template.ctaUrl}</span>}
-            </button>
-          </div>
-        )}
       </div>
       
-      {/* WhatsApp Mock Footer */}
-      <div className="bg-[#f0f0f0] p-2 flex items-center gap-2 relative z-10">
-        <div className="flex-1 rounded-full bg-white flex items-center px-4 py-2 border border-slate-200 gap-3">
-          <Icon name="mood" className="text-slate-400 text-xl" />
-          <span className="text-slate-400 text-sm flex-1">Message</span>
-          <Icon name="camera_alt" className="text-slate-400 text-xl" />
-        </div>
-        <div className="h-10 w-10 flex-shrink-0 rounded-full bg-[#00897B] text-white flex items-center justify-center shadow-md">
-          <Icon name="mic" className="text-xl" />
-        </div>
+      {/* Mock Navigation Indicators */}
+      <div className="bg-[#efeae2] pb-2 flex justify-center">
+        <div className="w-24 h-1 bg-slate-300/30 rounded-full" />
       </div>
     </div>
   );
@@ -3895,6 +3900,10 @@ function SettingsStudioPage(props: { data: BootstrapData; onRefresh: (preferredC
   const [editingChannelId, setEditingChannelId] = useState<string | null>(null);
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
 
+  const [geminiKey, setGeminiKey] = useState(props.data.settings.GEMINI_API_KEY || "");
+  const [showKey, setShowKey] = useState(false);
+  const [isSavingSettings, setIsSavingSettings] = useState(false);
+
   async function saveChannel(event: FormEvent) {
     event.preventDefault();
     if (editingChannelId) {
@@ -3957,6 +3966,22 @@ function SettingsStudioPage(props: { data: BootstrapData; onRefresh: (preferredC
   function startEditingUser(user: BootstrapData["users"][number]) {
     setEditingUserId(user.id);
     setUserForm({ name: user.name, preferredName: user.preferredName || "", email: user.email, role: user.role });
+  }
+
+  async function saveSettings() {
+    setIsSavingSettings(true);
+    try {
+      await api("/api/settings", {
+        method: "POST",
+        body: JSON.stringify({ GEMINI_API_KEY: geminiKey })
+      });
+      await props.onRefresh();
+      alert("Settings saved successfully.");
+    } catch (err) {
+      alert("Failed to save settings.");
+    } finally {
+      setIsSavingSettings(false);
+    }
   }
 
   return (
@@ -4079,6 +4104,42 @@ function SettingsStudioPage(props: { data: BootstrapData; onRefresh: (preferredC
             </p>
           </div>
           <button className="mt-8 rounded-xl bg-primary py-3 text-sm font-bold text-on-primary w-full">Configure Bridge</button>
+        </div>
+
+        <div className="rounded-[2rem] bg-indigo-50/30 border border-indigo-100 p-6 shadow-sm flex flex-col justify-between">
+          <div>
+            <SectionTitle icon="psychology" title="AI Architect Integration" />
+            <p className="mt-2 text-sm text-indigo-900/60 leading-relaxed">
+              Power your Landing Page Studio with Google's Gemini 1.5 Flash. Manage your API key here to enable prompt-first orchestration.
+            </p>
+            <div className="mt-6 space-y-4">
+              <Field label="Gemini API Key">
+                <div className="relative group">
+                  <input 
+                    type={showKey ? "text" : "password"}
+                    className="atrium-input pr-12 font-mono text-xs" 
+                    placeholder="AIzaSy..." 
+                    value={geminiKey} 
+                    onChange={e => setGeminiKey(e.target.value)} 
+                  />
+                  <button 
+                    type="button" 
+                    onClick={() => setShowKey(!showKey)}
+                    className="absolute right-4 top-2 text-slate-400 hover:text-primary transition-colors"
+                  >
+                    <Icon name={showKey ? "visibility_off" : "visibility"} className="text-sm" />
+                  </button>
+                </div>
+              </Field>
+            </div>
+          </div>
+          <button 
+            disabled={isSavingSettings}
+            onClick={saveSettings}
+            className="mt-8 rounded-xl bg-indigo-600 py-3 text-sm font-bold text-white shadow-lg shadow-indigo-200 hover:bg-indigo-700 active:scale-[0.98] transition-all disabled:opacity-50"
+          >
+            {isSavingSettings ? "Saving..." : "Update AI Configuration"}
+          </button>
         </div>
 
       </div>

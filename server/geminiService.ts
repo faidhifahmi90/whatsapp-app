@@ -1,11 +1,18 @@
 import { GoogleGenerativeAI, SchemaType } from "@google/generative-ai";
 import dotenv from "dotenv";
 import { SKILLS, SkillKey } from "./skills.js";
+import { getSettings } from "./db.js";
 
 dotenv.config();
 
-const apiKey = process.env.GEMINI_API_KEY || "";
-const genAI = new GoogleGenerativeAI(apiKey);
+function getGenAI() {
+  const settings = getSettings();
+  const apiKey = settings.GEMINI_API_KEY || process.env.GEMINI_API_KEY || "";
+  if (!apiKey) {
+    throw new Error("GEMINI_API_KEY is not configured. Please add it in Settings.");
+  }
+  return new GoogleGenerativeAI(apiKey);
+}
 
 /**
  * System instruction to ensure Gemini behaves as a high-end web architect.
@@ -32,11 +39,7 @@ export async function generateLandingPageFromContent(params: {
   description?: string;
   currentSections?: any[];
 }) {
-  if (!apiKey) {
-    throw new Error("GEMINI_API_KEY is not configured in .env");
-  }
-
-  const model = genAI.getGenerativeModel({ 
+  const model = getGenAI().getGenerativeModel({ 
     model: "gemini-1.5-flash",
     systemInstruction: SYSTEM_INSTRUCTION
   });
@@ -80,11 +83,7 @@ export async function generatePlan(params: {
   businessName?: string;
   description?: string;
 }) {
-  if (!apiKey) {
-    throw new Error("GEMINI_API_KEY is not configured in .env");
-  }
-
-  const model = genAI.getGenerativeModel({ 
+  const model = getGenAI().getGenerativeModel({ 
     model: "gemini-1.5-flash",
     systemInstruction: "You are an Agent Manager. Analyze the user's prompt and create a technical Implementation Plan in Markdown. Focus on layout, tone, selected skills, and unique features. Do NOT return code, just the plan."
   });
@@ -125,7 +124,7 @@ export async function executeWithSkills(params: {
   // Logic to 'Auto-Select' skills based on the plan/prompt (simplified for now as full injection)
   const activeSkills = Object.values(SKILLS).join("\n");
 
-  const model = genAI.getGenerativeModel({ 
+  const model = getGenAI().getGenerativeModel({ 
     model: "gemini-1.5-flash",
     systemInstruction: SYSTEM_INSTRUCTION + "\n\nAPPLY THESE SKILLS:\n" + activeSkills
   });
@@ -205,7 +204,7 @@ export async function refineSection(params: {
   feedback: string;
   businessContext: any;
 }) {
-  const model = genAI.getGenerativeModel({ 
+  const model = getGenAI().getGenerativeModel({ 
     model: "gemini-1.5-flash",
     systemInstruction: "You are a Section Specialist. You receive a JSON section and user feedback. Your goal is to apply the feedback and return the UPDATED JSON section only. Maintain the original schema."
   });

@@ -47,6 +47,13 @@ type DbTemplateRow = {
   twilio_content_sid: string | null;
 };
 
+type DbSettingRow = {
+  key: string;
+  value: string;
+  created_at: string;
+  updated_at: string;
+};
+
 export function now() {
   return new Date().toISOString();
 }
@@ -386,6 +393,13 @@ export function initDb() {
       theme_json text,
       is_published integer not null default 0,
       created_at text not null
+    );
+
+    create table if not exists settings (
+      key text primary key,
+      value text,
+      created_at text not null,
+      updated_at text not null
     );
   `);
 
@@ -1116,24 +1130,37 @@ export function getAutomation(id: string) {
 export function getBootstrapData(userId: string): BootstrapData {
   const contacts = listContacts();
   const conversations = listConversations();
+  const templates = listTemplates();
+  const settings = getSettings();
+  
+  // Mask sensitive values for frontend but allow reveal
+  const safeSettings: Record<string, string> = { ...settings };
+  if (safeSettings.GEMINI_API_KEY) {
+    const key = safeSettings.GEMINI_API_KEY;
+    if (key.length > 8) {
+      safeSettings.GEMINI_API_KEY = key.substring(0, 4) + "..." + key.substring(key.length - 4);
+    }
+  }
+
   return {
     user: getUserForSession(userId)!,
     stats: {
       unreadCount: conversations.filter((c) => c.status === "attention").length,
       contactCount: contacts.length,
       conversationCount: conversations.length,
-      templateCount: listTemplates().length
+      templateCount: templates.length
     },
     channels: listChannels(),
     segments: listSegments(),
     contacts,
-    templates: listTemplates(),
+    templates,
     conversations,
     campaigns: listCampaigns(),
     automations: listAutomations(),
     landingPages: listLandingPages(),
     users: listUsers(),
-    customFieldDefinitions: listCustomFieldDefinitions()
+    customFieldDefinitions: listCustomFieldDefinitions(),
+    settings: safeSettings
   };
 }
 
@@ -1234,6 +1261,33 @@ export function listCustomFieldDefinitions(): string[] {
 export function normalizeRegNo(regNo: string | null | undefined): string {
    if (!regNo) return "";
    return regNo.toString().toUpperCase().replace(/[^A-Z0-9]/g, "");
+}
+
+/**
+ * Settings Management
+ */
+export function getSettings() {
+  const rows = db.prepare("select * from settings").all() as DbSettingRow[];
+  const settings: Record<string, string> = {};
+  for (const row of rows) {
+    settings[row.key] = row.value;
+  }
+  return settings;
+}
+
+export function updateSettings(settings: Record<string, string>) {
+  const timestamp = now();
+  const upsert = db.prepare(`
+    insert into settings (key, value, created_at, updated_at)
+    values (?, ?, ?, ?)
+    on conflict(key) do update set
+      value = excluded.value,
+      updated_at = excluded.updated_at
+  `);
+
+  for (const [key, value] of Object.entries(settings)) {
+    upsert.run(key, value, timestamp, timestamp);
+  }
 }
 
 export function upsertVehicle(data: {

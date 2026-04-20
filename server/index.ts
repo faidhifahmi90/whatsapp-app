@@ -64,7 +64,9 @@ import {
   registerCustomFields,
   listCustomFieldDefinitions,
   findContactByRegistrationNo,
-  normalizeRegNo
+  normalizeRegNo,
+  getSettings,
+  updateSettings
 } from "./db.js";
 import { generateLandingPageFromContent, generatePlan, executeWithSkills, refineSection } from "./geminiService.js";
 
@@ -1822,6 +1824,20 @@ app.post("/api/ai/refine-section", async (req, res) => {
       businessContext
     });
     res.json({ section: updatedSection });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * Settings
+ */
+app.post("/api/settings", requireAuth, async (req: SessionRequest, res) => {
+  try {
+    const settings = req.body; // Map of key -> value
+    updateSettings(settings);
+    refreshClients("bootstrap");
+    res.json({ ok: true });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
