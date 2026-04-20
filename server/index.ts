@@ -576,6 +576,11 @@ app.post("/api/contacts/import/evaluate", requireAuth, upload.single("file"), (r
         customFields[targetHeader] = val;
       }
     }
+    const regForMissingPhone = vehicle.registrationNo || order.registrationNo;
+    if (!translated.phone && regForMissingPhone) {
+       const resolved = findContactByRegistrationNo(regForMissingPhone);
+       if (resolved) translated.phone = resolved.phone;
+    }
     
     if (!translated.phone) return;
     
@@ -652,7 +657,12 @@ app.post("/api/contacts/import", requireAuth, upload.single("file"), (req: Sessi
         customFields[targetHeader] = val;
       }
     }
-    
+    const regForMissingPhone = vehicle.registrationNo || order.registrationNo;
+    if (!translated.phone && regForMissingPhone) {
+       const resolved = findContactByRegistrationNo(regForMissingPhone);
+       if (resolved) translated.phone = resolved.phone;
+    }
+
     if (translated.phone && resolvers[translated.phone]) {
        const mappedResolvers = resolvers[translated.phone];
        for (const [k, action] of Object.entries(mappedResolvers)) {

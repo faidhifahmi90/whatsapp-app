@@ -1150,6 +1150,14 @@ export function upsertVehicle(data: {
   }
 }
 
+export function findContactByRegistrationNo(registrationNo: string): Contact | null {
+  const v = db.prepare("select contact_id from vehicles where registration_no = ?").get(registrationNo) as { contact_id: string } | undefined;
+  if (!v) return null;
+  const c = db.prepare("select phone from contacts where id = ?").get(v.contact_id) as { phone: string } | undefined;
+  if (!c) return null;
+  return findContactByPhone(c.phone) ?? null;
+}
+
 export function upsertOrder(data: {
   contactId: string;
   registrationNo: string;
