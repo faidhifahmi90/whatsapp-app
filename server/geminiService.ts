@@ -11,8 +11,20 @@ function getGenAI() {
   if (!apiKey) {
     throw new Error("GEMINI_API_KEY is not configured. Please add it in Settings.");
   }
-  return new GoogleGenerativeAI(apiKey);
+  const genAI = new GoogleGenerativeAI(apiKey);
+  return genAI;
 }
+
+function handleGeminiError(err: any, context: string): never {
+  console.error(`Gemini Error [${context}]:`, err);
+  let message = err.message || "Unknown AI error";
+  if (message.includes("404") || message.includes("not found")) {
+    message = `Model Not Found (404). This usually means your API Key's project hasn't enabled the "Generative Language API" or the model is unavailable in your region. Check Google AI Studio.`;
+  }
+  throw new Error(`${context} failed: ${message}`);
+}
+
+const MODEL_NAME = "gemini-1.5-flash";
 
 /**
  * System instruction to ensure Gemini behaves as a high-end web architect.
@@ -40,7 +52,7 @@ export async function generateLandingPageFromContent(params: {
   currentSections?: any[];
 }) {
   const model = getGenAI().getGenerativeModel({ 
-    model: "gemini-1.5-flash",
+    model: MODEL_NAME,
     systemInstruction: SYSTEM_INSTRUCTION
   });
 
@@ -84,7 +96,7 @@ export async function generatePlan(params: {
   description?: string;
 }) {
   const model = getGenAI().getGenerativeModel({ 
-    model: "gemini-1.5-flash",
+    model: MODEL_NAME,
     systemInstruction: "You are an Agent Manager. Analyze the user's prompt and create a technical Implementation Plan in Markdown. Focus on layout, tone, selected skills, and unique features. Do NOT return code, just the plan."
   });
 
@@ -103,8 +115,7 @@ export async function generatePlan(params: {
     const result = await model.generateContent(prompt);
     return result.response.text();
   } catch (err: any) {
-    console.error("Gemini Planning Phase Error:", err);
-    throw new Error(`Planning failed: ${err.message || "Unknown error"}`);
+    handleGeminiError(err, "Planning");
   }
 }
 
@@ -125,7 +136,7 @@ export async function executeWithSkills(params: {
   const activeSkills = Object.values(SKILLS).join("\n");
 
   const model = getGenAI().getGenerativeModel({ 
-    model: "gemini-1.5-flash",
+    model: MODEL_NAME,
     systemInstruction: SYSTEM_INSTRUCTION + "\n\nAPPLY THESE SKILLS:\n" + activeSkills
   });
 
@@ -190,8 +201,7 @@ export async function executeWithSkills(params: {
     });
     return JSON.parse(result.response.text());
   } catch (err: any) {
-    console.error("Gemini Execution Phase Error:", err);
-    throw new Error(`Execution failed: ${err.message || "Unknown error"}`);
+    handleGeminiError(err, "Execution");
   }
 }
 
@@ -205,7 +215,7 @@ export async function refineSection(params: {
   businessContext: any;
 }) {
   const model = getGenAI().getGenerativeModel({ 
-    model: "gemini-1.5-flash",
+    model: MODEL_NAME,
     systemInstruction: "You are a Section Specialist. You receive a JSON section and user feedback. Your goal is to apply the feedback and return the UPDATED JSON section only. Maintain the original schema."
   });
 
@@ -230,6 +240,6 @@ export async function refineSection(params: {
   try {
     return JSON.parse(result.response.text());
   } catch (err) {
-    throw new Error("Failed to refine section");
+    handleGeminiError(err, "Refinement");
   }
 }
