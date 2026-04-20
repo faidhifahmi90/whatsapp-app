@@ -72,6 +72,7 @@ function parseJson<T>(value: string | null, fallback: T): T {
 function mapUser(row: any): User {
   return {
     id: row.id,
+    organizationId: row.organization_id || null,
     name: row.name,
     preferredName: row.preferred_name || null,
     email: row.email,
@@ -205,8 +206,29 @@ function mapMessage(row: any): Message {
 
 export function initDb() {
   db.exec(`
+    create table if not exists organizations (
+      id text primary key,
+      name text not null,
+      slug text not null unique,
+      plan text not null default 'free',
+      stripe_customer_id text,
+      subscription_status text,
+      created_at text not null
+    );
+
+    create table if not exists invitations (
+      id text primary key,
+      email text not null,
+      organization_id text not null,
+      role text not null,
+      token text not null unique,
+      expires_at text not null,
+      created_at text not null
+    );
+
     create table if not exists users (
       id text primary key,
+      organization_id text,
       name text not null,
       email text not null unique,
       password_hash text not null,
@@ -443,20 +465,92 @@ export function initDb() {
     db.prepare(`alter table campaigns add column metadata_json text`).run();
   } catch (e) {}
   
-  try { db.prepare(`alter table users add column preferred_name text`).run(); } catch (e) {}
-  try { db.prepare(`alter table users add column last_login_at text`).run(); } catch (e) {}
-  
-  // Automations V2 Migrations
-  try { db.prepare(`alter table automations add column version text not null default 'simple'`).run(); } catch (e) {}
-  try { db.prepare(`alter table automations add column flow_data_json text`).run(); } catch (e) {}
-  try { db.prepare(`alter table automations modify column trigger_type text`).run(); } catch (e) {}
-  try { db.prepare(`alter table automations modify column template_id text`).run(); } catch (e) {}
-  try { db.prepare(`alter table automations modify column channel_id text`).run(); } catch (e) {}
-  try { db.prepare(`alter table automations modify column delay_minutes integer`).run(); } catch (e) {}
-  try { db.prepare(`alter table automations add column template_variables_json text`).run(); } catch (e) {}
+  try { db.prepare(`alter table users add column organization_id text`).run(); } catch (e) {}
+  try { db.prepare(`alter table channels add column organization_id text`).run(); } catch (e) {}
+  try { db.prepare(`alter table segments add column organization_id text`).run(); } catch (e) {}
+  try { db.prepare(`alter table contacts add column organization_id text`).run(); } catch (e) {}
+  try { db.prepare(`alter table templates add column organization_id text`).run(); } catch (e) {}
+  try { db.prepare(`alter table conversations add column organization_id text`).run(); } catch (e) {}
+  try { db.prepare(`alter table campaigns add column organization_id text`).run(); } catch (e) {}
+  try { db.prepare(`alter table automations add column organization_id text`).run(); } catch (e) {}
+  try { db.prepare(`alter table landing_pages add column organization_id text`).run(); } catch (e) {}
 
+  migrateToSaaS();
   seedIfEmpty();
   cleanupDummyData();
+}
+
+/**
+ * Organization Management
+ */
+export function getOrganizationById(id: string) {
+  return db.prepare("select * from organizations where id = ?").get(id) as any;
+}
+
+export function getOrganizationBySlug(slug: string) {
+  return db.prepare("select * from organizations where slug = ?").get(slug) as any;
+}
+
+export function createOrganization(input: { name: string; slug: string }) {
+  const id = randomUUID();
+  db.prepare("insert into organizations (id, name, slug, created_at) values (?, ?, ?, ?)").run(
+    id, input.name, input.slug, now()
+  );
+  return getOrganizationById(id);
+}
+
+export function updateOrganizationSubscription(id: string, customerId: string, status: string) {
+  db.prepare("update organizations set stripe_customer_id = ?, subscription_status = ? where id = ?").run(
+    customerId, status, id
+  );
+}
+
+/**
+ * Invitation Management
+ */
+export function createInvitation(input: { email: string; organizationId: string; role: string }) {
+  const id = randomUUID();
+  const token = randomUUID();
+  const expiresAt = dayjs().add(7, "day").toISOString();
+  db.prepare("insert into invitations (id, email, organization_id, role, token, expires_at, created_at) values (?, ?, ?, ?, ?, ?, ?)").run(
+    id, input.email, input.organizationId, input.role, token, expiresAt, now()
+  );
+  return token;
+}
+
+export function findInvitationByToken(token: string) {
+  return db.prepare("select * from invitations where token = ?").get(token) as any;
+}
+
+export function deleteInvitation(id: string) {
+  db.prepare("delete from invitations where id = ?").run(id);
+}
+
+function migrateToSaaS() {
+  const orgCount = db.prepare("select count(*) as count from organizations").get() as { count: number };
+  if (orgCount.count > 0) return;
+
+  console.log("[Migration] Transitioning to SaaS core...");
+  const defaultOrgId = randomUUID();
+  const timestamp = now();
+  
+  db.prepare("insert into organizations (id, name, slug, plan, created_at) values (?, ?, ?, ?, ?)").run(
+    defaultOrgId, "Default Organization", "default", "pro", timestamp
+  );
+
+  const tables = [
+    'users', 'channels', 'segments', 'contacts', 'templates', 'conversations', 
+    'campaigns', 'automations', 'landing_pages'
+  ];
+
+  for (const table of tables) {
+    try {
+      db.prepare(`update ${table} set organization_id = ? where organization_id is null`).run(defaultOrgId);
+      console.log(`[Migration] Updated ${table} with organization_id`);
+    } catch (e) {
+      console.warn(`[Migration] Failed to update ${table}:`, e);
+    }
+  }
 }
 
 function cleanupDummyData() {
@@ -489,11 +583,11 @@ export function getUserForSession(id: string) {
   return row ? mapUser(row) : null;
 }
 
-export function createUser(input: { name: string; email: string; role: string }) {
+export function createUser(input: { name: string; email: string; role: string; organizationId: string }) {
   const id = randomUUID();
   db.prepare(
-    "insert into users (id, name, email, password_hash, role, created_at) values (?, ?, ?, ?, ?, ?)"
-  ).run(id, input.name, input.email, "", input.role, now());
+    "insert into users (id, organization_id, name, email, password_hash, role, created_at) values (?, ?, ?, ?, ?, ?, ?)"
+  ).run(id, input.organizationId, input.name, input.email, "", input.role, now());
   return getUserForSession(id);
 }
 
