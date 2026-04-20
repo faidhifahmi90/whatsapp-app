@@ -355,6 +355,15 @@ function DashboardShell(props: {
       searchPlaceholder: "Search landing pages..."
     }
   } as Record<string, { title: string; searchPlaceholder: string }>;
+  
+  const [isSearchExpanded, setIsSearchExpanded] = useState(false);
+  const [activeMobileTab, setActiveMobileTab] = useState(location.pathname);
+
+  useEffect(() => {
+    setActiveMobileTab(location.pathname);
+    setIsSearchExpanded(false);
+  }, [location.pathname]);
+
 
   const currentMeta = routeMeta[location.pathname] ?? {
     title: "tomorrowX",
@@ -447,15 +456,6 @@ function DashboardShell(props: {
         </nav>
 
         <div className="mt-auto space-y-1.5 border-t border-slate-100 pt-6">
-          <button 
-            className="group mb-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-br from-primary via-primary to-secondary px-4 py-4 font-headline text-sm font-bold text-on-primary shadow-[0_20px_40px_-20px_rgba(0,168,132,0.3)] transition-all hover:scale-[1.02] hover:shadow-[0_25px_50px_-12px_rgba(0,168,132,0.4)] active:scale-[0.98] overflow-hidden relative"
-            onClick={() => navigate("/campaigns")}
-          >
-            <div className="absolute inset-0 bg-gradient-to-tr from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-            <Icon name="rocket_launch" fill className="text-xl transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
-            {!sidebarCollapsed ? "Start Broadcast" : null}
-          </button>
-
           <button
             className="flex w-full items-center rounded-xl px-5 py-4 text-left text-sm font-extrabold text-slate-400 transition-all hover:bg-error/5 hover:text-error group"
             onClick={() => void props.onLogout()}
@@ -466,48 +466,124 @@ function DashboardShell(props: {
             {!sidebarCollapsed ? <span className="ml-3">Log out</span> : null}
           </button>
         </div>
+
       </aside>
 
-      <main className={`min-h-screen bg-[#f8f9fa] transition-[margin] duration-300 ${sidebarCollapsed ? "lg:ml-20" : "lg:ml-64"}`}>
-        <header className="sticky top-0 z-30 flex h-20 items-center justify-between bg-white/60 px-8 backdrop-blur-2xl border-b border-slate-100/50">
-          <div className="flex items-center gap-4 lg:gap-10">
-            <button
-              aria-label="Open navigation"
-              className="rounded-xl p-2 text-slate-400 transition-all hover:bg-slate-100 lg:hidden"
-              onClick={() => setSidebarOpen(true)}
-              type="button"
-            >
-              <Icon name="menu" className="text-2xl" />
-            </button>
-            <button
-              aria-label={sidebarCollapsed ? "Expand navigation" : "Collapse navigation"}
-              className="hidden rounded-xl p-2.5 text-slate-400 transition-all hover:bg-slate-100 lg:inline-flex"
-              onClick={() => setSidebarCollapsed((current) => !current)}
-              type="button"
-            >
-              <Icon name={sidebarCollapsed ? "menu_open" : "menu"} className="text-2xl" />
-            </button>
-            <span className="font-headline text-2xl font-extrabold tracking-tight text-slate-900">{currentMeta.title}</span>
-            <div className="hidden w-96 items-center gap-3 rounded-2xl bg-surface-container-low/50 px-5 py-2.5 md:flex border border-outline-variant/20 group focus-within:bg-white focus-within:border-primary/30 focus-within:shadow-[0_8px_24px_-12px_rgba(0,168,132,0.2)] transition-all">
-              <Icon name="search" className="text-xl text-outline group-focus-within:text-primary transition-colors" />
-              <input
-                className="w-full border-none bg-transparent p-0 text-sm font-bold focus:ring-0 placeholder:text-outline/50"
-                placeholder={currentMeta.searchPlaceholder}
-                type="text"
-              />
+      <main className={`min-h-screen bg-[#f8f9fa] transition-[margin] pb-24 lg:pb-0 duration-300 ${sidebarCollapsed ? "lg:ml-20" : "lg:ml-64"}`}>
+        <header className="sticky top-0 z-30 flex h-20 items-center justify-between bg-white/60 px-4 lg:px-8 backdrop-blur-2xl border-b border-slate-100/50">
+          {isSearchExpanded ? (
+            <div className="flex w-full items-center gap-4 animate-fade-in">
+               <button onClick={() => setIsSearchExpanded(false)} className="text-slate-400 p-2">
+                 <Icon name="arrow_back" />
+               </button>
+               <div className="flex-1 flex items-center gap-3 rounded-2xl bg-slate-100 px-4 py-2">
+                 <Icon name="search" className="text-slate-400" />
+                 <input 
+                  autoFocus
+                  className="w-full border-none bg-transparent p-0 text-sm font-bold focus:ring-0" 
+                  placeholder={currentMeta.searchPlaceholder}
+                  type="text" 
+                 />
+               </div>
             </div>
-          </div>
-          <div className="flex items-center gap-2 sm:gap-4">
-
-            <div className="flex items-center gap-3 rounded-2xl bg-white/80 px-2 py-1.5 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)] border border-slate-100 py-1.5 sm:px-4">
-              <div className="hidden text-right sm:block">
-                <p className="text-[11px] font-extrabold leading-tight text-primary">{props.data.user.name}</p>
-                <p className="mt-0.5 text-[9px] font-bold uppercase tracking-[0.16em] text-outline/70">{props.data.user.role}</p>
+          ) : (
+            <>
+              <div className="flex items-center gap-3 lg:gap-10">
+                {location.pathname === "/inbox" && props.selectedConversationId ? (
+                  <button
+                    aria-label="Back to inbox"
+                    className="rounded-xl p-2 text-slate-400 transition-all hover:bg-slate-100 lg:hidden"
+                    onClick={() => props.onSelectConversation(null)}
+                    type="button"
+                  >
+                    <Icon name="arrow_back" className="text-2xl" />
+                  </button>
+                ) : (
+                  <button
+                    aria-label="Open navigation"
+                    className="rounded-xl p-2 text-slate-400 transition-all hover:bg-slate-100 lg:hidden"
+                    onClick={() => setSidebarOpen(true)}
+                    type="button"
+                  >
+                    <Icon name="menu" className="text-2xl" />
+                  </button>
+                )}
+                <button
+                  aria-label={sidebarCollapsed ? "Expand navigation" : "Collapse navigation"}
+                  className="hidden rounded-xl p-2.5 text-slate-400 transition-all hover:bg-slate-100 lg:inline-flex"
+                  onClick={() => setSidebarCollapsed((current) => !current)}
+                  type="button"
+                >
+                  <Icon name={sidebarCollapsed ? "menu_open" : "menu"} className="text-2xl" />
+                </button>
+                <div className="flex flex-col">
+                  <span className="font-headline text-lg lg:text-2xl font-extrabold tracking-tight text-slate-900 line-clamp-1">{currentMeta.title}</span>
+                  {location.pathname === "/inbox" && props.selectedConversationId && (
+                     <span className="text-[10px] font-bold text-primary uppercase lg:hidden">Active Chat</span>
+                  )}
+                </div>
               </div>
-              <Avatar label={props.data.user.name} size="h-9 w-9" />
-            </div>
-          </div>
+              
+              <div className="hidden w-64 xl:w-96 items-center gap-3 rounded-2xl bg-surface-container-low/50 px-5 py-2.5 lg:flex border border-outline-variant/20 group focus-within:bg-white focus-within:border-primary/30 focus-within:shadow-[0_8px_24px_-12px_rgba(0,168,132,0.2)] transition-all">
+                <Icon name="search" className="text-xl text-outline group-focus-within:text-primary transition-colors" />
+                <input
+                  className="w-full border-none bg-transparent p-0 text-sm font-bold focus:ring-0 placeholder:text-outline/50"
+                  placeholder={currentMeta.searchPlaceholder}
+                  type="text"
+                />
+              </div>
+
+              <div className="flex items-center gap-2 sm:gap-4">
+                <button 
+                  onClick={() => setIsSearchExpanded(true)}
+                  className="rounded-full p-2.5 text-outline transition-colors hover:bg-surface-container-high hover:text-primary lg:hidden"
+                >
+                  <Icon name="search" />
+                </button>
+                <div className="flex items-center gap-2 lg:gap-3 rounded-2xl bg-white/80 px-1 py-1 lg:px-2 lg:py-1.5 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)] border border-slate-100">
+                  <div className="hidden text-right sm:block">
+                    <p className="text-[11px] font-extrabold leading-tight text-primary">{props.data.user.name}</p>
+                    <p className="mt-0.5 text-[9px] font-bold uppercase tracking-[0.16em] text-outline/70">{props.data.user.role}</p>
+                  </div>
+                  <Avatar label={props.data.user.name} size="h-8 w-8 lg:h-9 lg:w-9" />
+                </div>
+              </div>
+            </>
+          )}
         </header>
+
+        {/* Global Floating Action Button */}
+        <div className="fixed bottom-28 right-6 z-40 lg:hidden group">
+           <button 
+            onClick={() => navigate("/campaigns")}
+            className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary text-on-primary shadow-2xl shadow-primary/40 active:scale-95 transition-all"
+           >
+             <Icon name="rocket_launch" className="text-2xl" />
+           </button>
+           <div className="absolute bottom-full right-0 mb-4 opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity">
+              <span className="bg-slate-900 text-[10px] font-bold text-white px-3 py-1 rounded-lg uppercase tracking-widest">Start Broadcast</span>
+           </div>
+        </div>
+
+        {/* Mobile Bottom Navigation */}
+        <div className="fixed bottom-0 left-0 right-0 z-50 flex h-20 items-center justify-around bg-white/80 px-4 backdrop-blur-2xl border-t border-slate-100 lg:hidden">
+           {primaryNavItems.map(item => {
+             const active = location.pathname === item.to;
+             return (
+               <button 
+                key={item.to}
+                onClick={() => navigate(item.to)}
+                className={`flex flex-col items-center gap-1 transition-all ${active ? 'text-primary' : 'text-slate-400'}`}
+               >
+                 <div className={`flex flex-col items-center justify-center h-10 w-12 rounded-xl transition-all ${active ? 'bg-primary/10' : ''}`}>
+                    <Icon name={item.icon} fill={active} className="text-xl" />
+                 </div>
+                 <span className="text-[10px] font-bold uppercase tracking-tighter">{item.label}</span>
+               </button>
+             );
+           })}
+        </div>
+
 
         {props.error ? (
           <div className="px-8 pt-6">
@@ -727,8 +803,8 @@ function InboxPage(props: {
   const latestInbound = selectedConversation?.messages.filter((message) => message.direction === "inbound").at(-1);
 
   return (
-    <div className="flex min-h-[calc(100vh-72px)] flex-col overflow-hidden xl:h-[calc(100vh-72px)] xl:flex-row">
-      <div className="flex w-full flex-col border-b border-slate-100 bg-surface-container-low xl:w-80 xl:border-b-0 xl:border-r">
+    <div className="flex min-h-[calc(100vh-72px)] flex-col overflow-hidden lg:h-[calc(100vh-72px)] lg:flex-row">
+      <div className={`flex w-full flex-col border-b border-slate-100 bg-surface-container-low lg:w-80 lg:border-b-0 lg:border-r ${props.selectedConversationId ? 'hidden lg:flex' : 'flex'}`}>
         <div className="p-0 border-b border-slate-100">
           <div className="bg-gradient-to-br from-primary to-primary-fixed-dim p-6 text-on-primary relative overflow-hidden group">
             <div className="absolute right-0 top-0 translate-x-1/4 -translate-y-1/4 opacity-10 transition-transform group-hover:scale-110 duration-1000 pointer-events-none">
@@ -760,7 +836,7 @@ function InboxPage(props: {
             <Icon name="search" className="absolute left-3 top-2.5 text-[18px] text-slate-400" />
           </div>
         </div>
-        <div className="max-h-[24rem] flex-1 space-y-1 overflow-y-auto px-2 pb-4 xl:max-h-none">
+        <div className="max-h-[24rem] flex-1 space-y-1 overflow-y-auto px-2 pb-4 lg:max-h-none">
           {filteredConversations.map((conversation) => {
             const latest = conversation.messages[conversation.messages.length - 1];
             const active = conversation.id === selectedConversation?.id;
@@ -830,7 +906,7 @@ function InboxPage(props: {
         </div>
       </div>
 
-      <div className="flex min-w-0 flex-1 flex-col overflow-hidden bg-surface">
+      <div className={`flex min-w-0 flex-1 flex-col overflow-hidden bg-surface ${props.selectedConversationId ? 'flex' : 'hidden lg:flex'}`}>
         <div className="z-10 flex flex-col gap-3 bg-surface-container-lowest px-4 py-4 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:px-6">
           <div className="flex items-center gap-4">
             <div className="relative">
@@ -1035,7 +1111,7 @@ function InboxPage(props: {
         </div>
       </div>
 
-      <div className="w-full overflow-y-auto border-t border-slate-100 bg-surface-container-high p-6 xl:w-72 xl:border-l xl:border-t-0">
+      <div className="w-full overflow-y-auto border-t border-slate-100 bg-surface-container-high p-6 lg:w-72 lg:border-l lg:border-t-0">
         {selectedConversation ? (
           <>
             <div className="flex flex-col text-left">
@@ -1201,7 +1277,21 @@ function CampaignsPage(props: { data: BootstrapData; onRefresh: (preferredConver
         <WizardStep dim={currentStep < 3} index={3} label="Launch" status={currentStep === 3 ? "selected" : "locked"} />
       </div>
 
-      <div className="grid grid-cols-12 gap-8">
+      {/* Mobile Step Indicator */}
+      <div className="mb-8 flex items-center justify-between rounded-[2rem] bg-white p-6 shadow-sm border border-slate-100 lg:hidden">
+        <div className="flex flex-col">
+          <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Step {currentStep} of 3</span>
+          <span className="text-sm font-black text-slate-900">
+            {currentStep === 1 ? "Select Template" : currentStep === 2 ? "Choose Audience" : "Configure & Launch"}
+          </span>
+        </div>
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary font-black">
+          {currentStep}
+        </div>
+      </div>
+
+
+      <div className="grid grid-cols-12 gap-6 lg:gap-8">
         <div className="col-span-12 xl:col-span-7 space-y-6">
           {currentStep === 1 && (
             <>
@@ -2542,6 +2632,47 @@ function ContactsPage(props: {
           </div>
         </div>
 
+        {/* Mobile View (Cards) */}
+        <div className="lg:hidden space-y-4 mb-8">
+           {paginatedContacts.map((contact) => (
+             <div key={contact.id} className="bg-white rounded-[2rem] border border-slate-100 p-6 shadow-sm">
+                <div className="flex items-center justify-between mb-4">
+                   <div className="flex items-center gap-3">
+                      <Avatar label={fullName(contact)} size="h-12 w-12" />
+                      <div>
+                         <p className="text-sm font-bold text-slate-800">{fullName(contact)}</p>
+                         <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{contact.phone}</p>
+                      </div>
+                   </div>
+                   <button 
+                    onClick={() => props.onOpenConversation(contact.id, props.data.channels[0]?.id ?? "")}
+                    className="h-10 w-10 flex items-center justify-center rounded-xl bg-primary text-on-primary shadow-lg shadow-primary/20"
+                   >
+                     <Icon name="chat" className="text-lg" />
+                   </button>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                   {contact.segmentIds.map(sid => (
+                     <span key={sid} className="bg-slate-100 text-slate-500 text-[9px] font-bold px-2 py-0.5 rounded-md uppercase tracking-wider">
+                       {resolveLabel(sid, props.data)}
+                     </span>
+                   ))}
+                   {contact.labels.map(l => (
+                     <span key={l} className="bg-primary/5 text-primary text-[9px] font-bold px-2 py-0.5 rounded-md uppercase tracking-wider">
+                       {l}
+                     </span>
+                   ))}
+                </div>
+             </div>
+           ))}
+           {paginatedContacts.length === 0 && (
+             <div className="py-20 text-center bg-white rounded-[2.5rem] border border-dashed border-slate-200">
+                <Icon name="person_search" className="text-4xl text-slate-200 mb-2" />
+                <p className="text-xs font-bold text-slate-400">No contacts found</p>
+             </div>
+           )}
+        </div>
+
         {/* Desktop View (Table) */}
         <div className="hidden lg:block overflow-x-auto">
           <table className="w-full border-collapse text-left">
@@ -3210,7 +3341,7 @@ function AnalyticsPage(props: { data: BootstrapData }) {
 
       <div className="flex flex-col gap-8">
         {visibleWidgets.includes("overview") && (
-          <section className="grid gap-6 md:grid-cols-4">
+          <section className="grid grid-cols-2 gap-4 lg:grid-cols-4 lg:gap-6">
             <MinimalMetricCard label="Total Sent" value={analytics.totalSent.toLocaleString()} trend="+12.5%" data={analytics.trendBars.slice(0, 7)} />
             <MinimalMetricCard label="Delivered" value={analytics.delivered.toLocaleString()} trend={`${analytics.deliveryRate}%`} data={analytics.trendBars.slice(2, 9)} />
             <MinimalMetricCard label="Read" value={analytics.readEstimate.toLocaleString()} trend={`${analytics.readRate}%`} data={analytics.trendBars.slice(4, 11)} />
@@ -3354,7 +3485,7 @@ function AnalyticsPage(props: { data: BootstrapData }) {
             <div className="flex items-center justify-between px-8 py-6 border-b border-outline-variant/10">
               <h2 className="font-headline text-lg font-semibold text-on-surface">Active Campaigns</h2>
             </div>
-            <div className="overflow-x-auto">
+            <div className="hidden lg:block overflow-x-auto">
               <table className="w-full border-collapse">
                 <thead>
                   <tr className="text-left text-[10px] font-bold uppercase tracking-widest text-on-surface-variant bg-surface-container-low/50">
@@ -3397,6 +3528,38 @@ function AnalyticsPage(props: { data: BootstrapData }) {
                   })}
                 </tbody>
               </table>
+            </div>
+
+            {/* Mobile View */}
+            <div className="lg:hidden divide-y divide-slate-100">
+               {filteredData.campaigns.map((campaign, index) => {
+                 const sent = campaign.stats.attempted || campaign.stats.delivered || (index + 1) * 1200;
+                 const rate = sent ? Math.round((campaign.stats.delivered / Math.max(1, sent)) * 100) : 0;
+                 return (
+                   <div key={campaign.id} className="p-6">
+                      <div className="flex justify-between items-start mb-4">
+                        <div>
+                           <p className="text-sm font-bold text-slate-800">{campaign.name}</p>
+                           <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{campaign.scheduledAt ? formatLongDate(campaign.scheduledAt) : "Immediate"}</p>
+                        </div>
+                        <span className={`inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest ${campaign.status === "sent" ? "text-slate-400" : "text-primary"}`}>
+                          <div className={`h-1.5 w-1.5 rounded-full ${campaign.status === "sent" ? "bg-slate-300" : "bg-primary animate-pulse"}`} />
+                          {campaign.status === "sent" ? "Done" : "Active"}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                         <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Volume</p>
+                            <p className="text-sm font-black text-slate-900">{sent.toLocaleString()}</p>
+                         </div>
+                         <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Delivery</p>
+                            <p className="text-sm font-black text-slate-900">{rate}%</p>
+                         </div>
+                      </div>
+                   </div>
+                 );
+               })}
             </div>
           </section>
         )}
