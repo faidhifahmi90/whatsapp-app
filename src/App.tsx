@@ -9,7 +9,9 @@ import type {
   Campaign,
   Contact,
   Conversation,
-  Template
+  Template,
+  Vehicle,
+  Order
 } from "./types";
 
 
@@ -1618,26 +1620,147 @@ function ContactsPage(props: {
   const [page, setPage] = useState(1);
   const [visibleColumns, setVisibleColumns] = useState<string[]>(["profile", "phone", "segments", "activity", "optIn"]);
   const [isColumnDropdownOpen, setIsColumnDropdownOpen] = useState(false);
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [filterRules, setFilterRules] = useState<Array<{ field: string; operator: string; value: string }>>([]);
+  const [sortConfig, setSortConfig] = useState<{ key: string; direction: "asc" | "desc" } | null>(null);
+
+  const filterableFields = useMemo(() => {
+    const base = [
+      { id: "firstName", label: "First Name" },
+      { id: "lastName", label: "Last Name" },
+      { id: "phone", label: "Phone Number" },
+      { id: "email", label: "Email" },
+      { id: "company", label: "Company" }
+    ];
+    const custom = (props.data.customFieldDefinitions || []).map(f => ({ id: `custom_${f}`, label: `Custom: ${f}` }));
+    const vehicles = [
+      { id: "vehicle_vehicleRegistrationNo", label: "Vehicle Reg No" },
+      { id: "vehicle_vehicleOwnerName", label: "Vehicle Owner" },
+      { id: "vehicle_marketValue", label: "Market Value" },
+      { id: "vehicle_makeYear", label: "Make Year" }
+    ];
+    const orders = [
+      { id: "order_orderNo", label: "Order No" },
+      { id: "order_orderStatus", label: "Order Status" },
+      { id: "order_netWrittenPremium", label: "Net Premium" },
+      { id: "order_netTransaction", label: "Net Trans" }
+    ];
+    return [...base, ...custom, ...vehicles, ...orders];
+  }, [props.data.customFieldDefinitions]);
 
   const customFieldKeys = useMemo(() => {
-    const keys = new Set<string>();
-    props.data.contacts.forEach((c) => Object.keys(c.customFields).forEach((k) => keys.add(k)));
-    return Array.from(keys);
-  }, [props.data.contacts]);
+    return props.data.customFieldDefinitions || [];
+  }, [props.data.customFieldDefinitions]);
+
+  const insuranceVehicleFields = [
+    { id: "vehicle_vehicleRegistrationNo", label: "Vehicle Reg No" },
+    { id: "vehicle_vehicleOwnerName", label: "Vehicle Owner" },
+    { id: "vehicle_vehicleType", label: "Vehicle Type" },
+    { id: "vehicle_vehicleModel", label: "Vehicle Model" },
+    { id: "vehicle_makeYear", label: "Vehicle Year" },
+    { id: "vehicle_marketValue", label: "Market Value" }
+  ];
+
+  const insuranceOrderFields = [
+    { id: "order_orderNo", label: "Order No" },
+    { id: "order_orderStatus", label: "Order Status" },
+    { id: "order_coverNoteNo", label: "Cover Note" },
+    { id: "order_netWrittenPremium", label: "Net Prem" },
+    { id: "order_grossTransaction", label: "Gross Trans" },
+    { id: "order_netTransaction", label: "Net Trans" },
+    { id: "order_paymentMethod", label: "Payment Method" },
+    { id: "order_orderDate", label: "Order Date" }
+  ];
+
+  const getFieldValue = (c: Contact, field: string): any => {
+    if (field === "firstName") return c.firstName;
+    if (field === "lastName") return c.lastName;
+    if (field === "phone") return c.phone;
+    if (field === "email") return c.email;
+    if (field === "company") return c.company;
+    if (field.startsWith("custom_")) return c.customFields[field.slice(7)];
+    if (field.startsWith("vehicle_")) {
+      const key = field.slice(8);
+      return (c.vehicles?.[0] as any)?.[key];
+    }
+    if (field.startsWith("order_")) {
+      const key = field.slice(6);
+      return (c.orders?.[0] as any)?.[key];
+    }
+    return "";
+  };
 
   const filteredContacts = useMemo(() => {
-    if (!searchQuery.trim()) return props.data.contacts;
-    const lowerQuery = searchQuery.toLowerCase();
-    return props.data.contacts.filter((c) => {
-      if (c.firstName.toLowerCase().includes(lowerQuery)) return true;
-      if (c.lastName.toLowerCase().includes(lowerQuery)) return true;
-      if (c.phone.includes(lowerQuery)) return true;
-      if (c.email?.toLowerCase().includes(lowerQuery)) return true;
-      if (c.company?.toLowerCase().includes(lowerQuery)) return true;
-      if (Object.values(c.customFields).some((val) => String(val).toLowerCase().includes(lowerQuery))) return true;
-      return false;
+    let result = [...props.data.contacts];
+
+    // 1. Global Search
+    if (searchQuery.trim()) {
+      const lowerQuery = searchQuery.toLowerCase();
+      result = result.filter((c) => {
+        if (c.firstName.toLowerCase().includes(lowerQuery)) return true;
+        if (c.lastName.toLowerCase().includes(lowerQuery)) return true;
+        if (c.phone.includes(lowerQuery)) return true;
+        if (c.email?.toLowerCase().includes(lowerQuery)) return true;
+        if (c.company?.toLowerCase().includes(lowerQuery)) return true;
+        if (Object.values(c.customFields).some((val) => String(val).toLowerCase().includes(lowerQuery))) return true;
+        return false;
+      });
+    }
+
+    // 2. Rule-based Filtering
+    if (filterRules.length > 0) {
+      result = result.filter(c => {
+        return filterRules.every(rule => {
+          const val = getFieldValue(c, rule.field);
+          if (rule.operator === 'contains') return String(val || "").toLowerCase().includes(rule.value.toLowerCase());
+          if (rule.operator === 'equals') return String(val || "").toLowerCase() === rule.value.toLowerCase();
+          
+          // Numeric / Range processing
+          const nVal = parseFloat(String(val).replace(/[^0-9.-]/g, ""));
+          const nRule = parseFloat(rule.value.replace(/[^0-9.-]/g, ""));
+          if (isNaN(nVal) || isNaN(nRule)) return false;
+          if (rule.operator === 'gt') return nVal > nRule;
+          if (rule.operator === 'lt') return nVal < nRule;
+          return true;
+        });
+      });
+    }
+
+    // 3. Sorting
+    if (sortConfig) {
+      result.sort((a, b) => {
+        const aVal = getFieldValue(a, sortConfig.key);
+        const bVal = getFieldValue(b, sortConfig.key);
+        
+        const aStr = String(aVal || "").toLowerCase();
+        const bStr = String(bVal || "").toLowerCase();
+
+        // Check if numeric
+        const nA = parseFloat(aStr.replace(/[^0-9.-]/g, ""));
+        const nB = parseFloat(bStr.replace(/[^0-9.-]/g, ""));
+        
+        if (!isNaN(nA) && !isNaN(nB)) {
+           return sortConfig.direction === 'asc' ? nA - nB : nB - nA;
+        }
+
+        if (aStr < bStr) return sortConfig.direction === "asc" ? -1 : 1;
+        if (aStr > bStr) return sortConfig.direction === "asc" ? 1 : -1;
+        return 0;
+      });
+    }
+
+    return result;
+  }, [searchQuery, props.data.contacts, filterRules, sortConfig]);
+
+  const handleSort = (key: string) => {
+    setSortConfig((prev) => {
+      if (prev?.key === key) {
+        if (prev.direction === "asc") return { key, direction: "desc" };
+        return null;
+      }
+      return { key, direction: "asc" };
     });
-  }, [searchQuery, props.data.contacts]);
+  };
 
   const itemsPerPage = 15;
   const totalPages = Math.ceil(filteredContacts.length / itemsPerPage) || 1;
@@ -2025,7 +2148,7 @@ function ContactsPage(props: {
                 <Icon className="text-sm" name="view_column" />
               </button>
               {isColumnDropdownOpen && (
-                <div className="absolute top-12 left-0 z-10 w-56 rounded-xl border border-outline-variant/20 bg-surface-container-lowest p-2 shadow-lg">
+                <div className="absolute top-12 left-0 z-20 w-56 rounded-xl border border-outline-variant/20 bg-surface-container-lowest p-2 shadow-lg">
                   <div className="mb-2 px-2 pb-2 text-xs font-bold text-on-surface-variant border-b border-outline-variant/10">Standard</div>
                   {[
                     { id: "profile", label: "Contact Profile" },
@@ -2050,6 +2173,94 @@ function ContactsPage(props: {
                       ))}
                     </>
                   )}
+                  <div className="mb-2 mt-2 px-2 pb-2 text-xs font-bold text-on-surface-variant border-b border-outline-variant/10">Insurance: Vehicle</div>
+                  {insuranceVehicleFields.map((col) => (
+                    <label key={col.id} className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-surface-container-low">
+                      <input type="checkbox" checked={visibleColumns.includes(col.id)} onChange={() => toggleColumn(col.id)} className="rounded border-outline-variant text-primary focus:ring-primary/20" />
+                      <span className="text-xs font-medium text-on-surface">{col.label}</span>
+                    </label>
+                  ))}
+                  <div className="mb-2 mt-2 px-2 pb-2 text-xs font-bold text-on-surface-variant border-b border-outline-variant/10">Insurance: Order</div>
+                  {insuranceOrderFields.map((col) => (
+                    <label key={col.id} className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-surface-container-low">
+                      <input type="checkbox" checked={visibleColumns.includes(col.id)} onChange={() => toggleColumn(col.id)} className="rounded border-outline-variant text-primary focus:ring-primary/20" />
+                      <span className="text-xs font-medium text-on-surface">{col.label}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="relative">
+              <button
+                className={`flex cursor-pointer items-center gap-2 rounded-full border border-outline-variant/30 px-4 py-2 hover:bg-surface-container transition-colors ${filterRules.length > 0 ? 'bg-primary/10 border-primary/40' : 'bg-surface-container-low'}`}
+                onClick={() => setIsFilterOpen(!isFilterOpen)}
+              >
+                <div className="flex items-center gap-2">
+                   <span className="text-xs font-bold text-on-surface">Filters</span>
+                   {filterRules.length > 0 && <span className="bg-primary text-on-primary text-[10px] w-4 h-4 flex items-center justify-center rounded-full">{filterRules.length}</span>}
+                </div>
+                <Icon className="text-sm" name="filter_list" />
+              </button>
+              {isFilterOpen && (
+                <div className="absolute top-12 left-0 z-30 w-[400px] rounded-2xl border border-outline-variant/20 bg-surface-container-lowest p-4 shadow-xl">
+                  <div className="mb-3 flex items-center justify-between border-b border-outline-variant/10 pb-2">
+                    <span className="text-xs font-bold uppercase tracking-wider text-on-surface-variant">Active Rules</span>
+                    <button className="text-[10px] font-bold text-primary uppercase hover:underline" onClick={() => setFilterRules([])}>Clear All</button>
+                  </div>
+                  
+                  <div className="space-y-3 mb-4 max-h-[300px] overflow-y-auto">
+                    {filterRules.map((rule, idx) => (
+                      <div key={idx} className="flex items-center gap-2 group animate-in fade-in slide-in-from-top-1 duration-200">
+                        <select 
+                          className="text-[11px] font-medium bg-surface-container rounded-lg px-2 py-1.5 border-none focus:ring-1 focus:ring-primary w-[140px]"
+                          value={rule.field}
+                          onChange={(e) => {
+                             const newRules = [...filterRules];
+                             newRules[idx].field = e.target.value;
+                             setFilterRules(newRules);
+                          }}
+                        >
+                          {filterableFields.map(f => <option key={f.id} value={f.id}>{f.label}</option>)}
+                        </select>
+                        <select 
+                          className="text-[11px] font-medium bg-surface-container rounded-lg px-2 py-1.5 border-none focus:ring-1 focus:ring-primary w-[100px]"
+                          value={rule.operator}
+                          onChange={(e) => {
+                             const newRules = [...filterRules];
+                             newRules[idx].operator = e.target.value;
+                             setFilterRules(newRules);
+                          }}
+                        >
+                          <option value="contains">Contains</option>
+                          <option value="equals">Equals</option>
+                          <option value="gt">&gt; Greater</option>
+                          <option value="lt">&lt; Lesser</option>
+                        </select>
+                        <input 
+                          type="text" 
+                          className="text-[11px] flex-1 bg-surface-container-low rounded-lg px-2 py-1.5 border border-outline-variant/20 focus:ring-1 focus:ring-primary min-w-0"
+                          value={rule.value}
+                          onChange={(e) => {
+                             const newRules = [...filterRules];
+                             newRules[idx].value = e.target.value;
+                             setFilterRules(newRules);
+                          }}
+                        />
+                        <button className="p-1.5 text-on-surface-variant hover:text-error transition-colors" onClick={() => setFilterRules(prev => prev.filter((_, i) => i !== idx))}>
+                          <Icon className="text-xs" name="close" />
+                        </button>
+                      </div>
+                    ))}
+                    {filterRules.length === 0 && <div className="text-center py-4 text-xs text-on-surface-variant italic">No filters applied.</div>}
+                  </div>
+
+                  <button 
+                    className="w-full flex items-center justify-center gap-2 py-2 rounded-xl border border-dashed border-outline-variant hover:bg-surface-container-low text-xs font-bold text-primary transition-colors"
+                    onClick={() => setFilterRules([...filterRules, { field: filterableFields[0].id, operator: 'contains', value: '' }])}
+                  >
+                    <Icon className="text-sm" name="add" /> Add Rule
+                  </button>
                 </div>
               )}
             </div>
@@ -2070,10 +2281,50 @@ function ContactsPage(props: {
                 <th className="w-12 px-8 py-4">
                   <input className="rounded border-outline-variant text-primary focus:ring-primary/20" type="checkbox" />
                 </th>
-                {visibleColumns.includes("profile") && <th className="px-4 py-4">Contact Profile</th>}
-                {visibleColumns.includes("phone") && <th className="px-4 py-4">Phone Number</th>}
+                {visibleColumns.includes("profile") && (
+                  <th className="px-4 py-4 cursor-pointer hover:text-primary transition-colors" onClick={() => handleSort('firstName')}>
+                    <div className="flex items-center gap-1">
+                      Contact Profile
+                      {sortConfig?.key === 'firstName' && <Icon className="text-xs" name={sortConfig.direction === 'asc' ? 'arrow_upward' : 'arrow_downward'} />}
+                    </div>
+                  </th>
+                )}
+                {visibleColumns.includes("phone") && (
+                  <th className="px-4 py-4 cursor-pointer hover:text-primary transition-colors" onClick={() => handleSort('phone')}>
+                    <div className="flex items-center gap-1">
+                      Phone Number
+                      {sortConfig?.key === 'phone' && <Icon className="text-xs" name={sortConfig.direction === 'asc' ? 'arrow_upward' : 'arrow_downward'} />}
+                    </div>
+                  </th>
+                )}
                 {visibleColumns.includes("segments") && <th className="px-4 py-4">Segments & Tags</th>}
-                {customFieldKeys.map(key => visibleColumns.includes(`custom_${key}`) && <th key={key} className="px-4 py-4">{key}</th>)}
+                {customFieldKeys.map(key => {
+                   const colId = `custom_${key}`;
+                   return visibleColumns.includes(colId) && (
+                    <th key={key} className="px-4 py-4 cursor-pointer hover:text-primary transition-colors" onClick={() => handleSort(colId)}>
+                      <div className="flex items-center gap-1">
+                        {key}
+                        {sortConfig?.key === colId && <Icon className="text-xs" name={sortConfig.direction === 'asc' ? 'arrow_upward' : 'arrow_downward'} />}
+                      </div>
+                    </th>
+                   );
+                })}
+                {insuranceVehicleFields.map(col => visibleColumns.includes(col.id) && (
+                  <th key={col.id} className="px-4 py-4 cursor-pointer hover:text-primary transition-colors" onClick={() => handleSort(col.id)}>
+                    <div className="flex items-center gap-1">
+                      {col.label}
+                      {sortConfig?.key === col.id && <Icon className="text-xs" name={sortConfig.direction === 'asc' ? 'arrow_upward' : 'arrow_downward'} />}
+                    </div>
+                  </th>
+                ))}
+                {insuranceOrderFields.map(col => visibleColumns.includes(col.id) && (
+                  <th key={col.id} className="px-4 py-4 cursor-pointer hover:text-primary transition-colors" onClick={() => handleSort(col.id)}>
+                    <div className="flex items-center gap-1">
+                      {col.label}
+                      {sortConfig?.key === col.id && <Icon className="text-xs" name={sortConfig.direction === 'asc' ? 'arrow_upward' : 'arrow_downward'} />}
+                    </div>
+                  </th>
+                ))}
                 {visibleColumns.includes("activity") && <th className="px-4 py-4">Last Activity</th>}
                 {visibleColumns.includes("optIn") && <th className="px-4 py-4 text-center">Opt-In</th>}
                 <th className="px-8 py-4 text-right">Actions</th>
@@ -2120,6 +2371,16 @@ function ContactsPage(props: {
                   {customFieldKeys.map(key => visibleColumns.includes(`custom_${key}`) && (
                     <td key={`custom_col_${key}`} className="px-4 py-5 text-sm font-medium text-on-surface-variant">
                       {contact.customFields[key] || "—"}
+                    </td>
+                  ))}
+                  {insuranceVehicleFields.map(col => visibleColumns.includes(col.id) && (
+                    <td key={`insurance_v_${col.id}`} className="px-4 py-5 text-sm font-medium text-on-surface-variant font-mono">
+                      {(contact.vehicles?.[0] as any)?.[col.id.replace("vehicle_", "")] || "—"}
+                    </td>
+                  ))}
+                  {insuranceOrderFields.map(col => visibleColumns.includes(col.id) && (
+                    <td key={`insurance_o_${col.id}`} className="px-4 py-5 text-sm font-medium text-on-surface-variant font-mono">
+                      {(contact.orders?.[0] as any)?.[col.id.replace("order_", "")] || "—"}
                     </td>
                   ))}
                   {visibleColumns.includes("activity") && <td className="px-4 py-5 text-xs text-on-surface-variant">{formatRelativeChatTime(new Date(Date.now() - (index + 1) * 3600_000).toISOString())}</td>}
@@ -3022,6 +3283,27 @@ function AutomationsStudioPage(props: { data: BootstrapData; onRefresh: (preferr
     delayMinutes: "0"
   });
 
+  const [autoSearch, setAutoSearch] = useState("");
+  const [autoSort, setAutoSort] = useState<"name" | "type" | "status">("name");
+
+  const filteredAutomations = useMemo(() => {
+    let result = [...props.data.automations];
+    
+    if (autoSearch.trim()) {
+      const q = autoSearch.toLowerCase();
+      result = result.filter(a => a.name.toLowerCase().includes(q) || a.triggerType.toLowerCase().includes(q) || a.triggerValue?.toLowerCase().includes(q));
+    }
+
+    result.sort((a, b) => {
+      if (autoSort === "name") return a.name.localeCompare(b.name);
+      if (autoSort === "type") return a.triggerType.localeCompare(b.triggerType);
+      if (autoSort === "status") return (a.isActive === b.isActive) ? 0 : (a.isActive ? -1 : 1);
+      return 0;
+    });
+
+    return result;
+  }, [props.data.automations, autoSearch, autoSort]);
+
   async function saveAutomation(event: FormEvent) {
     event.preventDefault();
     await api("/api/automations", {
@@ -3089,8 +3371,31 @@ function AutomationsStudioPage(props: { data: BootstrapData; onRefresh: (preferr
             <button className="w-full rounded-xl bg-primary px-5 py-3 text-sm font-bold text-on-primary">Save automation</button>
           </form>
         </div>
-        <div className="grid gap-4 md:grid-cols-2">
-          {props.data.automations.map((automation) => (
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center gap-3 rounded-[2rem] bg-surface-container-lowest p-4 shadow-sm">
+             <div className="relative flex-1">
+                <input 
+                  type="text" 
+                  placeholder="Search automations..." 
+                  className="atrium-input bg-surface-container-low py-2 text-sm w-full outline-none"
+                  value={autoSearch}
+                  onChange={(e) => setAutoSearch(e.target.value)}
+                />
+                <Icon name="search" className="absolute right-3 top-2.5 text-on-surface-variant" />
+             </div>
+             <select 
+               className="atrium-input bg-surface-container-low py-2 text-sm w-40"
+               value={autoSort}
+               onChange={(e) => setAutoSort(e.target.value as any)}
+             >
+                <option value="name">Sort: Name</option>
+                <option value="type">Sort: Type</option>
+                <option value="status">Sort: Status</option>
+             </select>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            {filteredAutomations.map((automation) => (
             <div className="rounded-[2rem] bg-surface-container-low p-6" key={automation.id}>
               <p className="text-xs font-bold uppercase tracking-[0.2em] text-outline">{automation.triggerType.replaceAll("_", " ")}</p>
               <h3 className="mt-2 font-headline text-lg font-bold text-primary">{automation.name}</h3>
@@ -3105,6 +3410,7 @@ function AutomationsStudioPage(props: { data: BootstrapData; onRefresh: (preferr
               </div>
             </div>
           ))}
+          </div>
         </div>
       </div>
     </StudioPageShell>
