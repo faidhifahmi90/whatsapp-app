@@ -9,6 +9,7 @@
     "start": "NODE_ENV=production node dist/server/index.js"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "@react-oauth/google": "^0.13.5",
     "bcryptjs": "^2.4.3",
     "better-sqlite3": "^11.7.0",
