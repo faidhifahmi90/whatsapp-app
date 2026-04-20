@@ -5168,19 +5168,25 @@ function LandingPageEditor(props: { pageId: string | null; data: BootstrapData; 
         setProgressLabel(labels[0]);
 
         interval = setInterval(() => {
-          current += Math.random() * 15;
-          if (current >= 100) {
+          current += Math.random() * 10;
+          if (current >= 99) {
             current = 99;
+            // Transition to 'Almost there' after it caps at 99 for a while
+            setTimeout(() => {
+              if (isGenerating) setProgressLabel("Almost there... finalizing the final details");
+            }, 8000);
             clearInterval(interval);
           }
           setProgressPercent(Math.floor(current));
           
           // Rotate labels based on percentage
-          const labelIdx = Math.min(
-            Math.floor((current / 100) * labels.length),
-            labels.length - 1
-          );
-          setProgressLabel(labels[labelIdx]);
+          if (current < 99) {
+            const labelIdx = Math.min(
+              Math.floor((current / 100) * labels.length),
+              labels.length - 1
+            );
+            setProgressLabel(labels[labelIdx]);
+          }
         }, 1200);
       } else {
         clearInterval(interval);
@@ -5376,7 +5382,7 @@ function LandingPageEditor(props: { pageId: string | null; data: BootstrapData; 
                           <div className="flex items-center gap-1.5 font-bold uppercase tracking-widest text-[9px]">
                             <Icon name="error" className="text-xs" /> Diagnosis
                           </div>
-                          {error}
+                          {error.includes("abort") || error.includes("timeout") ? "The Architect is taking longer than usual (60s+). This usually happens with very complex prompts. Please try again with a simpler request." : error}
                           {error.includes("API_KEY") && (
                             <div className="mt-1 pt-1 border-t border-red-100 italic text-[9px] opacity-70">
                               Suggestion: Update your Gemini API Key in Settings.
