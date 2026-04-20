@@ -2209,6 +2209,7 @@ function ContactsPage(props: {
                         </optgroup>
                         <optgroup label="Insurance: Order">
                           <option value="order_orderNo">Order: Order No</option>
+                          <option value="order_registrationNo">Order: Linked Vehicle Reg No</option>
                           <option value="order_orderStatus">Order: Status</option>
                           <option value="order_coverNoteNo">Order: Cover Note No</option>
                           <option value="order_netWrittenPremium">Order: Net Written Premium</option>

@@ -55,7 +55,8 @@ import {
   updateUserLogin,
   clearContactsAndFields,
   registerCustomFields,
-  listCustomFieldDefinitions
+  listCustomFieldDefinitions,
+  findContactByRegistrationNo
 } from "./db.js";
 import {
   buildContentVariables,
