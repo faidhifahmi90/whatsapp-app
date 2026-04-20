@@ -982,6 +982,26 @@ function InboxPage(props: {
                 <TimelineEntry icon="description" title="Template preview available" meta={chosenTemplate?.name ?? "No template selected"} />
                 <TimelineEntry icon="group" title="Segments attached" meta={selectedConversation.contact.segmentIds.map((segmentId) => resolveLabel(segmentId, props.data)).join(", ") || "No segments"} />
               </InfoCard>
+
+              {(selectedConversation.contact.vehicles?.length > 0 || selectedConversation.contact.orders?.length > 0) && (
+                <InfoCard title="Insurance Portfolio">
+                  {selectedConversation.contact.vehicles?.map(v => (
+                    <div key={v.id} className="flex flex-col gap-0.5 mb-3 last:mb-0 border-l-2 border-primary/20 pl-3">
+                       <p className="text-xs font-bold text-on-surface">{v.vehicleRegistrationNo}</p>
+                       <p className="text-[10px] text-on-surface-variant font-medium">{v.vehicleModel || v.vehicleType || "Unknown Model"} ({v.makeYear || "—"})</p>
+                    </div>
+                  ))}
+                  {selectedConversation.contact.orders?.map(o => (
+                    <div key={o.id} className="flex flex-col gap-0.5 mt-3 pt-3 border-t border-outline-variant/10">
+                       <div className="flex justify-between items-start">
+                          <p className="text-[10px] font-bold text-primary">{o.orderNo}</p>
+                          <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold uppercase ${o.orderStatus?.toLowerCase() === 'paid' ? 'bg-secondary/10 text-secondary' : 'bg-surface-container text-on-surface-variant'}`}>{o.orderStatus}</span>
+                       </div>
+                       <p className="text-[10px] text-on-surface-variant">{o.orderDate || "Date N/A"}</p>
+                    </div>
+                  ))}
+                </InfoCard>
+              )}
             </div>
           </>
         ) : (
@@ -1681,11 +1701,11 @@ function ContactsPage(props: {
     if (field.startsWith("custom_")) return c.customFields[field.slice(7)];
     if (field.startsWith("vehicle_")) {
       const key = field.slice(8);
-      return (c.vehicles?.[0] as any)?.[key];
+      return (c.vehicles || []).map(v => (v as any)[key]).filter(v => v !== undefined);
     }
     if (field.startsWith("order_")) {
       const key = field.slice(6);
-      return (c.orders?.[0] as any)?.[key];
+      return (c.orders || []).map(o => (o as any)[key]).filter(o => o !== undefined);
     }
     return "";
   };
@@ -1711,17 +1731,21 @@ function ContactsPage(props: {
     if (filterRules.length > 0) {
       result = result.filter(c => {
         return filterRules.every(rule => {
-          const val = getFieldValue(c, rule.field);
-          if (rule.operator === 'contains') return String(val || "").toLowerCase().includes(rule.value.toLowerCase());
-          if (rule.operator === 'equals') return String(val || "").toLowerCase() === rule.value.toLowerCase();
-          
-          // Numeric / Range processing
-          const nVal = parseFloat(String(val).replace(/[^0-9.-]/g, ""));
-          const nRule = parseFloat(rule.value.replace(/[^0-9.-]/g, ""));
-          if (isNaN(nVal) || isNaN(nRule)) return false;
-          if (rule.operator === 'gt') return nVal > nRule;
-          if (rule.operator === 'lt') return nVal < nRule;
-          return true;
+          const rawVal = getFieldValue(c, rule.field);
+          const vals = Array.isArray(rawVal) ? rawVal : [rawVal];
+
+          return vals.some(val => {
+            if (rule.operator === 'contains') return String(val || "").toLowerCase().includes(rule.value.toLowerCase());
+            if (rule.operator === 'equals') return String(val || "").toLowerCase() === rule.value.toLowerCase();
+            
+            // Numeric / Range processing
+            const nVal = parseFloat(String(val).replace(/[^0-9.-]/g, ""));
+            const nRule = parseFloat(rule.value.replace(/[^0-9.-]/g, ""));
+            if (isNaN(nVal) || isNaN(nRule)) return false;
+            if (rule.operator === 'gt') return nVal > nRule;
+            if (rule.operator === 'lt') return nVal < nRule;
+            return true;
+          });
         });
       });
     }
@@ -1729,8 +1753,11 @@ function ContactsPage(props: {
     // 3. Sorting
     if (sortConfig) {
       result.sort((a, b) => {
-        const aVal = getFieldValue(a, sortConfig.key);
-        const bVal = getFieldValue(b, sortConfig.key);
+        const rawA = getFieldValue(a, sortConfig.key);
+        const rawB = getFieldValue(b, sortConfig.key);
+        
+        const aVal = Array.isArray(rawA) ? rawA[0] : rawA;
+        const bVal = Array.isArray(rawB) ? rawB[0] : rawB;
         
         const aStr = String(aVal || "").toLowerCase();
         const bStr = String(bVal || "").toLowerCase();
@@ -2374,13 +2401,13 @@ function ContactsPage(props: {
                     </td>
                   ))}
                   {insuranceVehicleFields.map(col => visibleColumns.includes(col.id) && (
-                    <td key={`insurance_v_${col.id}`} className="px-4 py-5 text-sm font-medium text-on-surface-variant font-mono">
-                      {(contact.vehicles?.[0] as any)?.[col.id.replace("vehicle_", "")] || "—"}
+                    <td key={`insurance_v_${col.id}`} className="px-4 py-5 text-sm font-medium text-on-surface-variant font-mono whitespace-nowrap">
+                      {((contact.vehicles || []).map(v => (v as any)[col.id.replace("vehicle_", "")]) || []).filter(Boolean).join(", ") || "—"}
                     </td>
                   ))}
                   {insuranceOrderFields.map(col => visibleColumns.includes(col.id) && (
-                    <td key={`insurance_o_${col.id}`} className="px-4 py-5 text-sm font-medium text-on-surface-variant font-mono">
-                      {(contact.orders?.[0] as any)?.[col.id.replace("order_", "")] || "—"}
+                    <td key={`insurance_o_${col.id}`} className="px-4 py-5 text-sm font-medium text-on-surface-variant font-mono whitespace-nowrap">
+                      {((contact.orders || []).map(o => (o as any)[col.id.replace("order_", "")]) || []).filter(Boolean).join(", ") || "—"}
                     </td>
                   ))}
                   {visibleColumns.includes("activity") && <td className="px-4 py-5 text-xs text-on-surface-variant">{formatRelativeChatTime(new Date(Date.now() - (index + 1) * 3600_000).toISOString())}</td>}
