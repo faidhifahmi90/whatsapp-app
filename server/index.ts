@@ -1788,7 +1788,8 @@ app.post("/api/ai/plan", async (req, res) => {
     });
     res.json({ plan });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    console.error("AI Plan Generation Error:", err);
+    res.status(500).json({ error: err.message, stack: err.stack });
   }
 });
 
@@ -1796,7 +1797,7 @@ app.post("/api/ai/plan", async (req, res) => {
 app.post("/api/ai/execute", async (req, res) => {
   try {
     const { plan, name, industry, goal, description, sections } = req.body;
-    const aiSections = await executeWithSkills({
+    const result = await executeWithSkills({
       plan,
       businessName: name,
       industry,
@@ -1804,9 +1805,10 @@ app.post("/api/ai/execute", async (req, res) => {
       description,
       currentSections: sections
     });
-    res.json({ sections: aiSections });
+    res.json(result);
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    console.error("AI Execution Error:", err);
+    res.status(500).json({ error: err.message, stack: err.stack });
   }
 });
 

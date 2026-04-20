@@ -4755,7 +4755,7 @@ function LandingPagesPage(props: { data: BootstrapData; onRefresh: () => Promise
     <StudioPageShell title="Landing Pages" subtitle="Generate high-converting mobile-first pages linked directly to your CRM.">
       <div className="mb-10 flex flex-col md:flex-row gap-6">
         <button 
-          onClick={() => setShowWizard(true)}
+          onClick={() => setEditorPageId("new")}
           className="flex-1 group relative overflow-hidden p-10 rounded-[3rem] bg-primary text-on-primary shadow-[0_32px_64px_-16px_rgba(37,99,235,0.4)] hover:scale-[1.01] active:scale-[0.99] transition-all duration-500"
         >
           <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:scale-125 transition-transform">
@@ -4763,15 +4763,15 @@ function LandingPagesPage(props: { data: BootstrapData; onRefresh: () => Promise
           </div>
           <div className="relative z-10 flex items-center gap-6">
              <div className="h-20 w-20 rounded-[2rem] bg-white/20 backdrop-blur-md flex items-center justify-center">
-                <Icon name="magic_button" className="text-4xl" />
+                <Icon name="rocket_launch" className="text-4xl" />
              </div>
              <div className="text-left">
-                <h3 className="font-headline text-3xl font-extrabold mb-1">Smart AI Builder</h3>
-                <p className="text-on-primary/70 font-medium text-sm">Generate a complete, high-converting site from scratch in 30 seconds.</p>
+                <h3 className="font-headline text-3xl font-extrabold mb-1">Architect AI</h3>
+                <p className="text-on-primary/70 font-medium text-sm">Launch a high-fidelity landing page from a single prompt in seconds.</p>
              </div>
           </div>
           <div className="mt-8 flex items-center gap-2 text-sm font-bold opacity-80">
-             Get started now <Icon name="arrow_forward" className="text-sm" />
+             Start architecting <Icon name="arrow_forward" className="text-sm" />
           </div>
         </button>
 
@@ -4822,16 +4822,7 @@ function LandingPagesPage(props: { data: BootstrapData; onRefresh: () => Promise
         ))}
       </div>
 
-      {showWizard && (
-        <SmartBuilderWizard 
-           onClose={() => setShowWizard(false)}
-           onComplete={(config) => {
-              setEditorPageId("new");
-              (window as any)._lpPrefill = config;
-              setShowWizard(false);
-           }}
-        />
-      )}
+      {/* SmartBuilderWizard retired in favor of direct Studio entry */}
 
       {editorPageId && (
         <LandingPageEditor 
@@ -4918,7 +4909,14 @@ function LandingPageEditor(props: { pageId: string | null; data: BootstrapData; 
         })
       });
       if (resp.sections) {
-        setForm(prev => ({ ...prev, sections: resp.sections }));
+        setForm(prev => ({ 
+          ...prev, 
+          name: resp.metadata?.name || prev.name,
+          slug: resp.metadata?.slug || prev.slug,
+          title: resp.metadata?.title || prev.title,
+          description: resp.metadata?.description || prev.description,
+          sections: resp.sections 
+        }));
         setPhase('input');
         setMagicPrompt("");
       }
@@ -5189,10 +5187,62 @@ function LandingPageEditor(props: { pageId: string | null; data: BootstrapData; 
               ) : (
                 <div className="mx-auto max-w-4xl min-h-screen bg-white shadow-2xl rounded-[3rem] overflow-hidden border border-slate-200 relative">
                   {form.sections.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center h-[500px] text-slate-300">
-                      <Icon name="design_services" className="text-6xl mb-4 opacity-20" />
-                      <p className="font-bold text-xl">The canvas is blank.</p>
-                      <p className="text-sm mt-2">Use AI Architect to build your page.</p>
+                    <div className="flex-1 flex flex-col items-center justify-center min-h-[600px] animate-fade-in relative px-12 text-center">
+                      {/* Background Accents */}
+                      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-primary/10 rounded-full blur-[120px] -z-10" />
+                      
+                      <div className="max-w-2xl w-full">
+                        <div className="h-16 w-16 bg-white shadow-2xl rounded-2xl flex items-center justify-center text-primary mx-auto mb-8 animate-bounce-slow">
+                          <Icon name="rocket_launch" className="text-3xl" />
+                        </div>
+                        
+                        <h1 className="text-5xl font-extrabold text-slate-900 mb-6 tracking-tight">
+                          Re-architect the <span className="text-primary">Impossible.</span>
+                        </h1>
+                        <p className="text-lg text-slate-500 mb-12 font-medium leading-relaxed">
+                          Enter a prompt or a business description. Our Agent Manager will plan, build, and deploy a high-fidelity landing page in seconds.
+                        </p>
+
+                        <div className="relative group">
+                          {/* Portal Glow */}
+                          <div className="absolute -inset-1 bg-gradient-to-r from-primary to-indigo-400 rounded-[2.5rem] blur opacity-25 group-hover:opacity-40 transition duration-1000 group-hover:duration-200"></div>
+                          
+                          <div className="relative bg-white/80 backdrop-blur-xl p-8 rounded-[2.5rem] shadow-2xl border border-white flex flex-col gap-4">
+                            <textarea 
+                              className="w-full bg-transparent text-lg font-medium text-slate-700 outline-none resize-none min-h-[120px] placeholder:text-slate-300"
+                              placeholder="Describe your vision (e.g. 'A futuristic SaaS for underwater data centers')..."
+                              value={magicPrompt}
+                              onChange={e => setMagicPrompt(e.target.value)}
+                            />
+                            
+                            <div className="flex items-center justify-between">
+                              <div className="flex gap-2">
+                                <span className="px-3 py-1 rounded-full bg-slate-100 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Architect Mode</span>
+                              </div>
+                              <button 
+                                disabled={isGenerating || !magicPrompt}
+                                onClick={handleGeneratePlan}
+                                className="px-8 py-4 bg-primary text-on-primary rounded-2xl font-bold text-sm shadow-xl shadow-primary/30 hover:scale-105 active:scale-95 transition-all flex items-center gap-2"
+                              >
+                                {isGenerating ? <span className="animate-spin text-sm">⌛</span> : <Icon name="auto_fix_high" />}
+                                {isGenerating ? 'Analyzing...' : 'Generate Plan'}
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <div className="mt-12 flex items-center justify-center gap-8 opacity-40">
+                           <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-slate-500">
+                             <Icon name="check_circle" className="text-emerald-500" /> Premium Design
+                           </div>
+                           <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-slate-500">
+                             <Icon name="check_circle" className="text-emerald-500" /> SEO Optimized
+                           </div>
+                           <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-slate-500">
+                             <Icon name="check_circle" className="text-emerald-500" /> Sandbox Ready
+                           </div>
+                        </div>
+                      </div>
                     </div>
                   ) : (
                     <div className="w-full" style={{ backgroundColor: form.theme.backgroundColor, color: form.theme.textColor }}>
@@ -5343,6 +5393,38 @@ function LandingPageEditor(props: { pageId: string | null; data: BootstrapData; 
                               ))}
                             </div>
                             <button className="w-full py-5 mt-10 rounded-2xl font-extrabold text-lg text-white shadow-xl" style={{ backgroundColor: form.theme.primaryColor }}>Continue</button>
+                          </div>
+                        </div>
+                      )}
+
+                      {section.type === 'events' && (
+                        <div className="py-24 px-12 bg-white">
+                          <div className="max-w-5xl mx-auto">
+                            <div className="flex items-end justify-between mb-12">
+                              <div className="text-left">
+                                <h2 className="text-4xl font-extrabold mb-4">{section.title}</h2>
+                                <p className="text-lg opacity-60">{section.subtitle}</p>
+                              </div>
+                              <button className="px-8 py-3 rounded-2xl bg-primary/10 text-primary font-bold text-sm">View Calendar</button>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                              {(section.items || []).map((item: any, i: number) => (
+                                <div key={i} className="flex gap-6 p-8 rounded-[2.5rem] bg-slate-50 border border-slate-100 group hover:bg-white hover:shadow-2xl transition-all">
+                                  <div className="h-16 w-16 rounded-2xl bg-white shadow-sm flex flex-col items-center justify-center border border-slate-100">
+                                    <span className="text-[10px] font-bold uppercase text-primary">OCT</span>
+                                    <span className="text-xl font-extrabold">24</span>
+                                  </div>
+                                  <div>
+                                    <h3 className="text-lg font-bold mb-2 group-hover:text-primary transition-colors">{item.title}</h3>
+                                    <p className="text-sm opacity-60 leading-relaxed mb-4">{item.text}</p>
+                                    <div className="flex items-center gap-4 text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                                      <span><Icon name="schedule" className="text-xs mr-1" /> 10:00 AM</span>
+                                      <span><Icon name="location_on" className="text-xs mr-1" /> Virtual</span>
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
                           </div>
                         </div>
                       )}

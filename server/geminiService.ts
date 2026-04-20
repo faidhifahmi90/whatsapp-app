@@ -80,6 +80,10 @@ export async function generatePlan(params: {
   businessName?: string;
   description?: string;
 }) {
+  if (!apiKey) {
+    throw new Error("GEMINI_API_KEY is not configured in .env");
+  }
+
   const model = genAI.getGenerativeModel({ 
     model: "gemini-1.5-flash",
     systemInstruction: "You are an Agent Manager. Analyze the user's prompt and create a technical Implementation Plan in Markdown. Focus on layout, tone, selected skills, and unique features. Do NOT return code, just the plan."
@@ -96,8 +100,13 @@ export async function generatePlan(params: {
     4. Outline the technical approach for each section.
   `;
 
-  const result = await model.generateContent(prompt);
-  return result.response.text();
+  try {
+    const result = await model.generateContent(prompt);
+    return result.response.text();
+  } catch (err: any) {
+    console.error("Gemini Planning Phase Error:", err);
+    throw new Error(`Planning failed: ${err.message || "Unknown error"}`);
+  }
 }
 
 /**
@@ -121,6 +130,40 @@ export async function executeWithSkills(params: {
     systemInstruction: SYSTEM_INSTRUCTION + "\n\nAPPLY THESE SKILLS:\n" + activeSkills
   });
 
+  const schema = {
+    description: "Landing page holistic structure",
+    type: SchemaType.OBJECT,
+    properties: {
+      metadata: {
+        type: SchemaType.OBJECT,
+        properties: {
+          name: { type: SchemaType.STRING, description: "Refined business/brand name" },
+          slug: { type: SchemaType.STRING, description: "URL-safe slug (e.g. 'chrono-luxury')" },
+          title: { type: SchemaType.STRING, description: "Benefit-driven SEO title" },
+          description: { type: SchemaType.STRING, description: "Compelling meta description" }
+        },
+        required: ["name", "slug", "title", "description"]
+      },
+      sections: {
+        type: SchemaType.ARRAY,
+        items: {
+          type: SchemaType.OBJECT,
+          properties: {
+            type: { type: SchemaType.STRING, enum: ["hero", "features", "pricing", "testimonials", "faq", "form", "events", "cta", "content", "gallery"] },
+            title: { type: SchemaType.STRING },
+            subtitle: { type: SchemaType.STRING },
+            cta: { type: SchemaType.STRING },
+            items: { type: SchemaType.ARRAY, items: { type: SchemaType.OBJECT, properties: { title: { type: SchemaType.STRING }, text: { type: SchemaType.STRING }, icon: { type: SchemaType.STRING } } } },
+            plans: { type: SchemaType.ARRAY, items: { type: SchemaType.OBJECT, properties: { name: { type: SchemaType.STRING }, price: { type: SchemaType.STRING }, features: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING } }, featured: { type: SchemaType.BOOLEAN } } } },
+            fields: { type: SchemaType.ARRAY, items: { type: SchemaType.OBJECT, properties: { label: { type: SchemaType.STRING }, type: { type: SchemaType.STRING }, placeholder: { type: SchemaType.STRING } } } }
+          },
+          required: ["type"]
+        }
+      }
+    },
+    required: ["metadata", "sections"]
+  };
+
   const prompt = `
     IMPLEMENTATION PLAN:
     ${params.plan}
@@ -132,18 +175,24 @@ export async function executeWithSkills(params: {
     Description: ${params.description || "N/A"}
     Current Sections: ${params.currentSections ? JSON.stringify(params.currentSections) : "None"}
 
-    Execute the plan and return the JSON array of sections.
+    INSTRUCTIONS:
+    1. Define the holistic 'metadata' for this page.
+    2. Generate the detailed 'sections' as outlined in the plan.
+    3. Use active, modern, and high-fidelity copy.
   `;
 
-  const result = await model.generateContent({
-    contents: [{ role: "user", parts: [{ text: prompt }] }],
-    generationConfig: { responseMimeType: "application/json" },
-  });
-
   try {
+    const result = await model.generateContent({
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
+      generationConfig: { 
+        responseMimeType: "application/json",
+        responseSchema: schema as any
+      },
+    });
     return JSON.parse(result.response.text());
-  } catch (err) {
-    throw new Error("AI returned invalid JSON in Execution phase");
+  } catch (err: any) {
+    console.error("Gemini Execution Phase Error:", err);
+    throw new Error(`Execution failed: ${err.message || "Unknown error"}`);
   }
 }
 
