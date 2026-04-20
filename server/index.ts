@@ -85,7 +85,13 @@ type SessionRequest = Request & {
   session: session.Session &
     Partial<session.SessionData> & {
       userId?: string;
+      organizationId?: string;
     };
+  org?: {
+    id: string;
+    name: string;
+    slug: string;
+  };
 };
 
 const app = express();
@@ -147,6 +153,37 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(sessionMiddleware);
 
+// Subdomain & Organization Identification Middleware
+app.use(async (req: any, res: Response, next: NextFunction) => {
+  const host = req.get("host") || "";
+  const parts = host.split(".");
+  
+  // Example: acme.localhost:3001 -> 'acme'
+  // Or: acme.yourplatform.com -> 'acme'
+  let slug = parts.length > 1 ? parts[0] : null;
+
+  // Handle 'www' or no subdomain (root)
+  if (slug === "www" || slug === "localhost" || parts.length <= 1) {
+    slug = null;
+  }
+
+  if (slug) {
+    const org = getOrganizationBySlug(slug);
+    if (org) {
+      req.org = org;
+      // Sticky session: if user is logged in, ensure they belong to this org
+      if (req.session?.userId) {
+         const user = getUserForSession(req.session.userId);
+         if (user && user.organizationId !== org.id) {
+           // User logged in to wrong org for this subdomain
+           // (Could either auto-switch or force logout, for now we just clear the org context from session)
+         }
+      }
+    }
+  }
+  next();
+});
+
 io.engine.use(sessionMiddleware as any);
 
 io.on("connection", (socket) => {
@@ -158,7 +195,14 @@ function requireAuth(req: SessionRequest, res: Response, next: NextFunction) {
   if (!user) {
     return res.status(401).json({ error: "Unauthorized" });
   }
+
+  // If we've identified an org via subdomain, ensure user belongs to it
+  if (req.org && user.organizationId && user.organizationId !== req.org.id) {
+    return res.status(403).json({ error: "Access denied: You do not belong to this organization." });
+  }
+
   req.session.userId = user.id;
+  req.session.organizationId = user.organizationId || undefined;
   next();
 }
 
@@ -446,8 +490,90 @@ app.post("/api/auth/google", async (req: SessionRequest, res) => {
     return res.json({ user });
   } catch (error) {
     console.error("Google Auth Error:", error);
+  } catch (error) {
+    console.error("Google Auth Error:", error);
     return res.status(401).json({ error: "Invalid Google credential" });
   }
+});
+
+/**
+ * SaaS Core Routes
+ */
+
+app.post("/api/org/onboard", requireAuth, async (req: SessionRequest, res) => {
+  const { name, slug } = req.body as { name: string; slug: string };
+  if (!name || !slug) return res.status(400).json({ error: "Name and slug required" });
+
+  const existing = getOrganizationBySlug(slug);
+  if (existing) return res.status(400).json({ error: "Slug already taken" });
+
+  const org = createOrganization({ name, slug });
+  const user = getUserForSession(req.session.userId!);
+  if (user) {
+    updateUser(user.id, { ...user, role: "owner", organizationId: org.id } as any);
+    req.session.organizationId = org.id;
+  }
+
+  res.json({ success: true, org });
+});
+
+app.post("/api/org/invite", requireAuth, async (req: SessionRequest, res) => {
+  const { email, role } = req.body;
+  const orgId = req.session.organizationId;
+  if (!orgId) return res.status(400).json({ error: "No organization context" });
+
+  const token = createInvitation({ email, organizationId: orgId, role: role || "member" });
+  
+  // NOTE: In a real app, send an email here with the link:
+  // https://yourdomain.com/invite/accept?token={token}
+  console.log(`[Stripe SaaS] Invitation created for ${email}. Token: ${token}`);
+
+  res.json({ success: true, token });
+});
+
+app.post("/api/org/invite/accept", async (req: SessionRequest, res) => {
+  const { token } = req.body;
+  const invite = findInvitationByToken(token);
+  if (!invite) return res.status(400).json({ error: "Invalid or expired invitation" });
+
+  // Assuming user is already logged in via Google, update their org
+  if (!req.session.userId) return res.status(401).json({ error: "Please log in first" });
+
+  const user = getUserForSession(req.session.userId);
+  if (user) {
+    updateUser(user.id, { ...user, organizationId: invite.organization_id, role: invite.role } as any);
+    req.session.organizationId = invite.organization_id;
+    deleteInvitation(invite.id);
+  }
+
+  res.json({ success: true, organizationId: invite.organization_id });
+});
+
+app.post("/api/stripe/webhook", express.raw({ type: 'application/json' }), (req, res) => {
+  const sig = req.headers['stripe-signature'];
+  let event;
+
+  try {
+    // In a real app: event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
+    event = JSON.parse(req.body.toString());
+  } catch (err) {
+    return res.status(400).send(`Webhook Error: ${err.message}`);
+  }
+
+  console.log(`[Stripe Webhook] Received event: ${event.type}`);
+
+  switch (event.type) {
+    case 'checkout.session.completed':
+      const session = event.data.object;
+      // updateOrganizationSubscription(session.client_reference_id, session.customer, 'active');
+      break;
+    case 'customer.subscription.updated':
+      const subscription = event.data.object;
+      // updateOrganizationSubscription(subscription.metadata.orgId, subscription.customer, subscription.status);
+      break;
+  }
+
+  res.json({ received: true });
 });
 
 app.post("/api/auth/logout", (req: SessionRequest, res) => {
@@ -457,17 +583,23 @@ app.post("/api/auth/logout", (req: SessionRequest, res) => {
 });
 
 app.get("/api/bootstrap", requireAuth, (req: SessionRequest, res) => {
-  res.json(getBootstrapData(req.session.userId!));
+  const orgId = req.org?.id || req.session.organizationId;
+  if (!orgId) {
+    return res.status(400).json({ error: "No organization context found. Please onboard first." });
+  }
+  res.json(getBootstrapData(req.session.userId!, orgId));
 });
 
 app.post("/api/contacts", requireAuth, async (req: SessionRequest, res) => {
-  const before = req.body.phone ? findContactByPhone(req.body.phone) : null;
+  const orgId = req.session.organizationId!;
+  const before = req.body.phone ? findContactByPhone(req.body.phone, orgId) : null;
   const customFields = req.body.customFields ?? {};
   if (Object.keys(customFields).length > 0) {
     registerCustomFields(Object.keys(customFields));
   }
 
   const contact = upsertContact({
+    organizationId: orgId,
     firstName: req.body.firstName,
     lastName: req.body.lastName,
     phone: req.body.phone,
@@ -480,7 +612,7 @@ app.post("/api/contacts", requireAuth, async (req: SessionRequest, res) => {
   });
 
   if (!before && contact) {
-    const fallbackChannel = listChannels()[0];
+    const fallbackChannel = listChannels(orgId)[0];
     if (fallbackChannel) {
       queueAutomationIfNeeded({
         eventType: "new_contact",
@@ -491,7 +623,7 @@ app.post("/api/contacts", requireAuth, async (req: SessionRequest, res) => {
   }
 
   if (contact && req.body.segmentIds?.length) {
-    const fallbackChannel = listChannels()[0];
+    const fallbackChannel = listChannels(orgId)[0];
     if (fallbackChannel) {
       queueAutomationIfNeeded({
         eventType: "segment_joined",
@@ -777,9 +909,10 @@ app.post("/api/conversations/open", requireAuth, async (req: SessionRequest, res
     return res.status(400).json({ error: "contactId and channelId are required" });
   }
 
-  const conversationId = openConversation(contactId, channelId);
+  const orgId = req.session.organizationId!;
+  const conversationId = openConversation(contactId, channelId, orgId);
   if (templateId) {
-    await sendTemplateMessage({ contactId, channelId, templateId, conversationId, source: "open-conversation" });
+    await sendTemplateMessage({ organizationId: orgId, contactId, channelId, templateId, conversationId, source: "open-conversation" });
   }
   refreshClients("conversation", { conversationId });
   return res.json({ conversationId });
@@ -799,8 +932,9 @@ app.post("/api/messages/send", requireAuth, async (req: SessionRequest, res) => 
     return res.status(400).json({ error: "contactId and channelId are required" });
   }
 
+  const orgId = req.session.organizationId!;
   if (templateId) {
-    const result = await sendTemplateMessage({ contactId, channelId, templateId, conversationId });
+    const result = await sendTemplateMessage({ organizationId: orgId, contactId, channelId, templateId, conversationId });
     return res.json(result);
   }
 
@@ -809,6 +943,7 @@ app.post("/api/messages/send", requireAuth, async (req: SessionRequest, res) => 
   }
 
   const result = await sendManualMessage({
+    organizationId: orgId,
     contactId,
     channelId,
     body,
@@ -819,7 +954,9 @@ app.post("/api/messages/send", requireAuth, async (req: SessionRequest, res) => 
 });
 
 app.post("/api/templates", requireAuth, (req: SessionRequest, res) => {
+  const orgId = req.session.organizationId!;
   const template = createTemplate({
+    organizationId: orgId,
     name: req.body.name,
     category: req.body.category,
     body: req.body.body,
@@ -983,7 +1120,9 @@ app.post("/api/conversations/:id/messages/template", requireAuth, async (req: Se
 });
 
 app.post("/api/automations", requireAuth, (req: SessionRequest, res) => {
+  const orgId = req.session.organizationId!;
   const automation = createAutomation({
+    organizationId: orgId,
     name: req.body.name,
     version: req.body.version || "simple",
     triggerType: req.body.triggerType,
@@ -1000,7 +1139,9 @@ app.post("/api/automations", requireAuth, (req: SessionRequest, res) => {
 });
 
 app.post("/api/channels", requireAuth, (req: SessionRequest, res) => {
+  const orgId = req.session.organizationId!;
   const channels = createChannel({
+    organizationId: orgId,
     name: req.body.name,
     whatsappNumber: req.body.whatsappNumber,
     messagingServiceSid: req.body.messagingServiceSid
@@ -1028,11 +1169,13 @@ app.delete("/api/channels/:id", requireAuth, (req: SessionRequest, res) => {
 });
 
 app.get("/api/landing-pages", requireAuth, (req: SessionRequest, res) => {
-  res.json(listLandingPages());
+  const orgId = req.session.organizationId!;
+  res.json(listLandingPages(orgId));
 });
 
 app.post("/api/landing-pages", requireAuth, (req: SessionRequest, res) => {
-  const page = createLandingPage(req.body);
+  const orgId = req.session.organizationId!;
+  const page = createLandingPage({ ...req.body, organizationId: orgId });
   refreshClients("landing-pages");
   res.json(page);
 });
@@ -1395,7 +1538,9 @@ app.post("/api/public/landing-pages/:slug/submit", (req, res) => {
 });
 
 app.post("/api/segments", requireAuth, (req: SessionRequest, res) => {
+  const orgId = req.session.organizationId!;
   const segments = createSegment({
+    organizationId: orgId,
     name: req.body.name,
     color: req.body.color
   });
@@ -1404,7 +1549,9 @@ app.post("/api/segments", requireAuth, (req: SessionRequest, res) => {
 });
 
 app.post("/api/users", requireAuth, (req: SessionRequest, res) => {
+  const orgId = req.session.organizationId!;
   const user = createUser({
+    organizationId: orgId,
     name: req.body.name,
     email: req.body.email,
     role: req.body.role ?? "agent"
@@ -1438,13 +1585,15 @@ app.post("/api/webhooks/twilio/incoming", validateTwilioSignature, async (req, r
   const mediaUrl = typeof req.body.MediaUrl0 === "string" ? req.body.MediaUrl0 : null;
 
   const channel = findChannelByNumber(to);
-  if (!channel) {
-    return res.status(400).send("Unknown channel");
+  if (!channel || !channel.organizationId) {
+    return res.status(400).send("Unknown channel or organization");
   }
 
-  let contact = findContactByPhone(from);
+  const orgId = channel.organizationId;
+  let contact = findContactByPhone(from, orgId);
   if (!contact) {
     contact = upsertContact({
+      organizationId: orgId,
       firstName: from.replace(/^whatsapp:/, ""),
       lastName: "",
       phone: from.replace(/^whatsapp:/, ""),
@@ -1466,8 +1615,9 @@ app.post("/api/webhooks/twilio/incoming", validateTwilioSignature, async (req, r
     return res.status(400).send("Contact could not be created");
   }
 
-  const conversationId = openConversation(contact.id, channel.id);
+  const conversationId = openConversation(contact.id, channel.id, orgId);
   const message = addMessage({
+    organizationId: orgId,
     conversationId,
     channelId: channel.id,
     direction: "inbound",

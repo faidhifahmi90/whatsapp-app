@@ -138,6 +138,20 @@ export default function App() {
     );
   }
 
+  // Real SaaS Core: If no organization, force onboarding
+  if (!data.organization) {
+    return <OnboardingPage user={data.user} onComplete={() => void refreshData()} />;
+  }
+
+  // Real SaaS Core: If on root but have org, redirect to subdomain
+  const host = window.location.hostname;
+  if ((host === "localhost" || host === "whatsapp-center.com") && data.organization.slug) {
+    const protocol = window.location.protocol;
+    const port = window.location.port ? `:${window.location.port}` : "";
+    window.location.href = `${protocol}//${data.organization.slug}.${host}${port}`;
+    return null;
+  }
+
   return (
     <DashboardShell
       data={data}
@@ -147,6 +161,72 @@ export default function App() {
       onSelectConversation={setSelectedConversationId}
       onLogout={logout}
     />
+  );
+}
+
+function OnboardingPage(props: { user: any; onComplete: () => void }) {
+  const [name, setName] = useState("");
+  const [slug, setSlug] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      await api("/api/org/onboard", {
+        method: "POST",
+        body: JSON.stringify({ name, slug: slug.toLowerCase().replace(/[^a-z0-9]/g, "") })
+      });
+      props.onComplete();
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="flex min-h-screen flex-col items-center justify-center bg-background p-6">
+      <div className="w-full max-w-md space-y-8 rounded-[2.5rem] bg-surface-container-lowest p-10 shadow-2xl">
+        <div className="text-center">
+          <h1 className="font-headline text-3xl font-extrabold text-primary">Setup your organization</h1>
+          <p className="mt-2 text-sm text-on-surface-variant">Create a workspace for your team to get started.</p>
+        </div>
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="space-y-2">
+            <label className="text-xs font-bold uppercase tracking-widest text-outline">Organization Name</label>
+            <input 
+              required
+              className="atrium-input w-full" 
+              placeholder="e.g. Acme Corp" 
+              value={name} 
+              onChange={e => setName(e.target.value)} 
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs font-bold uppercase tracking-widest text-outline">Workspace URL</label>
+            <div className="flex items-center gap-2">
+              <input 
+                required
+                className="atrium-input flex-1 lowercase" 
+                placeholder="acme" 
+                value={slug} 
+                onChange={e => setSlug(e.target.value)} 
+              />
+              <span className="text-sm font-bold text-outline">.tomorrowx.com</span>
+            </div>
+          </div>
+          {error && <p className="text-xs font-bold text-error">{error}</p>}
+          <button 
+            disabled={loading}
+            className="w-full rounded-2xl bg-primary py-4 font-black text-on-primary shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all"
+          >
+            {loading ? "Creating..." : "Create Workspace"}
+          </button>
+        </form>
+      </div>
+    </div>
   );
 }
 

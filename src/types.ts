@@ -1,5 +1,15 @@
+export type Organization = {
+  id: string;
+  name: string;
+  slug: string;
+  plan: string;
+  stripeCustomerId?: string | null;
+  subscriptionStatus?: string | null;
+};
+
 export type User = {
   id: string;
+  organizationId: string | null;
   name: string;
   preferredName?: string | null;
   email: string;
@@ -181,6 +191,7 @@ export type LandingPage = {
 
 export type BootstrapData = {
   user: User;
+  organization: Organization | null;
   stats: {
     unreadCount: number;
     contactCount: number;

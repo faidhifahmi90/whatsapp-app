@@ -591,8 +591,8 @@ export function createUser(input: { name: string; email: string; role: string; o
   return getUserForSession(id);
 }
 
-export function listUsers() {
-  return (db.prepare("select * from users order by created_at asc").all() as any[]).map(mapUser);
+export function listUsers(organizationId: string) {
+  return (db.prepare("select * from users where organization_id = ? order by created_at asc").all(organizationId) as any[]).map(mapUser);
 }
 
 export function updateUser(id: string, input: { name: string; email: string; role: string; preferredName?: string }) {
@@ -610,17 +610,15 @@ export function deleteUser(id: string) {
   db.prepare("delete from users where id = ?").run(id);
 }
 
-export function listChannels() {
-  return (db.prepare("select * from channels order by created_at asc").all() as any[]).map(mapChannel);
+export function listChannels(organizationId: string) {
+  return (db.prepare("select * from channels where organization_id = ? order by created_at asc").all(organizationId) as any[]).map(mapChannel);
 }
 
-export function createChannel(input: { name: string; whatsappNumber: string; messagingServiceSid?: string | null }) {
-  const id = randomUUID();
   db.prepare(
-    `insert into channels (id, name, whatsapp_number, messaging_service_sid, status, created_at)
-     values (?, ?, ?, ?, ?, ?)`
-  ).run(id, input.name, input.whatsappNumber, input.messagingServiceSid ?? null, "active", now());
-  return listChannels();
+    `insert into channels (id, organization_id, name, whatsapp_number, messaging_service_sid, status, created_at)
+     values (?, ?, ?, ?, ?, ?, ?)`
+  ).run(id, input.organizationId, input.name, input.whatsappNumber, input.messagingServiceSid ?? null, "active", now());
+  return listChannels(input.organizationId);
 }
 
 export function updateChannel(id: string, input: { name: string; whatsappNumber: string; messagingServiceSid?: string | null }) {
@@ -634,15 +632,16 @@ export function deleteChannel(id: string) {
   db.prepare("delete from channels where id = ?").run(id);
 }
 
-export function listSegments() {
-  return (db.prepare("select * from segments order by created_at asc").all() as any[]).map(mapSegment);
+export function listSegments(organizationId: string) {
+  return (db.prepare("select * from segments where organization_id = ? order by created_at asc").all(organizationId) as any[]).map(mapSegment);
 }
 
-export function createSegment(input: { name: string; color: string }): Segment {
+export function createSegment(input: { name: string; color: string; organizationId: string }): Segment {
   const id = randomUUID();
   const createdAt = now();
-  db.prepare("insert into segments (id, name, color, created_at) values (?, ?, ?, ?)").run(
+  db.prepare("insert into segments (id, organization_id, name, color, created_at) values (?, ?, ?, ?, ?)").run(
     id,
+    input.organizationId,
     input.name,
     input.color,
     createdAt
@@ -650,8 +649,8 @@ export function createSegment(input: { name: string; color: string }): Segment {
   return { id, name: input.name, color: input.color, createdAt };
 }
 
-export function listContacts() {
-  return (db.prepare("select * from contacts order by updated_at desc").all() as DbContactRow[]).map(mapContact);
+export function listContacts(organizationId: string) {
+  return (db.prepare("select * from contacts where organization_id = ? order by updated_at desc").all(organizationId) as DbContactRow[]).map(mapContact);
 }
 
 export function findContact(id: string) {
@@ -659,9 +658,9 @@ export function findContact(id: string) {
   return row ? mapContact(row) : null;
 }
 
-export function findContactByPhone(phone: string) {
+export function findContactByPhone(phone: string, organizationId: string) {
   const normalized = phone.replace(/^whatsapp:/, "");
-  const row = db.prepare("select * from contacts where phone = ?").get(normalized) as DbContactRow | undefined;
+  const row = db.prepare("select * from contacts where phone = ? and organization_id = ?").get(normalized, organizationId) as DbContactRow | undefined;
   return row ? mapContact(row) : null;
 }
 
@@ -684,6 +683,7 @@ export function updateContactSegments(contactId: string, segmentIds: string[], m
 
 export function upsertContact(input: {
   id?: string;
+  organizationId: string;
   firstName: string;
   lastName: string;
   phone: string;
@@ -705,10 +705,10 @@ export function upsertContact(input: {
        set first_name = ?, last_name = ?, email = ?, company = ?, labels_json = ?, custom_fields_json = ?, updated_at = ?
        where id = ?`
     ).run(
-      existing.firstName || input.firstName,
-      existing.lastName || input.lastName,
-      existing.email || input.email || null,
-      existing.company || input.company || null,
+      input.firstName || existing.firstName,
+      input.lastName || existing.lastName,
+      input.email || existing.email || null,
+      input.company || existing.company || null,
       JSON.stringify([ ...new Set([...existing.labels, ...(input.labels ?? [])]) ]),
       JSON.stringify({ ...(input.customFields ?? {}), ...existing.customFields }),
       timestamp,
@@ -717,10 +717,11 @@ export function upsertContact(input: {
   } else {
     db.prepare(
       `insert into contacts
-        (id, first_name, last_name, phone, email, company, labels_json, custom_fields_json, created_at, updated_at)
-       values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        (id, organization_id, first_name, last_name, phone, email, company, labels_json, custom_fields_json, created_at, updated_at)
+       values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     ).run(
       id,
+      input.organizationId,
       input.firstName,
       input.lastName,
       input.phone,
@@ -780,8 +781,8 @@ export function importContacts(
   return imported;
 }
 
-export function listTemplates() {
-  return (db.prepare("select * from templates order by created_at desc").all() as DbTemplateRow[]).map(mapTemplate);
+export function listTemplates(organizationId: string) {
+  return (db.prepare("select * from templates where organization_id = ? order by created_at desc").all(organizationId) as DbTemplateRow[]).map(mapTemplate);
 }
 
 export function findTemplate(id: string) {
@@ -801,10 +802,11 @@ export function createTemplate(input: {
   const id = randomUUID();
   db.prepare(
     `insert into templates
-      (id, name, category, body, placeholders_json, media_url, cta_label, cta_url, twilio_content_sid, created_at)
-     values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      (id, organization_id, name, category, body, placeholders_json, media_url, cta_label, cta_url, twilio_content_sid, created_at)
+     values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).run(
     id,
+    input.organizationId,
     input.name,
     input.category,
     input.body,
@@ -918,10 +920,10 @@ export function deleteTemplate(id: string) {
   db.prepare("delete from templates where id = ?").run(id);
 }
 
-export function openConversation(contactId: string, channelId: string) {
+export function openConversation(contactId: string, channelId: string, organizationId: string) {
   const existing = db
-    .prepare("select * from conversations where contact_id = ? and channel_id = ?")
-    .get(contactId, channelId) as any;
+    .prepare("select * from conversations where contact_id = ? and channel_id = ? and organization_id = ?")
+    .get(contactId, channelId, organizationId) as any;
   if (existing) {
     return existing.id as string;
   }
@@ -929,9 +931,9 @@ export function openConversation(contactId: string, channelId: string) {
   const timestamp = now();
   db.prepare(
     `insert into conversations
-      (id, contact_id, channel_id, status, created_at, updated_at, last_message_at)
-     values (?, ?, ?, ?, ?, ?, ?)`
-  ).run(id, contactId, channelId, "open", timestamp, timestamp, timestamp);
+      (id, organization_id, contact_id, channel_id, status, created_at, updated_at, last_message_at)
+     values (?, ?, ?, ?, ?, ?, ?, ?)`
+  ).run(id, organizationId, contactId, channelId, "open", timestamp, timestamp, timestamp);
   return id;
 }
 
@@ -956,6 +958,7 @@ export function deleteNote(id: string) {
 }
 
 export function addMessage(input: {
+  organizationId: string;
   conversationId: string;
   channelId: string;
   direction: "inbound" | "outbound";
@@ -971,10 +974,11 @@ export function addMessage(input: {
   const timestamp = now();
   db.prepare(
     `insert into messages
-      (id, conversation_id, channel_id, direction, body, media_url, status, template_id, twilio_message_sid, twilio_content_sid, metadata_json, created_at)
-     values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      (id, organization_id, conversation_id, channel_id, direction, body, media_url, status, template_id, twilio_message_sid, twilio_content_sid, metadata_json, created_at)
+     values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).run(
     id,
+    input.organizationId,
     input.conversationId,
     input.channelId,
     input.direction,
@@ -1012,10 +1016,10 @@ export function updateMessageStatus(messageSid: string, status: string) {
   db.prepare("update messages set status = ? where twilio_message_sid = ?").run(status, messageSid);
 }
 
-export function listConversations(): Conversation[] {
-  const channels = new Map(listChannels().map((channel) => [channel.id, channel]));
-  const contacts = new Map(listContacts().map((contact) => [contact.id, contact]));
-  const messages = (db.prepare("select * from messages order by created_at asc").all() as any[]).map(mapMessage);
+export function listConversations(organizationId: string): Conversation[] {
+  const channels = new Map(listChannels(organizationId).map((channel) => [channel.id, channel]));
+  const contacts = new Map(listContacts(organizationId).map((contact) => [contact.id, contact]));
+  const messages = (db.prepare("select * from messages where organization_id = ? order by created_at asc").all(organizationId) as any[]).map(mapMessage);
   const messagesByConversation = new Map<string, Message[]>();
 
   for (const message of messages) {
@@ -1025,8 +1029,8 @@ export function listConversations(): Conversation[] {
   }
 
   const rows = db
-    .prepare("select * from conversations order by updated_at desc")
-    .all() as Array<{ id: string; contact_id: string; channel_id: string; status: string; updated_at: string; last_message_at: string }>;
+    .prepare("select * from conversations where organization_id = ? order by updated_at desc")
+    .all(organizationId) as Array<{ id: string; contact_id: string; channel_id: string; status: string; updated_at: string; last_message_at: string }>;
 
   return rows
     .map((row) => {
@@ -1061,8 +1065,8 @@ export function findChannelByNumber(number: string) {
   );
 }
 
-export function listCampaigns(): Campaign[] {
-  return (db.prepare("select * from campaigns order by created_at desc").all() as any[]).map((row) => ({
+export function listCampaigns(organizationId: string): Campaign[] {
+  return (db.prepare("select * from campaigns where organization_id = ? order by created_at desc").all(organizationId) as any[]).map((row) => ({
     id: row.id,
     name: row.name,
     templateId: row.template_id,
@@ -1097,10 +1101,11 @@ export function createCampaign(input: {
   const id = randomUUID();
   db.prepare(
     `insert into campaigns
-      (id, name, template_id, channel_id, recipient_mode, recipient_ids_json, status, scheduled_at, stats_json, recurring_interval, recurring_until, metadata_json, created_at)
-     values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      (id, organization_id, name, template_id, channel_id, recipient_mode, recipient_ids_json, status, scheduled_at, stats_json, recurring_interval, recurring_until, metadata_json, created_at)
+     values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).run(
     id,
+    input.organizationId,
     input.name,
     input.templateId,
     input.channelId,
@@ -1114,7 +1119,7 @@ export function createCampaign(input: {
     input.metadata ? JSON.stringify(input.metadata) : null,
     now()
   );
-  return listCampaigns().find((c) => c.id === id) ?? listCampaigns()[0];
+  return listCampaigns(input.organizationId).find((c) => c.id === id) ?? listCampaigns(input.organizationId)[0];
 }
 
 export function updateCampaignScheduler(campaignId: string, nextScheduledAt: string | null, status: string) {
@@ -1154,8 +1159,8 @@ export function resolveCampaignRecipients(campaign: Campaign) {
   return contacts.filter((contact) => targetIds.has(contact.id));
 }
 
-export function listAutomations(): Automation[] {
-  return (db.prepare("select * from automations order by created_at desc").all() as any[]).map((row) => ({
+export function listAutomations(organizationId: string): Automation[] {
+  return (db.prepare("select * from automations where organization_id = ? order by created_at desc").all(organizationId) as any[]).map((row) => ({
     id: row.id,
     name: row.name,
     version: row.version || "simple",
@@ -1186,10 +1191,11 @@ export function createAutomation(input: {
   const id = randomUUID();
   db.prepare(
     `insert into automations
-      (id, name, version, trigger_type, trigger_value, template_id, channel_id, segment_id, delay_minutes, template_variables_json, flow_data_json, is_active, created_at)
-     values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      (id, organization_id, name, version, trigger_type, trigger_value, template_id, channel_id, segment_id, delay_minutes, template_variables_json, flow_data_json, is_active, created_at)
+     values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).run(
     id,
+    input.organizationId,
     input.name,
     input.version,
     input.triggerType ?? "",
@@ -1203,7 +1209,7 @@ export function createAutomation(input: {
     1,
     now()
   );
-  return listAutomations().find(a => a.id === id);
+  return listAutomations(input.organizationId).find(a => a.id === id);
 }
 
 export function enqueueAutomationJob(input: {
@@ -1247,11 +1253,12 @@ export function getAutomation(id: string) {
   return listAutomations().find((automation) => automation.id === id) ?? null;
 }
 
-export function getBootstrapData(userId: string): BootstrapData {
-  const contacts = listContacts();
-  const conversations = listConversations();
-  const templates = listTemplates();
+export function getBootstrapData(userId: string, organizationId: string): BootstrapData {
+  const contacts = listContacts(organizationId);
+  const conversations = listConversations(organizationId);
+  const templates = listTemplates(organizationId);
   const settings = getSettings();
+  const organization = getOrganizationById(organizationId);
   
   // Universal Masking for sensitive values in frontend
   const safeSettings: Record<string, string> = { ...settings };
@@ -1270,28 +1277,29 @@ export function getBootstrapData(userId: string): BootstrapData {
 
   return {
     user: getUserForSession(userId)!,
+    organization,
     stats: {
       unreadCount: conversations.filter((c) => c.status === "follow up").length,
       contactCount: contacts.length,
       conversationCount: conversations.length,
       templateCount: templates.length
     },
-    channels: listChannels(),
-    segments: listSegments(),
+    channels: listChannels(organizationId),
+    segments: listSegments(organizationId),
     contacts,
     templates,
     conversations,
-    campaigns: listCampaigns(),
-    automations: listAutomations(),
-    landingPages: listLandingPages(),
-    users: listUsers(),
+    campaigns: listCampaigns(organizationId),
+    automations: listAutomations(organizationId),
+    landingPages: listLandingPages(organizationId),
+    users: listUsers(organizationId),
     customFieldDefinitions: listCustomFieldDefinitions(),
     settings: safeSettings
   };
 }
 
-export function listLandingPages(): LandingPage[] {
-  return (db.prepare("select * from landing_pages order by created_at desc").all() as any[]).map((row) => ({
+export function listLandingPages(organizationId: string): LandingPage[] {
+  return (db.prepare("select * from landing_pages where organization_id = ? order by created_at desc").all(organizationId) as any[]).map((row) => ({
     id: row.id,
     name: row.name,
     slug: row.slug,
@@ -1315,10 +1323,11 @@ export function getLandingPageBySlug(slug: string): LandingPage | null {
 export function createLandingPage(input: Omit<LandingPage, "id" | "createdAt">) {
   const id = randomUUID();
   db.prepare(`
-    insert into landing_pages (id, name, slug, title, description, sections_json, theme_json, is_published, created_at)
-    values (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    insert into landing_pages (id, organization_id, name, slug, title, description, sections_json, theme_json, is_published, created_at)
+    values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     id,
+    input.organizationId,
     input.name,
     input.slug,
     input.title,
