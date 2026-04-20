@@ -213,8 +213,9 @@ function LoginPage(props: { onLogin: (credential: CredentialResponse) => Promise
 function TemplateLivePreview(props: { template?: Template; variables: string[]; overrideMediaUrl?: string }) {
   if (!props.template) {
     return (
-      <div className="flex h-64 w-full items-center justify-center rounded-2xl border border-dashed border-outline-variant/30 text-sm font-medium text-slate-400">
-        No template selected
+      <div className="flex h-[500px] w-full flex-col items-center justify-center rounded-[3rem] border border-slate-100 bg-slate-50/50 shadow-inner">
+        <Icon name="smartphone" className="text-6xl text-slate-200 mb-4" />
+        <span className="text-sm font-extrabold text-slate-400">Awaiting Template</span>
       </div>
     );
   }
@@ -231,38 +232,66 @@ function TemplateLivePreview(props: { template?: Template; variables: string[]; 
   const mediaSource = props.overrideMediaUrl || props.template.mediaUrl;
 
   return (
-    <div className="relative w-full max-w-[320px] shrink-0 overflow-hidden bg-[#EFEAE2] p-4 font-sans text-[15px] shadow-sm ring-1 ring-black/5 sm:rounded-[24px]">
-      <div className="mb-4 flex items-center justify-between opacity-80">
-        <span className="text-[11px] font-medium uppercase tracking-wider text-[#54656f]">WhatsApp Preview</span>
-        <Icon className="text-[#54656f]" name="visibility" />
+    <div className="relative mx-auto w-[320px] shrink-0 overflow-hidden bg-[#EFEAE2] font-sans text-[15px] shadow-2xl ring-[12px] ring-slate-900 rounded-[3rem]">
+      {/* Smartphone Hardware Elements */}
+      <div className="absolute top-0 inset-x-0 h-6 bg-slate-900 z-20 flex justify-center rounded-b-[1.5rem] w-[140px] mx-auto">
+        <div className="w-12 h-1.5 bg-slate-800 rounded-full mt-2" />
       </div>
       
-      <div className="relative max-w-[90%] rounded-2xl rounded-tl-none bg-white p-2 shadow-[0_1px_0.5px_rgba(11,20,26,.13)] sm:p-2.5">
-        <svg viewBox="0 0 8 13" width="8" height="13" className="absolute -left-2 top-0 text-white"><path opacity=".13" fill="#0000000" d="M1.533 3.568 8 12.193V1H2.812C1.042 1 .474 2.156 1.533 3.568z"></path><path fill="currentColor" d="M1.533 2.568 8 11.193V0H2.812C1.042 0 .474 1.156 1.533 2.568z"></path></svg>
-        {mediaSource && (
-          <div className="mb-2 shrink-0 overflow-hidden rounded-xl bg-black/5">
-            <img src={mediaSource} alt="Attached Media" className="h-auto w-full object-cover" />
+      {/* WhatsApp Mock Header */}
+      <div className="bg-[#075E54] text-white px-4 pt-10 pb-3 flex items-center justify-between shadow-sm relative z-10">
+        <div className="flex items-center gap-3">
+          <Icon name="arrow_back" className="text-lg" />
+          <div className="h-8 w-8 rounded-full bg-white/20 flex items-center justify-center font-bold text-sm">TX</div>
+          <span className="font-semibold text-base tracking-wide">TomorrowX</span>
+        </div>
+        <div className="flex items-center gap-4">
+          <Icon name="videocam" className="text-lg opacity-80" />
+          <Icon name="call" className="text-lg opacity-80" />
+          <Icon name="more_vert" className="text-lg opacity-80" />
+        </div>
+      </div>
+
+      <div className="p-4 pt-6 min-h-[460px] flex flex-col justify-end bg-[#EFEAE2] bg-[url('https://i.imgur.com/3N4oU9e.png')] bg-cover bg-center">
+        <div className="relative max-w-[90%] rounded-2xl rounded-tl-none bg-white p-2 shadow-[0_1px_1px_rgba(11,20,26,.15)] sm:p-2.5 z-10 self-start">
+          <svg viewBox="0 0 8 13" width="8" height="13" className="absolute -left-2 top-0 text-white"><path opacity=".13" fill="#0000000" d="M1.533 3.568 8 12.193V1H2.812C1.042 1 .474 2.156 1.533 3.568z"></path><path fill="currentColor" d="M1.533 2.568 8 11.193V0H2.812C1.042 0 .474 1.156 1.533 2.568z"></path></svg>
+          {mediaSource && (
+            <div className="mb-2 shrink-0 overflow-hidden rounded-xl bg-black/5 relative group cursor-pointer">
+              <img src={mediaSource} alt="Attached Media" className="h-auto w-full object-cover transition-transform group-hover:scale-105" />
+            </div>
+          )}
+          <div className="whitespace-pre-wrap text-[#111b21] leading-[22px]">
+            {renderedBody}
+          </div>
+          <div className="mt-1 flex items-center justify-end gap-1 text-[11px] text-[#667781]">
+            <span>10:42 AM</span>
+          </div>
+        </div>
+        
+        {props.template.ctaLabel && (
+          <div className="mt-2 max-w-[90%] self-start relative z-10">
+            <button className="flex w-full flex-col items-center justify-center gap-1 rounded-xl bg-white p-3 font-semibold text-[#00a884] shadow-[0_1px_0.5px_rgba(11,20,26,.13)]">
+              <div className="flex items-center gap-2">
+                <Icon name={props.template.ctaUrl ? "open_in_new" : "call"} className="text-[18px]" />
+                {props.template.ctaLabel}
+              </div>
+              {props.template.ctaUrl && <span className="text-[10px] opacity-70 underline truncate max-w-full">{props.template.ctaUrl}</span>}
+            </button>
           </div>
         )}
-        <div className="whitespace-pre-wrap text-[#111b21] leading-[22px]">
-          {renderedBody}
-        </div>
-        <div className="mt-1 flex items-center justify-end gap-1 text-[11px] text-[#667781]">
-          <span>12:00</span>
-        </div>
       </div>
       
-      {props.template.ctaLabel && (
-        <div className="mt-2 max-w-[90%]">
-          <button className="flex w-full flex-col items-center justify-center gap-1 rounded-xl bg-white p-3 font-semibold text-[#00a884] shadow-[0_1px_0.5px_rgba(11,20,26,.13)]">
-            <div className="flex items-center gap-2">
-              <Icon name={props.template.ctaUrl ? "open_in_new" : "call"} className="text-[18px]" />
-              {props.template.ctaLabel}
-            </div>
-            {props.template.ctaUrl && <span className="text-[10px] opacity-70 underline truncate max-w-full">{props.template.ctaUrl}</span>}
-          </button>
+      {/* WhatsApp Mock Footer */}
+      <div className="bg-[#f0f0f0] p-2 flex items-center gap-2 relative z-10">
+        <div className="flex-1 rounded-full bg-white flex items-center px-4 py-2 border border-slate-200 gap-3">
+          <Icon name="mood" className="text-slate-400 text-xl" />
+          <span className="text-slate-400 text-sm flex-1">Message</span>
+          <Icon name="camera_alt" className="text-slate-400 text-xl" />
         </div>
-      )}
+        <div className="h-10 w-10 flex-shrink-0 rounded-full bg-[#00897B] text-white flex items-center justify-center shadow-md">
+          <Icon name="mic" className="text-xl" />
+        </div>
+      </div>
     </div>
   );
 }
@@ -381,24 +410,23 @@ function DashboardShell(props: {
 
         <div className="mt-auto space-y-1.5 border-t border-slate-100 pt-6">
           <button 
-            className="mb-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-br from-primary to-primary-dim px-4 py-4 font-headline text-sm font-bold text-on-primary shadow-[0_20px_40px_-20px_rgba(0,168,132,0.3)] transition-all hover:scale-[1.02] active:scale-[0.98]"
+            className="group mb-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-br from-primary via-primary to-secondary px-4 py-4 font-headline text-sm font-bold text-on-primary shadow-[0_20px_40px_-20px_rgba(0,168,132,0.3)] transition-all hover:scale-[1.02] hover:shadow-[0_25px_50px_-12px_rgba(0,168,132,0.4)] active:scale-[0.98] overflow-hidden relative"
             onClick={() => navigate("/campaigns")}
           >
-            <Icon name="add_circle" className="text-xl" />
+            <div className="absolute inset-0 bg-gradient-to-tr from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+            <Icon name="rocket_launch" fill className="text-xl transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
             {!sidebarCollapsed ? "Start Broadcast" : null}
           </button>
           <SidebarUtility collapsed={sidebarCollapsed} label="System Support" icon="headset_mic" />
           <SidebarUtility collapsed={sidebarCollapsed} label="Developer API" icon="terminal" />
           <button
-            className={`flex w-full items-center rounded-xl px-5 py-3.5 text-left text-sm font-bold text-slate-400 transition-all hover:bg-red-50 hover:text-red-500 ${
-              sidebarCollapsed ? "justify-center" : "gap-3"
-            }`}
+            className="flex w-full items-center rounded-xl px-5 py-4 text-left text-sm font-extrabold text-slate-400 transition-all hover:bg-error/5 hover:text-error group"
             onClick={() => void props.onLogout()}
             title={sidebarCollapsed ? "Log out" : undefined}
             type="button"
           >
-            <Icon name="logout" className="text-xl" />
-            {!sidebarCollapsed ? "Log out" : null}
+            <Icon name="logout" className="text-xl transition-transform group-hover:translate-x-1" />
+            {!sidebarCollapsed ? <span className="ml-3">Log out</span> : null}
           </button>
         </div>
       </aside>
@@ -423,28 +451,28 @@ function DashboardShell(props: {
               <Icon name={sidebarCollapsed ? "menu_open" : "menu"} className="text-2xl" />
             </button>
             <span className="font-headline text-2xl font-extrabold tracking-tight text-slate-900">{currentMeta.title}</span>
-            <div className="hidden w-96 items-center gap-3 rounded-full bg-slate-100/50 px-5 py-2.5 md:flex border border-slate-100 group focus-within:bg-white focus-within:border-primary/20 focus-within:shadow-[0_0_0_4px_rgba(0,168,132,0.05)] transition-all">
-              <Icon name="search" className="text-xl text-slate-400 group-focus-within:text-primary transition-colors" />
+            <div className="hidden w-96 items-center gap-3 rounded-2xl bg-surface-container-low/50 px-5 py-2.5 md:flex border border-outline-variant/20 group focus-within:bg-white focus-within:border-primary/30 focus-within:shadow-[0_8px_24px_-12px_rgba(0,168,132,0.2)] transition-all">
+              <Icon name="search" className="text-xl text-outline group-focus-within:text-primary transition-colors" />
               <input
-                className="w-full border-none bg-transparent p-0 text-sm font-semibold focus:ring-0 placeholder:text-slate-400"
+                className="w-full border-none bg-transparent p-0 text-sm font-bold focus:ring-0 placeholder:text-outline/50"
                 placeholder={currentMeta.searchPlaceholder}
                 type="text"
               />
             </div>
           </div>
           <div className="flex items-center gap-2 sm:gap-4">
-            <button className="rounded-full p-2 text-slate-500 transition-colors hover:bg-slate-200/50">
+            <button className="rounded-full p-2.5 text-outline transition-colors hover:bg-surface-container-high hover:text-primary">
               <Icon name="notifications" />
             </button>
-            <button className="rounded-full p-2 text-slate-500 transition-colors hover:bg-slate-200/50">
+            <button className="rounded-full p-2.5 text-outline transition-colors hover:bg-surface-container-high hover:text-primary">
               <Icon name="settings" />
             </button>
-            <div className="flex items-center gap-3 rounded-full bg-white/70 px-2 py-1 shadow-sm sm:px-3">
+            <div className="flex items-center gap-3 rounded-2xl bg-white/80 px-2 py-1.5 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)] border border-slate-100 py-1.5 sm:px-4">
               <div className="hidden text-right sm:block">
-                <p className="text-xs font-bold text-emerald-900">{props.data.user.name}</p>
-                <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">{props.data.user.role}</p>
+                <p className="text-[11px] font-extrabold leading-tight text-primary">{props.data.user.name}</p>
+                <p className="mt-0.5 text-[9px] font-bold uppercase tracking-[0.16em] text-outline/70">{props.data.user.role}</p>
               </div>
-              <Avatar label={props.data.user.name} size="h-8 w-8" />
+              <Avatar label={props.data.user.name} size="h-9 w-9" />
             </div>
           </div>
         </header>
@@ -692,35 +720,47 @@ function InboxPage(props: {
           {filteredConversations.map((conversation) => {
             const latest = conversation.messages[conversation.messages.length - 1];
             const active = conversation.id === selectedConversation?.id;
+            const hasUnread = conversation.messages.some(m => m.direction === 'inbound' && m.status !== 'read');
+            
             return (
               <button
-                className={`relative w-full overflow-hidden rounded-xl p-3 text-left transition-all ${
-                  active ? "bg-surface-container-lowest shadow-sm" : "hover:bg-surface-bright"
+                className={`group relative w-full overflow-hidden rounded-2xl p-4 text-left transition-all duration-300 ${
+                  active 
+                    ? "bg-white shadow-[0_4px_20px_-10px_rgba(0,0,0,0.08)] ring-1 ring-slate-100" 
+                    : "hover:bg-white/50"
                 }`}
                 key={conversation.id}
                 onClick={() => props.onSelectConversation(conversation.id)}
               >
-                {active ? <div className="absolute left-0 top-0 h-full w-1 bg-primary" /> : null}
-                <div className="flex gap-3">
-                  <div className="relative">
+                {/* Active Accent Bar */}
+                <div className={`absolute left-0 top-1/2 -translate-y-1/2 h-8 w-1 rounded-r-full bg-primary transition-all duration-300 ${active ? "opacity-100 scale-y-100" : "opacity-0 scale-y-0"}`} />
+                
+                <div className="flex gap-4">
+                  <div className="relative shrink-0">
                     <Avatar label={fullName(conversation.contact)} size="h-12 w-12" />
-                    <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-surface-container-lowest bg-secondary" />
+                    {hasUnread && (
+                      <span className="absolute -right-0.5 -top-0.5 h-3.5 w-3.5 rounded-full border-2 border-surface-container-low bg-primary shadow-sm" />
+                    )}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-start justify-between gap-3">
-                      <h4 className={`truncate text-sm ${active ? "font-semibold text-on-surface" : "font-medium text-slate-700"}`}>
+                    <div className="flex items-center justify-between gap-2">
+                      <h4 className={`truncate text-sm font-extrabold ${active ? "text-primary" : "text-slate-900"}`}>
                         {fullName(conversation.contact)}
                       </h4>
-                      <span className={`text-[10px] ${active ? "font-medium text-primary" : "text-slate-400"}`}>
+                      <span className={`shrink-0 text-[10px] font-bold uppercase tracking-tight ${active ? "text-primary/70" : "text-slate-400"}`}>
                         {formatRelativeChatTime(conversation.lastMessageAt)}
                       </span>
                     </div>
-                    <p className={`mt-0.5 truncate text-xs ${active ? "text-on-surface-variant" : "text-slate-400"}`}>{latest?.body ?? "No messages yet"}</p>
-                    <div className="mt-2 flex flex-wrap gap-1">
+                    <p className={`mt-1 truncate text-xs leading-relaxed ${active ? "font-medium text-slate-600" : "text-slate-500"}`}>
+                      {latest?.body ?? "No messages yet"}
+                    </p>
+                    <div className="mt-2.5 flex flex-wrap gap-1.5">
                       {(conversation.contact.labels.length ? conversation.contact.labels : conversation.contact.segmentIds.slice(0, 2)).map((labelOrId) => (
                         <span
-                          className={`rounded px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-tight ${
-                            active ? "bg-tertiary-fixed text-on-tertiary-fixed-variant" : "bg-slate-200 text-slate-600"
+                          className={`rounded-md px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-[0.05em] transition-colors ${
+                            active 
+                              ? "bg-primary/5 text-primary" 
+                              : "bg-slate-100 text-slate-500 group-hover:bg-slate-200"
                           }`}
                           key={labelOrId}
                         >
@@ -1089,21 +1129,26 @@ function CampaignsPage(props: { data: BootstrapData; onRefresh: (preferredConver
       <div className="fixed -right-40 -top-40 -z-10 h-[600px] w-[600px] rounded-full bg-primary-fixed/10 blur-[120px]" />
       <div className="fixed bottom-0 left-10 -z-10 h-[400px] w-[400px] rounded-full bg-secondary-fixed/10 blur-[100px]" />
 
-      <div className="mb-10">
-        <nav className="mb-4 flex items-center gap-2 text-xs font-medium text-on-surface-variant">
+      <div className="mb-10 relative">
+        <div className="absolute top-0 left-0 h-32 w-32 bg-primary/10 blur-[40px] -ml-16 -mt-16 rounded-full pointer-events-none" />
+        <nav className="mb-4 flex items-center gap-2 text-[10px] font-extrabold uppercase tracking-widest text-slate-400 relative z-10">
           <span>Campaigns</span>
-          <Icon name="chevron_right" className="text-xs" />
-          <span className="font-bold text-primary">New Broadcast Flow</span>
+          <Icon name="chevron_right" className="text-sm border border-slate-200 rounded-full" />
+          <span className="text-primary bg-primary/5 px-2 py-0.5 rounded-md">New Broadcast</span>
         </nav>
-        <h1 className="font-headline text-[2.6rem] font-extrabold tracking-tight text-primary">Broadcast Wizard</h1>
-        <p className="mt-2 max-w-2xl text-on-surface-variant">Design, validate, and launch high-impact WhatsApp campaigns from your centralized atrium.</p>
+        <h1 className="font-headline text-5xl font-extrabold tracking-tight text-primary relative z-10">Broadcast Wizard</h1>
+        <p className="mt-3 max-w-2xl text-sm font-medium text-slate-500 relative z-10">Design, validate, and launch high-impact WhatsApp campaigns from your centralized atrium.</p>
       </div>
 
-      <div className="mb-12 hidden max-w-4xl items-center justify-between gap-4 lg:flex">
+      <div className="mb-12 hidden lg:flex max-w-4xl items-center justify-between gap-4 bg-white/50 backdrop-blur-md p-4 rounded-[2rem] border border-slate-100 shadow-[0_4px_24px_-12px_rgba(0,0,0,0.05)]">
         <WizardStep index={1} label="Template" status={currentStep === 1 ? "selected" : "pending"} />
-        <div className={`mx-4 h-[2px] flex-1 ${currentStep >= 2 ? "bg-primary-fixed" : "bg-surface-container-high"}`} />
+        <div className="mx-2 h-[2px] flex-1 overflow-hidden rounded-full bg-slate-100">
+          <div className={`h-full bg-primary transition-all duration-700 ease-out ${currentStep >= 2 ? "w-full" : "w-0"}`} />
+        </div>
         <WizardStep index={2} label="Audience" status={currentStep === 2 ? "selected" : currentStep > 2 ? "pending" : "locked"} dim={currentStep < 2} />
-        <div className={`mx-4 h-[2px] flex-1 ${currentStep >= 3 ? "bg-primary-fixed" : "bg-surface-container-high"}`} />
+        <div className="mx-2 h-[2px] flex-1 overflow-hidden rounded-full bg-slate-100">
+          <div className={`h-full bg-primary transition-all duration-700 ease-out ${currentStep >= 3 ? "w-full" : "w-0"}`} />
+        </div>
         <WizardStep dim={currentStep < 3} index={3} label="Launch" status={currentStep === 3 ? "selected" : "locked"} />
       </div>
 
@@ -1111,14 +1156,14 @@ function CampaignsPage(props: { data: BootstrapData; onRefresh: (preferredConver
         <div className="col-span-12 xl:col-span-7 space-y-6">
           {currentStep === 1 && (
             <>
-              <div className="rounded-xl bg-surface-container-low p-6">
+              <div className="rounded-[2.5rem] border border-slate-100 bg-white p-8 shadow-[0_4px_24px_-10px_rgba(0,0,0,0.05)]">
                 <SectionTitle icon="campaign" title="Campaign Basics" />
-                <div className="grid gap-4 md:grid-cols-2">
-                  <Field label="Campaign name">
-                    <input className="atrium-input" value={name} onChange={(event) => setName(event.target.value)} />
+                <div className="grid gap-6 md:grid-cols-2 mt-6">
+                  <Field label="Campaign Name">
+                    <input className="atrium-input bg-slate-50/50 border-slate-100" value={name} onChange={(event) => setName(event.target.value)} />
                   </Field>
                   <Field label="Dispatch Channel">
-                    <select className="atrium-input" value={channelId} onChange={(event) => setChannelId(event.target.value)}>
+                    <select className="atrium-input bg-slate-50/50 border-slate-100" value={channelId} onChange={(event) => setChannelId(event.target.value)}>
                       {props.data.channels.map((channel) => (
                         <option key={channel.id} value={channel.id}>
                           {channel.name}
@@ -1128,16 +1173,22 @@ function CampaignsPage(props: { data: BootstrapData; onRefresh: (preferredConver
                   </Field>
                 </div>
               </div>
-              <div className="rounded-xl bg-surface-container-low p-6">
+              <div className="rounded-[2.5rem] border border-slate-100 bg-white p-8 shadow-[0_4px_24px_-10px_rgba(0,0,0,0.05)]">
                 <SectionTitle icon="grid_view" title="Select Approved Template" />
                 {approvedTemplates.length === 0 ? (
-                  <div className="rounded-xl border border-warning/20 bg-warning-container p-4 text-sm font-medium text-on-warning-container">
-                    You have no approved Twilio templates synced. Go to Templates to sync from Twilio.
+                  <div className="rounded-2xl border border-warning/20 bg-warning/5 p-6 mt-6">
+                    <div className="flex gap-4">
+                       <Icon name="warning" className="text-warning text-3xl" />
+                       <div>
+                          <p className="font-extrabold text-warning-container text-sm">No Templates Synced</p>
+                          <p className="text-xs text-warning-container/80 mt-1">You have no approved Twilio templates synced. Go to Templates to sync from Twilio.</p>
+                       </div>
+                    </div>
                   </div>
                 ) : (
-                  <div className="space-y-4">
-                    <Field label="Template format">
-                      <select className="atrium-input" value={templateId} onChange={(e) => setTemplateId(e.target.value)}>
+                  <div className="space-y-6 mt-6">
+                    <Field label="Template Format">
+                      <select className="atrium-input bg-slate-50/50 border-slate-100" value={templateId} onChange={(e) => setTemplateId(e.target.value)}>
                         {approvedTemplates.map(t => (
                           <option key={t.id} value={t.id}>{t.name} ({t.category})</option>
                         ))}
@@ -1146,11 +1197,11 @@ function CampaignsPage(props: { data: BootstrapData; onRefresh: (preferredConver
                     {selectedTemplate?.mediaUrl && (
                       <div className="flex flex-col">
                         <Field label="Dynamic Web Image Link (Optional, overrides template header)">
-                          <input className="atrium-input" placeholder="https://example.com/image.png" value={headerMediaUrl} onChange={(e) => setHeaderMediaUrl(e.target.value)} />
+                          <input className="atrium-input bg-slate-50/50 border-slate-100" placeholder="https://example.com/image.png" value={headerMediaUrl} onChange={(e) => setHeaderMediaUrl(e.target.value)} />
                         </Field>
                         {selectedTemplate.mediaUrl.includes('{{') && (
-                          <p className="mt-2 text-xs text-slate-500">
-                            Template media link: <code className="bg-slate-100 px-1 rounded text-primary">{selectedTemplate.mediaUrl}</code>
+                          <p className="mt-2 text-[10px] font-bold text-slate-400">
+                            Template media link: <code className="bg-slate-100 px-1.5 py-0.5 rounded-md text-primary ml-1">{selectedTemplate.mediaUrl}</code>
                           </p>
                         )}
                       </div>
@@ -1162,24 +1213,24 @@ function CampaignsPage(props: { data: BootstrapData; onRefresh: (preferredConver
           )}
 
           {currentStep === 2 && (
-            <div className="rounded-xl bg-surface-container-low p-6">
+            <div className="rounded-[2.5rem] border border-slate-100 bg-white p-8 shadow-[0_4px_24px_-10px_rgba(0,0,0,0.05)]">
             <SectionTitle icon="person_add" title="Audience Selection" />
-            <div className="grid gap-4 lg:grid-cols-2">
-              <NavLink to="/contacts" className="group rounded-xl border-2 border-dashed border-primary p-8 transition-all hover:bg-primary-fixed/5 block cursor-pointer">
-                <div className="flex flex-col items-center justify-center text-center">
-                  <Icon className="mb-2 text-3xl text-primary transition-transform group-hover:-translate-y-1" name="cloud_upload" />
-                  <span className="text-sm font-bold text-primary">Upload CSV</span>
-                  <span className="mt-1 text-[10px] text-outline">Click here to head to the Contacts Manager to run bulk import mappings.</span>
+            <div className="grid gap-6 lg:grid-cols-2 mt-6">
+              <NavLink to="/contacts" className="group rounded-[2rem] border-2 border-dashed border-primary p-8 transition-all hover:bg-primary/5 hover:border-primary/50 block cursor-pointer">
+                <div className="flex flex-col items-center justify-center text-center h-full min-h-[140px]">
+                  <Icon className="mb-3 text-4xl text-primary transition-transform group-hover:-translate-y-2 group-hover:scale-110" name="cloud_upload" />
+                  <span className="text-sm font-extrabold text-primary">Upload Target Roster</span>
+                  <span className="mt-2 text-[10px] font-bold text-slate-400">Jump to Contacts Manager for CSV Mappings</span>
                 </div>
               </NavLink>
-              <div className="flex flex-col rounded-xl border border-outline-variant bg-surface-container-lowest p-4">
-                <div className="mb-4 flex items-center justify-between">
-                  <span className="text-sm font-bold text-on-surface">Existing Audience</span>
+              <div className="flex flex-col rounded-[2rem] border border-slate-100 bg-slate-50/50 p-5">
+                <div className="mb-5 flex items-center justify-between">
+                  <span className="text-sm font-extrabold text-slate-800">Existing Target Pool</span>
                   <Icon className="text-sm text-primary" name="search" />
                 </div>
-                <div className="mb-4 flex gap-2">
+                <div className="mb-5 flex gap-2">
                   <button
-                    className={`rounded-full px-4 py-2 text-xs font-bold ${recipientMode === "segments" ? "bg-primary text-on-primary" : "bg-surface-container text-on-surface-variant"}`}
+                    className={`rounded-xl px-5 py-2.5 text-[10px] font-extrabold uppercase tracking-widest transition-all ${recipientMode === "segments" ? "bg-primary text-on-primary shadow-sm" : "bg-white text-slate-400 border border-slate-100 hover:text-primary"}`}
                     onClick={() => {
                       setRecipientMode("segments");
                       setRecipientIds(props.data.segments[0] ? [props.data.segments[0].id] : []);
@@ -1189,36 +1240,36 @@ function CampaignsPage(props: { data: BootstrapData; onRefresh: (preferredConver
                     Segments
                   </button>
                   <button
-                    className={`rounded-full px-4 py-2 text-xs font-bold ${recipientMode === "contacts" ? "bg-primary text-on-primary" : "bg-surface-container text-on-surface-variant"}`}
+                    className={`rounded-xl px-5 py-2.5 text-[10px] font-extrabold uppercase tracking-widest transition-all ${recipientMode === "contacts" ? "bg-primary text-on-primary shadow-sm" : "bg-white text-slate-400 border border-slate-100 hover:text-primary"}`}
                     onClick={() => {
                       setRecipientMode("contacts");
                       setRecipientIds(props.data.contacts[0] ? [props.data.contacts[0].id] : []);
                     }}
                     type="button"
                   >
-                    Contacts
+                    Individuals
                   </button>
                 </div>
-                <div className="custom-scrollbar max-h-40 space-y-2 overflow-y-auto pr-2">
+                <div className="custom-scrollbar max-h-48 space-y-2 overflow-y-auto pr-2">
                   {recipientOptions.map((option) => {
                     const active = recipientIds.includes(option.id);
                     return (
                       <button
-                        className={`flex w-full items-center justify-between rounded-lg p-3 text-left text-xs font-medium transition-all ${
-                          active ? "border border-outline-variant/30 bg-surface-container-low text-primary" : "hover:bg-surface-container-low"
+                        className={`flex w-full items-center justify-between rounded-2xl p-4 text-left transition-all ${
+                          active ? "border border-primary/20 bg-primary/5 shadow-sm" : "bg-white border border-slate-100 hover:border-primary/30"
                         }`}
                         key={option.id}
                         onClick={() => setRecipientIds(active ? recipientIds.filter((id) => id !== option.id) : [...recipientIds, option.id])}
                         type="button"
                       >
-                        <div className="flex items-center gap-2">
-                          <Icon className="text-xs" name="group" />
+                        <div className="flex items-center gap-3">
+                          <Icon className={`text-lg ${active ? 'text-primary' : 'text-slate-300'}`} name="group" />
                           <div>
-                            <div>{option.label}</div>
-                            <div className="text-[10px] text-outline">{option.subtitle}</div>
+                            <div className={`text-xs font-extrabold ${active ? 'text-primary' : 'text-slate-700'}`}>{option.label}</div>
+                            <div className="text-[10px] font-bold text-slate-400">{option.subtitle}</div>
                           </div>
                         </div>
-                        {active ? <Icon className="text-primary" fill name="check_circle" /> : null}
+                        {active ? <Icon className="text-primary text-xl" fill name="check_circle" /> : null}
                       </button>
                     );
                   })}
@@ -1226,44 +1277,46 @@ function CampaignsPage(props: { data: BootstrapData; onRefresh: (preferredConver
               </div>
             </div>
 
-            <div className="mt-6 grid gap-4 md:grid-cols-2">
-              <Field label="Schedule Run (Leave empty to broadcast now)">
-                <div className="flex flex-col gap-2">
-                  <div className="flex items-center gap-3">
+            <div className="mt-8 grid gap-6 md:grid-cols-2">
+              <Field label="Dispatch Cadence">
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-center gap-2">
                     <button 
                       type="button"
                       onClick={() => setScheduledAt("")}
-                      className={`px-3 py-1 text-xs font-bold rounded-full transition-all ${!scheduledAt ? 'bg-primary text-on-primary' : 'bg-surface-container text-on-surface-variant hover:bg-surface-container-high'}`}
+                      className={`px-4 py-2 text-[10px] font-extrabold uppercase tracking-widest rounded-xl transition-all ${!scheduledAt ? 'bg-primary text-on-primary shadow-sm' : 'bg-slate-50 text-slate-400 border border-slate-100 hover:text-primary'}`}
                     >
-                      Broadcast Now
+                      Instant Launch
                     </button>
                     <button 
                       type="button"
                       onClick={() => !scheduledAt && setScheduledAt(new Date(Date.now() + 3600000).toISOString().slice(0, 16))}
-                      className={`px-3 py-1 text-xs font-bold rounded-full transition-all ${scheduledAt ? 'bg-primary text-on-primary' : 'bg-surface-container text-on-surface-variant hover:bg-surface-container-high'}`}
+                      className={`px-4 py-2 text-[10px] font-extrabold uppercase tracking-widest rounded-xl transition-all ${scheduledAt ? 'bg-primary text-on-primary shadow-sm' : 'bg-slate-50 text-slate-400 border border-slate-100 hover:text-primary'}`}
                     >
-                      Schedule Run
+                      Schedule
                     </button>
                   </div>
                   {scheduledAt !== "" && (
-                    <input className="atrium-input mt-2" type="datetime-local" value={scheduledAt} onChange={(event) => setScheduledAt(event.target.value)} />
+                    <input className="atrium-input bg-slate-50/50 border-slate-100" type="datetime-local" value={scheduledAt} onChange={(event) => setScheduledAt(event.target.value)} />
                   )}
                 </div>
               </Field>
-              <Field label="Estimated recipients">
-                <div className="atrium-input flex items-center font-bold text-primary">{recipientEstimate} contacts</div>
+              <Field label="Audience Volume">
+                <div className="atrium-input bg-primary/5 border-primary/20 flex items-center font-extrabold text-primary shadow-inner">
+                   {recipientEstimate.toLocaleString()} verified nodes
+                </div>
               </Field>
-              <Field label="Recurrence Interval">
-                <select className="atrium-input" value={recurringInterval} onChange={(event) => setRecurringInterval(event.target.value as any)}>
+              <Field label="Recurrence Engine">
+                <select className="atrium-input bg-slate-50/50 border-slate-100" value={recurringInterval} onChange={(event) => setRecurringInterval(event.target.value as any)}>
                   <option value="none">One-time (Do Not Repeat)</option>
-                  <option value="daily">Daily</option>
-                  <option value="weekly">Weekly</option>
-                  <option value="monthly">Monthly</option>
+                  <option value="daily">Daily Cadence</option>
+                  <option value="weekly">Weekly Cadence</option>
+                  <option value="monthly">Monthly Cadence</option>
                 </select>
               </Field>
               {recurringInterval !== "none" && (
-                <Field label="Repeat Until (Optional bounds)">
-                  <input className="atrium-input" type="datetime-local" value={recurringUntil} onChange={(event) => setRecurringUntil(event.target.value)} />
+                <Field label="Lifecycle End Bounds (Optional)">
+                  <input className="atrium-input bg-slate-50/50 border-slate-100" type="datetime-local" value={recurringUntil} onChange={(event) => setRecurringUntil(event.target.value)} />
                 </Field>
               )}
             </div>
@@ -1271,15 +1324,15 @@ function CampaignsPage(props: { data: BootstrapData; onRefresh: (preferredConver
           )}
 
           {currentStep === 3 && (
-            <div className="rounded-xl bg-surface-container-low p-6">
+            <div className="rounded-[2.5rem] border border-slate-100 bg-white p-8 shadow-[0_4px_24px_-10px_rgba(0,0,0,0.05)]">
               <SectionTitle icon="data_object" title="Template Variables" />
-              <div className="space-y-4 max-h-[280px] overflow-y-auto pr-2 custom-scrollbar">
+              <div className="space-y-6 mt-6 max-h-[280px] overflow-y-auto pr-2 custom-scrollbar">
                 {Array.isArray(selectedTemplate?.placeholders) && selectedTemplate.placeholders.length > 0 ? (
                   selectedTemplate.placeholders.map((ph, idx) => (
-                    <Field key={idx} label={`Variable {{${idx + 1}}} (${ph})`}>
+                    <Field key={idx} label={`Dynamic Variable {{${idx + 1}}} (${ph})`}>
                       <input
-                        className="atrium-input"
-                        placeholder={`Dynamic value for ${ph}`}
+                        className="atrium-input bg-slate-50/50 border-slate-100"
+                        placeholder={`Provide value for ${ph}`}
                         value={templateVariables[idx] || ""}
                         onChange={(e) => {
                           const newVars = [...templateVariables];
@@ -1290,8 +1343,8 @@ function CampaignsPage(props: { data: BootstrapData; onRefresh: (preferredConver
                     </Field>
                   ))
                 ) : (
-                  <div className="rounded-xl bg-surface-container-lowest p-4 text-sm text-on-surface-variant">
-                    This template does not require any dynamic variables.
+                  <div className="rounded-2xl bg-slate-50/50 border border-slate-100 p-6 flex items-center justify-center">
+                    <p className="text-sm font-bold text-slate-400">Static Template — No runtime variables required to dispatch.</p>
                   </div>
                 )}
               </div>
@@ -1309,42 +1362,44 @@ function CampaignsPage(props: { data: BootstrapData; onRefresh: (preferredConver
       </div>
 
       <div className="mt-8 w-full max-w-5xl mx-auto md:px-0">
-        <div className="flex flex-col gap-4 rounded-2xl border border-outline-variant/30 bg-surface-container-lowest p-6 shadow-sm md:flex-row md:items-center md:justify-between">
+        <div className="flex flex-col gap-5 rounded-[2.5rem] border border-slate-100 bg-white p-8 shadow-[0_4px_24px_-10px_rgba(0,0,0,0.05)] md:flex-row md:items-center md:justify-between sticky bottom-6 z-30">
           <div className="flex items-center gap-4">
-            <div className="rounded-lg bg-secondary-fixed/20 p-2 text-secondary">
-              <Icon name="history_edu" />
+            <div className="h-12 w-12 rounded-2xl bg-secondary/10 flex items-center justify-center text-secondary shadow-inner">
+              <Icon name="history_edu" className="text-2xl" />
             </div>
             <div>
-              <p className="text-xs font-bold text-on-surface">Wizard State</p>
-              <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-outline">
-                Step {currentStep} of 3
-              </p>
+              <p className="text-sm font-extrabold text-slate-800">Wizard Progression</p>
+              <div className="flex gap-1 mt-1">
+                 {[1,2,3].map(step => (
+                    <div key={step} className={`h-1.5 rounded-full transition-all ${currentStep >= step ? 'w-6 bg-primary' : 'w-2 bg-slate-100'}`} />
+                 ))}
+              </div>
             </div>
           </div>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
             {currentStep > 1 && (
             <button
               type="button"
-              className="rounded-xl border border-outline-variant px-6 py-3 text-sm font-bold text-on-surface transition-all hover:bg-surface-container"
+              className="rounded-2xl border border-slate-200 bg-slate-50 px-8 py-4 text-sm font-extrabold text-slate-600 transition-all hover:bg-slate-100 hover:text-slate-800 active:scale-[0.98]"
               onClick={() => setCurrentStep(prev => prev - 1)}
             >
-              Back
+              Go Back
             </button>
             )}
             {currentStep < 3 ? (
             <button
               type="button"
-              className="group flex items-center gap-2 rounded-xl bg-primary px-8 py-3 text-sm font-bold text-on-primary shadow-lg shadow-primary/20 transition-all active:scale-95 disabled:opacity-50 disabled:grayscale"
+              className="group flex items-center justify-center gap-3 rounded-2xl bg-primary px-10 py-4 text-sm font-extrabold text-on-primary shadow-[0_8px_30px_-6px_rgba(var(--color-primary),0.5)] transition-all hover:shadow-[0_12px_40px_-6px_rgba(var(--color-primary),0.6)] active:scale-95 disabled:opacity-50 disabled:grayscale w-full sm:w-auto"
               onClick={() => setCurrentStep(prev => prev + 1)}
               disabled={currentStep === 1 && !templateId}
             >
-              Next Step
+              Continue to {currentStep === 1 ? 'Audience' : 'Launch'}
               <Icon className="transition-transform group-hover:translate-x-1" name="arrow_forward" />
             </button>
             ) : (
             <button
               type="button"
-              className="group flex items-center gap-2 rounded-xl bg-primary px-8 py-3 text-sm font-bold text-on-primary shadow-lg shadow-primary/20 transition-all active:scale-95"
+              className="group flex items-center justify-center gap-3 rounded-2xl bg-primary px-10 py-4 text-sm font-extrabold text-on-primary shadow-[0_8px_30px_-6px_rgba(var(--color-primary),0.5)] transition-all hover:shadow-[0_12px_40px_-6px_rgba(var(--color-primary),0.6)] active:scale-95 w-full sm:w-auto overflow-hidden relative"
               onClick={async () => {
                 try {
                   await launchCampaign();
@@ -1354,56 +1409,106 @@ function CampaignsPage(props: { data: BootstrapData; onRefresh: (preferredConver
                 }
               }}
             >
-              {scheduledAt ? "Queue Campaign" : "Broadcast Now"}
-              <Icon className="transition-transform group-hover:translate-x-1" name="arrow_forward" />
+              <div className="absolute inset-0 bg-white/20 w-0 group-hover:w-full transition-all duration-500 ease-out z-0 pointer-events-none" />
+              <span className="relative z-10">{scheduledAt ? "Queue Campaign" : "Broadcast Now"}</span>
+              <Icon className="relative z-10 transition-transform group-hover:scale-110" name={scheduledAt ? "schedule_send" : "send"} />
             </button>
             )}
           </div>
         </div>
         
-      <div className="mt-16 w-full max-w-5xl mx-auto rounded-xl bg-surface-container-low p-6">
-        <SectionTitle icon="insert_chart" title="Recent Campaigns Engine" />
-        <div className="overflow-x-auto">
+      <div className="mt-16 w-full max-w-5xl mx-auto rounded-[3rem] bg-white p-8 border border-slate-100 shadow-[0_4px_32px_-12px_rgba(0,0,0,0.04)]">
+        <div className="mb-6">
+          <SectionTitle icon="insert_chart" title="Recent Campaigns Engine" />
+        </div>
+        
+        {/* Desktop Table */}
+        <div className="hidden md:block overflow-x-auto rounded-[2rem] border border-slate-100">
           <table className="w-full border-collapse">
             <thead>
-              <tr className="text-left text-[11px] font-bold uppercase tracking-[0.14em] text-on-surface-variant">
-                <th className="pb-4">Campaign</th>
-                <th className="pb-4">Status</th>
-                <th className="pb-4">Attempted</th>
-                <th className="pb-4">Delivered</th>
-                <th className="pb-4">Failed</th>
+              <tr className="bg-slate-50 text-left text-[10px] font-extrabold uppercase tracking-[0.2em] text-slate-400">
+                <th className="px-6 py-5 rounded-tl-[2rem]">Campaign Context</th>
+                <th className="px-6 py-5">Lifecycle Status</th>
+                <th className="px-6 py-5">Attempted Node Target</th>
+                <th className="px-6 py-5">Successful Deliveries</th>
+                <th className="px-6 py-5 rounded-tr-[2rem]">Processing Failures</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-outline-variant/10 text-sm">
+            <tbody className="divide-y divide-slate-100 text-sm">
               {props.data.campaigns.map((campaign) => (
-                <tr key={campaign.id}>
-                  <td className="py-4 font-semibold text-on-surface">{campaign.name}</td>
-                  <td className="py-4">
-                    <span className={`rounded-full px-3 py-1 text-xs font-bold ${campaign.status === "sent" ? "bg-secondary/10 text-secondary" : "bg-primary/10 text-primary"}`}>
+                <tr key={campaign.id} className="group hover:bg-slate-50/50 transition-colors">
+                  <td className="px-6 py-5 font-bold text-slate-800">{campaign.name}</td>
+                  <td className="px-6 py-5">
+                    <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-extrabold uppercase tracking-wider ${campaign.status === "sent" ? "bg-emerald-50 text-emerald-600 border border-emerald-100" : "bg-primary/10 text-primary border border-primary/20"}`}>
+                      {campaign.status === "sent" && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />}
                       {campaign.status}
                     </span>
                   </td>
-                  <td className="py-4 text-on-surface-variant">{campaign.stats.attempted}</td>
-                  <td className="py-4 text-on-surface-variant">{campaign.stats.delivered}</td>
-                  <td className="py-4 text-on-surface-variant">{campaign.stats.failed}</td>
+                  <td className="px-6 py-5 font-medium text-slate-500">{campaign.stats.attempted.toLocaleString()}</td>
+                  <td className="px-6 py-5 font-bold text-primary">{campaign.stats.delivered.toLocaleString()}</td>
+                  <td className="px-6 py-5 font-medium text-error flex items-center gap-1.5">
+                     {campaign.stats.failed > 0 && <Icon name="error" className="text-[14px]" />}
+                     {campaign.stats.failed.toLocaleString()}
+                  </td>
                 </tr>
               ))}
               {!props.data.campaigns.length ? (
                 <tr>
-                  <td className="py-6 text-sm text-on-surface-variant" colSpan={5}>
-                    No campaigns launched yet.
+                  <td className="px-6 py-10 text-center text-sm font-bold text-slate-400 italic" colSpan={5}>
+                    No campaigns launched yet. Awaiting initialization.
                   </td>
                 </tr>
               ) : null}
             </tbody>
           </table>
         </div>
+
+        {/* Mobile Cards */}
+        <div className="md:hidden flex flex-col gap-4">
+          {props.data.campaigns.map((campaign) => (
+            <div key={campaign.id} className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm relative overflow-hidden">
+               <div className={`absolute top-0 right-0 w-16 h-16 blur-2xl -mr-8 -mt-8 rounded-full pointer-events-none ${campaign.status === "sent" ? "bg-emerald-500/20" : "bg-primary/20"}`} />
+               <div className="flex justify-between items-start mb-4 relative z-10">
+                  <h3 className="font-extrabold text-slate-800 text-lg leading-tight w-2/3">{campaign.name}</h3>
+                  <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-[9px] font-extrabold uppercase tracking-widest ${campaign.status === "sent" ? "bg-emerald-50 text-emerald-600" : "bg-primary/10 text-primary"}`}>
+                    {campaign.status}
+                  </span>
+               </div>
+               <div className="grid grid-cols-3 gap-2 border-t border-slate-50 pt-4 relative z-10">
+                  <div>
+                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Attempted</p>
+                     <p className="text-sm font-bold text-slate-700">{campaign.stats.attempted.toLocaleString()}</p>
+                  </div>
+                  <div>
+                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Delivered</p>
+                     <p className="text-sm font-extrabold text-primary">{campaign.stats.delivered.toLocaleString()}</p>
+                  </div>
+                  <div>
+                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Failed</p>
+                     <p className={`text-sm font-bold ${campaign.stats.failed > 0 ? "text-error" : "text-slate-400"}`}>{campaign.stats.failed.toLocaleString()}</p>
+                  </div>
+               </div>
+            </div>
+          ))}
+          {!props.data.campaigns.length && (
+            <div className="py-10 text-center text-sm font-bold text-slate-400 italic rounded-3xl border-2 border-dashed border-slate-100">
+               No campaigns launched yet.
+            </div>
+          )}
+        </div>
       </div>
-        {feedback ? (
-          <div className="mx-auto mt-3 max-w-fit rounded-full bg-primary px-4 py-2 text-xs font-bold uppercase tracking-[0.16em] text-on-primary shadow-lg">
+
+      {feedback && (
+        <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-50">
+          <div className="flex items-center gap-3 rounded-full bg-slate-900 border border-slate-800 px-6 py-4 text-xs font-extrabold uppercase tracking-[0.2em] text-white shadow-[0_20px_40px_-5px_rgba(0,0,0,0.5)] animate-in slide-in-from-bottom-5">
+            <div className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
             {feedback}
+            <button onClick={() => setFeedback(null)} className="ml-2 bg-slate-800 rounded-full p-1 hover:bg-slate-700 transition-colors">
+               <Icon name="close" className="text-slate-400 text-sm" />
+            </button>
           </div>
-        ) : null}
+        </div>
+      )}
       </div>
     </div>
   );
@@ -1956,15 +2061,16 @@ function ContactsPage(props: {
   return (
     <div className="px-8 pb-10 pt-8">
       <div className="mb-8 grid grid-cols-1 gap-6">
-        <div className="flex flex-col justify-between rounded-[2rem] bg-surface-container-low p-8">
-          <div>
-            <div className="flex justify-between items-start w-full">
+        <div className="flex flex-col justify-between rounded-[2.5rem] bg-gradient-to-br from-surface-container-low via-surface-container-low to-surface-container p-10 border border-outline-variant/10 shadow-[0_8px_32px_-12px_rgba(0,0,0,0.05)] relative overflow-hidden">
+          <div className="absolute right-0 top-0 h-64 w-64 rounded-full bg-primary/5 blur-3xl -mr-20 -mt-20" />
+          <div className="relative z-10">
+            <div className="flex flex-col sm:flex-row justify-between items-start gap-4 w-full">
               <div>
-                <span className="font-headline text-sm font-bold uppercase tracking-[0.18em] text-tertiary">Audience Vitality</span>
-                <h2 className="mt-2 font-headline text-4xl font-extrabold text-primary">{props.data.contacts.length.toLocaleString()} Active Leads</h2>
+                <span className="font-headline text-xs font-bold uppercase tracking-[0.24em] text-tertiary">Audience Insight</span>
+                <h2 className="mt-3 font-headline text-5xl font-extrabold tracking-tight text-primary">{props.data.contacts.length.toLocaleString()} Active Leads</h2>
               </div>
               <button 
-                className="bg-red-50 text-red-600 font-bold px-4 py-2 rounded-xl text-xs hover:bg-red-100 transition-colors"
+                className="group flex items-center gap-2 bg-error/5 text-error font-extrabold px-6 py-3 rounded-2xl text-xs hover:bg-error hover:text-on-error transition-all"
                 onClick={async () => {
                   if (window.confirm("FATAL WARNING: Are you incredibly sure you want to PERMANENTLY ERASE all contacts, internal notes, and segments? This action absolutely CANNOT be undone.")) {
                      await api("/api/contacts/clear", { method: "DELETE" });
@@ -1972,15 +2078,15 @@ function ContactsPage(props: {
                   }
                 }}
               >
-                 <Icon name="delete_forever" className="mr-1 text-sm align-text-bottom" />
+                 <Icon name="delete_forever" className="text-lg transition-transform group-hover:scale-110" />
                  Clear Directory
               </button>
             </div>
-            <p className="mt-2 text-on-surface-variant">
+            <p className="mt-4 max-w-2xl text-lg font-medium text-on-surface-variant leading-relaxed">
               Your contact base is live for CSV updates, real-time conversations, and shared team segmentation.
             </p>
           </div>
-          <div className="mt-8 flex flex-col gap-4 md:flex-row">
+          <div className="mt-10 flex flex-wrap gap-5 relative z-10">
             <OverviewMetric label="Opt-in Rate" value="89.4%" />
             <OverviewMetric label="Segments" value={String(props.data.segments.length)} />
           </div>
@@ -1988,16 +2094,16 @@ function ContactsPage(props: {
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-4 gap-6 items-start mb-8">
-        <div className="xl:col-span-1 flex flex-col gap-6 order-1 xl:order-2">
-        <div className="rounded-[2rem] bg-surface-container-lowest p-6 shadow-sm flex flex-col items-start gap-4 h-fit">
+        <div className="xl:col-span-1 flex flex-col gap-8 order-1 xl:order-2">
+        <div className="rounded-[2.5rem] bg-white p-7 border border-slate-100 shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)] flex flex-col items-start gap-5 h-fit">
           <div className="flex w-full items-center justify-between">
-            <SectionTitle icon="person_add" title="Add Individual Contact" />
+            <SectionTitle icon="person_add" title="Quick Lead" />
             <button 
               type="button"
-              className="rounded-full bg-primary/10 text-primary px-4 py-1.5 text-xs font-bold transition-colors hover:bg-primary/20"
+              className={`rounded-full px-4 py-2 text-[10px] font-extrabold uppercase tracking-widest transition-all ${isAddContactOpen ? "bg-slate-100 text-slate-500" : "bg-primary text-on-primary shadow-lg shadow-primary/20"}`}
               onClick={() => setIsAddContactOpen(!isAddContactOpen)}
             >
-              {isAddContactOpen ? "Collapse" : "+ Add Lead"}
+              {isAddContactOpen ? "Close" : "Add New"}
             </button>
           </div>
           {isAddContactOpen && (
@@ -2080,43 +2186,43 @@ function ContactsPage(props: {
           )}
         </div>
 
-        <div className="rounded-[2rem] bg-surface-container-lowest p-6 shadow-sm">
-          <SectionTitle icon="upload_file" title="Bulk Import & Segmenting" />
-          <form className="space-y-4" onSubmit={importCsv}>
-            <Field label="Quick Add Segment (Optional)">
+        <div className="rounded-[2.5rem] bg-white p-7 border border-slate-100 shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)]">
+          <SectionTitle icon="upload_file" title="Data Ingestion" />
+          <form className="mt-6 space-y-6" onSubmit={importCsv}>
+            <Field label="New Segment Identifier">
               <div className="flex gap-2">
                 <input
-                  className="atrium-input"
-                  placeholder="e.g. VIP Customers"
+                  className="atrium-input bg-slate-50/50 border-slate-100"
+                  placeholder="e.g. Q4 Campaigns"
                   value={segmentName}
                   onChange={(e) => setSegmentName(e.target.value)}
                 />
                 <button
                   type="button"
-                  className="rounded-xl bg-surface-container hover:bg-surface-container-high px-4 py-2 text-sm font-bold text-on-surface transition-colors"
+                  className="rounded-xl bg-primary/10 hover:bg-primary/20 px-4 py-2 text-xs font-extrabold text-primary transition-all active:scale-95"
                   onClick={createSegment}
                 >
-                  Create
+                  Apply
                 </button>
               </div>
             </Field>
-            <Field label="CSV file">
+            <Field label="CSV Archive">
               <input
                 accept=".csv"
-                className="atrium-input file:mr-3 file:rounded-xl file:border-0 file:bg-primary file:px-4 file:py-2 file:text-sm file:font-bold file:text-on-primary"
+                className="atrium-input file:mr-3 file:rounded-xl file:border-0 file:bg-primary file:px-4 file:py-2 file:text-[10px] file:font-extrabold file:uppercase file:tracking-wider file:text-on-primary border-dashed border-2 border-slate-100 bg-slate-50/50"
                 type="file"
                 onChange={(event) => setCsvFile(event.target.files?.[0] ?? null)}
               />
             </Field>
             
-            <div className="rounded-2xl bg-surface-container-low p-4">
-              <p className="mb-3 text-xs font-bold uppercase tracking-[0.16em] text-outline">Target Segments</p>
+            <div className="rounded-2xl bg-slate-50/80 p-5 border border-slate-100/50">
+              <p className="mb-4 text-[10px] font-extrabold uppercase tracking-[.2em] text-outline/60">Target Segments</p>
               <div className="flex flex-wrap gap-2">
                 {props.data.segments.map((segment) => {
                   const active = selectedSegments.includes(segment.id);
                   return (
                     <button
-                      className={`rounded-full px-3 py-1.5 text-xs font-bold transition-all ${active ? "bg-primary text-on-primary" : "bg-white text-on-surface-variant"}`}
+                      className={`rounded-xl px-3 py-2 text-[10px] font-extrabold uppercase transition-all ${active ? "bg-primary text-on-primary shadow-sm" : "bg-white text-slate-400 border border-slate-100 hover:border-primary/30"}`}
                       key={segment.id}
                       onClick={() => setSelectedSegments(active ? selectedSegments.filter((id) => id !== segment.id) : [...selectedSegments, segment.id])}
                       type="button"
@@ -2128,27 +2234,24 @@ function ContactsPage(props: {
               </div>
             </div>
             
-            <p className="text-xs text-on-surface-variant">Your CSV payload will directly map into the targeted segments outlined above.</p>
-            <button className="w-full rounded-xl border border-outline-variant/20 bg-surface-container-low px-5 py-3 text-sm font-bold text-primary transition-all hover:bg-surface-bright">
-              Upload & Map Fields
+            <button className="w-full rounded-2xl bg-primary px-5 py-4 text-xs font-extrabold uppercase tracking-widest text-on-primary shadow-lg shadow-primary/20 transition-all hover:opacity-90 active:scale-[0.98]">
+              Begin Mapping
             </button>
           </form>
         </div>
 
-        <div className="rounded-[2rem] bg-surface-container-lowest p-6 shadow-sm">
-          <SectionTitle icon="group" title="Segment Overview" />
-          <div className="space-y-3">
+        <div className="rounded-[2.5rem] bg-white p-7 border border-slate-100 shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)]">
+          <SectionTitle icon="analytics" title="Segment Pulse" />
+          <div className="mt-6 space-y-3">
             {props.data.segments.map((segment) => (
-              <div className="flex items-center justify-between rounded-2xl bg-surface-container-low p-4" key={segment.id}>
+              <div className="flex items-center justify-between rounded-2xl bg-slate-50/50 p-4 border border-slate-100/50 group hover:bg-white transition-all" key={segment.id}>
                 <div>
-                  <p className="font-bold text-on-surface">{segment.name}</p>
-                  <p className="text-xs text-on-surface-variant">
-                    {props.data.contacts.filter((contact) => contact.segmentIds.includes(segment.id)).length} contacts
+                  <p className="text-sm font-extrabold text-slate-800">{segment.name}</p>
+                  <p className="mt-0.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                    {props.data.contacts.filter((contact) => contact.segmentIds.includes(segment.id)).length} Active Nodes
                   </p>
                 </div>
-                <span className="rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em]" style={{ backgroundColor: `${segment.color}22`, color: segment.color }}>
-                  Live
-                </span>
+                <div className="h-2 w-2 rounded-full shadow-[0_0_8px_rgba(0,0,0,0.1)]" style={{ backgroundColor: segment.color }} />
               </div>
             ))}
           </div>
@@ -2234,17 +2337,17 @@ function ContactsPage(props: {
                 <Icon className="text-sm" name="filter_list" />
               </button>
               {isFilterOpen && (
-                <div className="absolute top-12 left-0 z-30 w-[400px] rounded-2xl border border-outline-variant/20 bg-surface-container-lowest p-4 shadow-xl">
-                  <div className="mb-3 flex items-center justify-between border-b border-outline-variant/10 pb-2">
-                    <span className="text-xs font-bold uppercase tracking-wider text-on-surface-variant">Active Rules</span>
-                    <button className="text-[10px] font-bold text-primary uppercase hover:underline" onClick={() => setFilterRules([])}>Clear All</button>
+                <div className="absolute top-14 left-0 z-30 w-[420px] rounded-[2rem] border border-slate-200/60 bg-white/90 p-6 shadow-[0_20px_50px_rgba(0,0,0,0.1)] backdrop-blur-xl animate-in fade-in zoom-in-95 duration-200">
+                  <div className="mb-4 flex items-center justify-between border-b border-slate-100 pb-3">
+                    <span className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-outline">Active Filter Rules</span>
+                    <button className="text-[10px] font-extrabold text-primary uppercase tracking-wider hover:underline" onClick={() => setFilterRules([])}>Clear All</button>
                   </div>
                   
-                  <div className="space-y-3 mb-4 max-h-[300px] overflow-y-auto">
+                  <div className="space-y-3 mb-5 max-h-[350px] overflow-y-auto px-1 custom-scrollbar">
                     {filterRules.map((rule, idx) => (
-                      <div key={idx} className="flex items-center gap-2 group animate-in fade-in slide-in-from-top-1 duration-200">
+                      <div key={idx} className="flex items-center gap-2 group animate-in fade-in slide-in-from-top-2 duration-300">
                         <select 
-                          className="text-[11px] font-medium bg-surface-container rounded-lg px-2 py-1.5 border-none focus:ring-1 focus:ring-primary w-[140px]"
+                          className="text-xs font-bold bg-surface-container-low/50 rounded-xl px-3 py-2 border-none focus:ring-1 focus:ring-primary/30 w-[140px] transition-all"
                           value={rule.field}
                           onChange={(e) => {
                              const newRules = [...filterRules];
@@ -2255,7 +2358,7 @@ function ContactsPage(props: {
                           {filterableFields.map(f => <option key={f.id} value={f.id}>{f.label}</option>)}
                         </select>
                         <select 
-                          className="text-[11px] font-medium bg-surface-container rounded-lg px-2 py-1.5 border-none focus:ring-1 focus:ring-primary w-[100px]"
+                          className="text-xs font-bold bg-surface-container-low/50 rounded-xl px-3 py-2 border-none focus:ring-1 focus:ring-primary/30 w-[100px] transition-all"
                           value={rule.operator}
                           onChange={(e) => {
                              const newRules = [...filterRules];
@@ -2270,7 +2373,8 @@ function ContactsPage(props: {
                         </select>
                         <input 
                           type="text" 
-                          className="text-[11px] flex-1 bg-surface-container-low rounded-lg px-2 py-1.5 border border-outline-variant/20 focus:ring-1 focus:ring-primary min-w-0"
+                          className="text-xs font-bold flex-1 bg-white rounded-xl px-3 py-2 border border-slate-200 focus:ring-1 focus:ring-primary/30 min-w-0 transition-all placeholder:text-slate-300"
+                          placeholder="Value..."
                           value={rule.value}
                           onChange={(e) => {
                              const newRules = [...filterRules];
@@ -2278,19 +2382,24 @@ function ContactsPage(props: {
                              setFilterRules(newRules);
                           }}
                         />
-                        <button className="p-1.5 text-on-surface-variant hover:text-error transition-colors" onClick={() => setFilterRules(prev => prev.filter((_, i) => i !== idx))}>
-                          <Icon className="text-xs" name="close" />
+                        <button className="p-2 text-slate-300 hover:text-error transition-colors" onClick={() => setFilterRules(prev => prev.filter((_, i) => i !== idx))}>
+                          <Icon className="text-sm" name="delete" />
                         </button>
                       </div>
                     ))}
-                    {filterRules.length === 0 && <div className="text-center py-4 text-xs text-on-surface-variant italic">No filters applied.</div>}
+                    {filterRules.length === 0 && (
+                       <div className="flex flex-col items-center justify-center py-8 text-center">
+                          <Icon name="filter_list_off" className="text-3xl text-slate-200 mb-2" />
+                          <p className="text-xs text-slate-400 font-medium italic">No active filters applied.</p>
+                       </div>
+                    )}
                   </div>
 
                   <button 
-                    className="w-full flex items-center justify-center gap-2 py-2 rounded-xl border border-dashed border-outline-variant hover:bg-surface-container-low text-xs font-bold text-primary transition-colors"
+                    className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl border border-dashed border-primary/30 hover:bg-primary/5 hover:border-primary/50 text-xs font-extrabold text-primary transition-all active:scale-[0.98]"
                     onClick={() => setFilterRules([...filterRules, { field: filterableFields[0].id, operator: 'contains', value: '' }])}
                   >
-                    <Icon className="text-sm" name="add" /> Add Rule
+                    <Icon className="text-lg" name="add_circle" /> Add New Rule
                   </button>
                 </div>
               )}
@@ -2305,12 +2414,13 @@ function ContactsPage(props: {
           </div>
         </div>
 
-        <div className="overflow-x-auto">
+        {/* Desktop View (Table) */}
+        <div className="hidden lg:block overflow-x-auto">
           <table className="w-full border-collapse text-left">
             <thead>
-              <tr className="bg-surface-container-low text-[0.6875rem] font-bold uppercase tracking-wider text-on-surface-variant">
-                <th className="w-12 px-8 py-4">
-                  <input className="rounded border-outline-variant text-primary focus:ring-primary/20" type="checkbox" />
+              <tr className="bg-surface-container-low text-[0.6875rem] font-extrabold uppercase tracking-widest text-on-surface-variant">
+                <th className="w-12 px-8 py-5">
+                  <input className="rounded-md border-outline-variant/30 text-primary focus:ring-primary/20" type="checkbox" />
                 </th>
                 {visibleColumns.includes("profile") && (
                   <th className="px-4 py-4 cursor-pointer hover:text-primary transition-colors" onClick={() => handleSort('firstName')}>
@@ -2422,33 +2532,47 @@ function ContactsPage(props: {
                       </div>
                     </td>
                   )}
-                  <td className="px-8 py-5">
-                    <div className="flex justify-end gap-2">
-                      <button
-                        className="rounded-xl border border-outline-variant/20 px-3 py-2 text-xs font-bold text-on-surface-variant transition-all hover:bg-surface-container-low hover:text-primary"
-                        onClick={() => setViewingContact(contact)}
-                      >
-                        Profile
-                      </button>
-                      <button
-                        className="rounded-xl border border-outline-variant/20 px-3 py-2 text-xs font-bold text-primary transition-all hover:bg-surface-container-low"
-                        onClick={() => void props.onOpenConversation(contact.id, props.data.channels[0]?.id ?? "", props.data.templates[0]?.id)}
-                      >
-                        Broadcast
-                      </button>
-                      <button
-                        className="rounded-xl bg-primary px-3 py-2 text-xs font-bold text-on-primary transition-all hover:opacity-90"
-                        onClick={() => void props.onOpenConversation(contact.id, props.data.channels[0]?.id ?? "")}
-                      >
-                        Chat
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                   <td className="px-8 py-5 text-right">
+                      <div className="flex justify-end gap-3 opacity-0 transition-opacity group-hover:opacity-100">
+                        <button 
+                           className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/5 text-primary hover:bg-primary hover:text-on-primary transition-all shadow-sm"
+                           onClick={() => props.onOpenConversation(contact.id, props.data.channels[0]?.id ?? "")}
+                           title="Chat"
+                        >
+                          <Icon name="chat" />
+                        </button>
+                        <button 
+                           className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-400 hover:bg-slate-200 hover:text-slate-600 transition-all"
+                           onClick={() => setViewingContact(contact)}
+                           title="View Profile"
+                        >
+                          <Icon name="person" />
+                        </button>
+                        <button className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-400 hover:bg-slate-200 hover:text-slate-600 transition-all">
+                          <Icon name="more_vert" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Mobile View (Cards) */}
+          <div className="lg:hidden p-4 space-y-4 bg-slate-50/50">
+            {paginatedContacts.map((contact) => (
+              <MobileContactCard 
+                 key={contact.id} 
+                 contact={contact} 
+                 data={props.data} 
+                 onOpen={props.onOpenConversation} 
+              />
+            ))}
+            {paginatedContacts.length === 0 && (
+               <div className="text-center py-10 text-slate-400 italic text-sm font-medium">No contacts found matching your criteria.</div>
+            )}
+          </div>
       </section>
       </div>
       </div>
@@ -2738,36 +2862,38 @@ function AnalyticsPage(props: { data: BootstrapData }) {
 
   return (
     <div className="px-8 pb-12 pt-8">
-      <div className="mb-10 flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between border-b border-outline-variant/20 pb-6">
-        <div className="space-y-1">
-          <h1 className="font-headline text-[2.75rem] font-medium leading-none tracking-tight text-on-surface">Analytics</h1>
-          <p className="font-medium text-on-surface-variant">Real-time performance & BI metrics</p>
+      <div className="mb-10 flex flex-col gap-8 xl:flex-row xl:items-end xl:justify-between border-b border-slate-100 pb-8 relative">
+        <div className="absolute top-0 left-0 h-40 w-40 bg-primary/5 blur-3xl -ml-20 -mt-20 rounded-full pointer-events-none" />
+        <div className="space-y-2 relative z-10">
+          <h1 className="font-headline text-5xl font-extrabold tracking-tight text-primary">Analytics</h1>
+          <p className="text-lg font-medium text-slate-500">Real-time performance & BI insights</p>
         </div>
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          <div className="flex items-center gap-2 rounded-lg bg-surface-container-lowest p-1 shadow-sm border border-outline-variant/30 flex-wrap">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center relative z-10 overflow-x-auto pb-4 sm:pb-0 no-scrollbar">
+          <div className="flex items-center gap-1.5 rounded-2xl bg-white border border-slate-100 p-1.5 shadow-sm">
             {["all", "1month", "3month", "9month", "custom"].map(rng => (
               <button 
                 key={rng}
                 onClick={() => setDateRange(rng as any)}
-                className={`px-3 py-1.5 text-xs font-bold rounded-md transition-colors ${dateRange === rng ? 'bg-primary text-on-primary' : 'text-on-surface-variant hover:bg-surface-container'}`}
+                className={`px-4 py-2 text-[10px] font-extrabold uppercase tracking-widest rounded-xl transition-all ${dateRange === rng ? 'bg-primary text-on-primary shadow-lg shadow-primary/20' : 'text-slate-400 hover:bg-slate-50 hover:text-primary'}`}
               >
-                {rng === "all" ? "All Time" : rng === "1month" ? "1 Month" : rng === "3month" ? "3 Months" : rng === "9month" ? "9 Months" : "Custom"}
+                {rng === "all" ? "All Time" : rng === "1month" ? "1 Mo" : rng === "3month" ? "3 Mo" : rng === "9month" ? "9 Mo" : "Custom"}
               </button>
             ))}
           </div>
           {dateRange === "custom" && (
-            <div className="flex items-center gap-2 bg-surface-container-lowest p-1 rounded-lg border border-outline-variant/30">
-              <input type="date" className="atrium-input border-0 py-1 text-xs" value={customStart} onChange={e => setCustomStart(e.target.value)} />
-              <span className="text-on-surface-variant text-xs">-</span>
-              <input type="date" className="atrium-input border-0 py-1 text-xs" value={customEnd} onChange={e => setCustomEnd(e.target.value)} />
+            <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-2xl border border-slate-100 shadow-sm animate-in fade-in slide-in-from-right-2">
+              <input type="date" className="atrium-input border-0 bg-transparent py-0 text-xs font-bold text-primary" value={customStart} onChange={e => setCustomStart(e.target.value)} />
+              <span className="text-slate-300 font-bold">-</span>
+              <input type="date" className="atrium-input border-0 bg-transparent py-0 text-xs font-bold text-primary" value={customEnd} onChange={e => setCustomEnd(e.target.value)} />
             </div>
           )}
           <button 
             onClick={() => setIsEditing(!isEditing)}
-            className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-all ${isEditing ? 'bg-primary text-on-primary' : 'bg-surface-container-low text-on-surface border border-outline-variant/30 hover:bg-surface-container'}`}
+            className={`flex items-center justify-center gap-2 rounded-2xl px-5 py-3 text-sm font-bold transition-all relative overflow-hidden group ${isEditing ? 'bg-primary text-on-primary shadow-lg shadow-primary/25' : 'bg-white text-primary border border-slate-100 hover:bg-slate-50 shadow-sm'}`}
           >
-            <Icon className="text-lg" name="dashboard_customize" />
-            {isEditing ? "Done Editing" : "Customize"}
+            <div className={`absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity ${isEditing ? 'block' : 'hidden'}`} />
+            <Icon className={`text-xl transition-transform ${isEditing ? 'rotate-180' : ''}`} name={isEditing ? "check_circle" : "dashboard_customize"} />
+            {isEditing ? "Save View" : "Customize"}
           </button>
         </div>
       </div>
@@ -2813,67 +2939,82 @@ function AnalyticsPage(props: { data: BootstrapData }) {
         )}
         
         {visibleWidgets.includes("explorer") && (
-          <div className="rounded-2xl border border-outline-variant/20 bg-surface-container-lowest p-8 shadow-sm">
-            <h2 className="mb-6 font-headline text-lg font-semibold text-on-surface flex items-center gap-2">
-              <Icon name="explore" className="text-primary" />
-              Dynamic BI Explorer
-            </h2>
+          <div className="rounded-[2.5rem] border border-slate-100 bg-white p-10 shadow-[0_4px_32px_-12px_rgba(0,0,0,0.06)] relative overflow-hidden">
+            <div className="absolute left-0 bottom-0 h-64 w-64 bg-primary/5 blur-3xl -ml-20 -mb-20 rounded-full pointer-events-none" />
+            <div className="mb-10 flex items-center justify-between relative z-10">
+              <div>
+                <h2 className="font-headline text-2xl font-extrabold text-primary flex items-center gap-3">
+                  <div className="p-2 bg-primary/5 rounded-xl text-primary"><Icon name="explore" /></div>
+                  Dynamic Intelligence Explorer
+                </h2>
+                <p className="text-sm font-medium text-slate-400 mt-1">Self-service BI orchestration engine</p>
+              </div>
+              <div className="hidden sm:flex items-center gap-2 px-4 py-2 bg-slate-50 rounded-2xl border border-slate-100">
+                <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-500">Live Compute</span>
+              </div>
+            </div>
             
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8 bg-surface-container-low p-5 rounded-xl border border-outline-variant/10">
-              <Field label="Data Source">
-                <select className="atrium-input bg-surface-container-lowest text-sm py-2 px-3" value={biSource} onChange={e => {setBiSource(e.target.value as any); setBiXAxis("");}}>
-                  <option value="contacts">Contacts Registry</option>
-                  <option value="campaigns">Campaigns Database</option>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10 bg-slate-50/50 p-6 rounded-[2rem] border border-slate-100/50 relative z-10">
+              <Field label="Data Registry">
+                <select className="atrium-input bg-white text-xs font-bold py-2.5 px-4" value={biSource} onChange={e => {setBiSource(e.target.value as any); setBiXAxis("");}}>
+                  <option value="contacts">Contacts (Audience)</option>
+                  <option value="campaigns">Campaigns (Outreach)</option>
                 </select>
               </Field>
-              <Field label="Metric (Target Variable)">
-                <select className="atrium-input bg-surface-container-lowest text-sm py-2 px-3" value={biYAxis} onChange={e => setBiYAxis(e.target.value)}>
+              <Field label="Target Metric">
+                <select className="atrium-input bg-white text-xs font-bold py-2.5 px-4" value={biYAxis} onChange={e => setBiYAxis(e.target.value)}>
                   {biFields.map(f => <option key={f} value={f}>{f.replace("var:", "(Custom) ")}</option>)}
                 </select>
               </Field>
-              <Field label="Operation">
-                <select className="atrium-input bg-surface-container-lowest text-sm py-2 px-3" value={biAggregation} onChange={e => setBiAggregation(e.target.value as any)}>
-                  <option value="count">Count (Incidences)</option>
-                  <option value="sum">Sum (Mathematical Add)</option>
-                  <option value="max">Max (Peak Value)</option>
-                  <option value="min">Min (Lowest Value)</option>
-                  <option value="median">Median (Distribution curve midpoint)</option>
+              <Field label="Compute Mode">
+                <select className="atrium-input bg-white text-xs font-bold py-2.5 px-4" value={biAggregation} onChange={e => setBiAggregation(e.target.value as any)}>
+                  <option value="count">Count (Volume)</option>
+                  <option value="sum">Sum (Total Value)</option>
+                  <option value="max">Max (Peak)</option>
+                  <option value="min">Min (Floor)</option>
+                  <option value="median">Median (Mid-point)</option>
                 </select>
               </Field>
-              <Field label="Group By (Comparison X-Axis)">
-                <select className="atrium-input bg-surface-container-lowest text-sm py-2 px-3" value={biXAxis} onChange={e => setBiXAxis(e.target.value)}>
-                  <option value="">None (Global Calculation)</option>
+              <Field label="Pivot Dimension">
+                <select className="atrium-input bg-white text-xs font-bold py-2.5 px-4" value={biXAxis} onChange={e => setBiXAxis(e.target.value)}>
+                  <option value="">No Pivot (Global)</option>
                   {biFields.map(f => <option key={f} value={f}>{f.replace("var:", "(Custom) ")}</option>)}
                 </select>
               </Field>
             </div>
 
-            <div className="min-h-[220px] flex flex-col justify-end pt-4 border-t border-outline-variant/10 mt-6 relative">
+            <div className="min-h-[300px] flex flex-col justify-center relative z-10">
               {!biResult || biResult.length === 0 ? (
-                <div className="flex h-40 w-full flex-col items-center justify-center rounded-2xl border-2 border-dashed border-outline-variant/30 text-slate-400">
-                  <Icon name="monitoring" className="mb-2 text-3xl opacity-50" />
-                  <span className="text-sm font-medium">No valid mathematical slices found for the current configuration.</span>
+                <div className="flex h-56 w-full flex-col items-center justify-center rounded-[2rem] border-2 border-dashed border-slate-100 text-slate-300">
+                  <Icon name="query_stats" className="mb-3 text-4xl opacity-30" />
+                  <span className="text-xs font-bold uppercase tracking-widest">Awaiting Slicing Data...</span>
                 </div>
               ) : !biXAxis || (biResult.length === 1 && biResult[0].x === "All") ? (
-                <div className="flex w-full items-center justify-center p-8">
-                  <div className="flex flex-col items-center justify-center px-16 py-12 bg-primary-fixed/30 border-2 border-primary/20 rounded-[2rem] min-w-[340px] shadow-sm transform transition-all hover:scale-105">
-                    <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary/80 mb-3">{biAggregation} of {biYAxis.replace("var:", "")}</p>
-                    <h1 className="font-headline text-[4rem] font-extrabold text-primary leading-none">{biResult[0].y.toLocaleString()}</h1>
+                <div className="flex w-full items-center justify-center p-4">
+                  <div className="group relative flex flex-col items-center justify-center px-12 py-16 bg-white border border-slate-100 rounded-[3rem] min-w-[380px] shadow-[0_20px_50px_rgba(0,0,0,0.06)] transform transition-all hover:scale-[1.03]">
+                    <div className="absolute inset-0 bg-primary/5 rounded-inherit blur-2xl opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <p className="text-[10px] font-extrabold uppercase tracking-[0.3em] text-primary mb-5 relative z-10">{biAggregation} of {biYAxis.replace("var:", "").toUpperCase()}</p>
+                    <h1 className="font-headline text-[5rem] font-extrabold text-primary leading-none relative z-10 drop-shadow-sm">{biResult[0].y.toLocaleString()}</h1>
+                    <div className="mt-8 flex items-center gap-2 relative z-10 px-4 py-1.5 bg-emerald-50 rounded-full">
+                       <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                       <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest">Global Compute Value</span>
+                    </div>
                   </div>
                 </div>
               ) : (
-                <div className="relative w-full flex items-end justify-around gap-2 h-[260px] px-4">
-                  {biResult.slice(0, 20).map((row, i) => { 
+                <div className="relative w-full flex items-end justify-around gap-3 h-[280px] px-6 pt-4">
+                  {biResult.slice(0, 15).map((row, i) => { 
                     const maxVal = Math.max(...biResult.map(r => r.y)) || 1;
-                    const heightPct = Math.max(2, (row.y / maxVal) * 100);
+                    const heightPct = Math.max(4, (row.y / maxVal) * 100);
                     return (
-                      <div key={i} className="group relative flex-1 h-full flex flex-col justify-end items-center transition-all px-1 hover:z-10">
-                        <div className="absolute -top-12 opacity-0 group-hover:opacity-100 transition-opacity bg-surface-container-highest text-on-surface text-[11px] py-2 px-3 rounded-xl font-bold whitespace-nowrap shadow-lg">
-                          <span className="text-on-surface-variant font-medium mr-1">{row.x}:</span> {row.y.toLocaleString()}
+                      <div key={i} className="group relative flex-1 h-full flex flex-col justify-end items-center transition-all hover:z-10">
+                        <div className="absolute -top-14 opacity-0 group-hover:opacity-100 transition-all bg-slate-900 text-white text-[10px] py-2 px-4 rounded-xl font-bold whitespace-nowrap shadow-2xl transform translate-y-2 group-hover:translate-y-0">
+                          <span className="text-slate-400 font-medium mr-2">{row.x}:</span> {row.y.toLocaleString()}
                         </div>
-                        <div className="w-full max-w-[64px] min-w-[20px] rounded-t-lg bg-primary hover:bg-primary-fixed shadow-[0_-4px_12px_rgba(var(--color-primary),0.2)] transition-all" style={{ height: `${heightPct}%` }} />
-                        <div className="h-[40px] mt-2 w-full max-w-[64px] overflow-hidden">
-                          <span className="text-[10px] text-on-surface font-semibold truncate w-full block text-center break-words leading-tight" title={row.x}>{row.x === "All" ? "Total" : row.x}</span>
+                        <div className="w-full max-w-[80px] min-w-[24px] rounded-t-2xl bg-primary transition-all group-hover:bg-primary group-hover:shadow-[0_0_20px_rgba(var(--color-primary),0.2)]" style={{ height: `${heightPct}%` }} />
+                        <div className="h-[40px] mt-4 w-full">
+                          <span className="text-[10px] text-slate-800 font-bold truncate w-full block text-center break-words leading-tight" title={row.x}>{row.x === "All" ? "Global" : row.x}</span>
                         </div>
                       </div>
                     );
@@ -2987,21 +3128,31 @@ function MinimalMetricCard(props: { label: string; value: string; trend: string;
   const isPositive = !props.trend.startsWith("-");
 
   return (
-    <div className="flex flex-col justify-between rounded-2xl border border-outline-variant/20 bg-surface-container-lowest p-6 shadow-sm hover:shadow-md transition-shadow">
-      <div className="mb-6 flex items-start justify-between">
-        <h3 className="text-xs font-bold uppercase tracking-widest text-on-surface-variant">{props.label}</h3>
-        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${isPositive ? 'bg-primary/10 text-primary' : 'bg-error/10 text-error'}`}>
+    <div className={`overflow-hidden group relative flex flex-col justify-between rounded-[2rem] border border-slate-100 bg-white p-7 shadow-[0_4px_20px_-8px_rgba(0,0,0,0.05)] transition-all hover:shadow-[0_12px_40px_-12px_rgba(0,0,0,0.08)] hover:-translate-y-1`}>
+      {/* Dynamic Background Glow */}
+      <div className={`absolute -right-8 -top-8 h-24 w-24 rounded-full blur-[40px] transition-opacity opacity-0 group-hover:opacity-100 ${isPositive ? 'bg-primary/20' : 'bg-error/20'}`} />
+      
+      <div className="mb-8 flex items-start justify-between relative z-10">
+        <h3 className="text-[10px] font-extrabold uppercase tracking-[0.24em] text-slate-400">{props.label}</h3>
+        <div className={`flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-extrabold transition-all ${isPositive ? 'bg-emerald-50 text-emerald-600' : 'bg-error/5 text-error'}`}>
+          <Icon name={isPositive ? "trending_up" : "trending_down"} className="text-xs" />
           {props.trend}
-        </span>
+        </div>
       </div>
-      <div className="flex items-end justify-between gap-4">
-        <p className="font-headline text-3xl font-medium text-on-surface">{props.value}</p>
-        <div className="w-16 h-8 flex-shrink-0 opacity-70">
+      <div className="flex items-end justify-between gap-4 relative z-10">
+        <p className="font-headline text-4xl font-extrabold tracking-tight text-primary">{props.value}</p>
+        <div className="w-20 h-10 flex-shrink-0 opacity-40 group-hover:opacity-80 transition-all duration-500">
           <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-full overflow-visible">
+            <defs>
+              <linearGradient id={`grad-${props.label.replace(/\s+/g, '')}`} x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stopColor="currentColor" stopOpacity="0.2" />
+                <stop offset="100%" stopColor="currentColor" stopOpacity="0" />
+              </linearGradient>
+            </defs>
             <polyline
               fill="none"
               stroke="currentColor"
-              strokeWidth="2.5"
+              strokeWidth="3"
               strokeLinecap="round"
               strokeLinejoin="round"
               points={points}
@@ -3811,17 +3962,20 @@ function WizardStep(props: { index: number; label: string; status: string; dim?:
   const active = !props.dim && props.status === "selected";
   const pending = !props.dim && props.status === "pending";
   return (
-    <div className={`flex items-center gap-4 ${props.dim ? "opacity-50" : ""}`}>
-      <div
-        className={`flex h-10 w-10 items-center justify-center rounded-full font-bold ${
-          active ? "bg-primary text-on-primary" : pending ? "bg-primary-container text-on-primary-container" : "border border-outline-variant bg-surface-container-highest text-on-surface"
-        }`}
-      >
-        {props.index}
+    <div className={`flex items-center gap-4 transition-all duration-500 ${props.dim ? "opacity-40 grayscale" : ""}`}>
+      <div className="relative group">
+        <div className={`absolute -inset-2 rounded-full blur-md transition-opacity duration-500 ${active ? "bg-primary/30 opacity-100" : "opacity-0"}`} />
+        <div
+          className={`relative z-10 flex h-12 w-12 items-center justify-center rounded-2xl font-extrabold shadow-sm transition-colors duration-300 ${
+            active ? "bg-primary text-on-primary shadow-primary/30" : pending ? "bg-emerald-50 text-primary border border-emerald-100" : "border border-slate-200 bg-slate-50 text-slate-400"
+          }`}
+        >
+          {pending && props.status !== "selected" ? <Icon name="check" className="text-xl" /> : props.index}
+        </div>
       </div>
       <div className="flex flex-col">
-        <span className={`text-sm font-bold ${active || pending ? "text-primary" : "text-on-surface"}`}>{props.label}</span>
-        <span className="text-[10px] uppercase tracking-wider text-outline">{props.status}</span>
+        <span className={`text-sm font-extrabold transition-colors duration-300 ${active ? "text-primary" : pending ? "text-slate-800" : "text-slate-400"}`}>{props.label}</span>
+        <span className={`text-[9px] uppercase tracking-[0.2em] font-bold ${active ? "text-primary/70" : "text-slate-300"}`}>{active ? "In Progress" : props.status === "pending" ? "Completed" : "Locked"}</span>
       </div>
     </div>
   );
@@ -3839,11 +3993,67 @@ function MarketingPill(props: { title: string; subtitle: string; icon: string })
   );
 }
 
+function MobileContactCard(props: {
+  contact: Contact;
+  data: BootstrapData;
+  onOpen: (id: string, channelId: string) => void;
+}) {
+  return (
+    <div className="rounded-3xl bg-white p-5 border border-slate-100 shadow-sm active:scale-[0.98] transition-all">
+      <div className="flex items-start justify-between mb-4">
+        <div className="flex items-center gap-3">
+          <Avatar label={fullName(props.contact)} size="h-12 w-12" />
+          <div className="min-w-0">
+            <div className="text-sm font-extrabold text-primary truncate max-w-[160px]">{fullName(props.contact)}</div>
+            <div className="text-[10px] font-bold text-outline/70 mt-0.5">{props.contact.phone}</div>
+          </div>
+        </div>
+        <button 
+           className="p-2.5 rounded-full bg-primary/5 text-primary hover:bg-primary/10 transition-colors"
+           onClick={() => props.onOpen(props.contact.id, props.data.channels[0]?.id)}
+        >
+          <Icon name="chat" className="text-xl" />
+        </button>
+      </div>
+      
+      <div className="grid grid-cols-2 gap-3 mb-4">
+        {props.contact.company && (
+          <div className="bg-surface-container-low/50 p-2.5 rounded-xl">
+            <div className="text-[9px] font-bold uppercase tracking-wider text-outline/50">Company</div>
+            <div className="text-[11px] font-bold text-slate-700 truncate mt-0.5">{props.contact.company}</div>
+          </div>
+        )}
+        <div className="bg-surface-container-low/50 p-2.5 rounded-xl">
+          <div className="text-[9px] font-bold uppercase tracking-wider text-outline/50">Status</div>
+          <div className="mt-1 flex items-center gap-1.5">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+            <span className="text-[10px] font-extrabold text-emerald-600 uppercase tracking-tight">Verified</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap gap-1.5">
+        {(props.contact.labels.length ? props.contact.labels : props.contact.segmentIds.slice(0, 3)).map((labelOrId) => (
+           <span
+             className="rounded-lg bg-slate-100 px-2 py-1 text-[9px] font-extrabold uppercase tracking-tight text-slate-500"
+             key={labelOrId}
+           >
+             {resolveLabel(labelOrId, props.data)}
+           </span>
+        ))}
+        {(!props.contact.labels.length && !props.contact.segmentIds.length) && (
+           <span className="text-[10px] text-slate-300 italic">No segments</span>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function OverviewMetric(props: { label: string; value: string }) {
   return (
-    <div className="flex-1 rounded-2xl border border-outline-variant/10 bg-surface-container-lowest p-4">
-      <div className="text-xs font-semibold text-on-surface-variant">{props.label}</div>
-      <div className="text-2xl font-bold text-primary">{props.value}</div>
+    <div className="min-w-[180px] rounded-2xl bg-white border border-slate-100 p-5 shadow-[0_4px_12px_-4px_rgba(0,0,0,0.05)] transition-all hover:shadow-md hover:scale-[1.02]">
+      <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-outline/60">{props.label}</div>
+      <div className="mt-1 font-headline text-3xl font-extrabold tracking-tight text-primary">{props.value}</div>
     </div>
   );
 }
@@ -3871,17 +4081,21 @@ function AtriumNavLink(props: { to: string; label: string; icon: string; compact
           props.collapsed ? "justify-center px-4" : "gap-4",
           props.compact ? "py-2.5 text-[11px] font-bold uppercase tracking-wider" : "py-3.5 text-sm font-bold",
           isActive
-            ? "bg-gradient-to-r from-primary/10 to-primary/[0.04] text-primary shadow-[0_4px_12px_-4px_rgba(0,168,132,0.15)] ring-1 ring-primary/10"
+            ? "bg-gradient-to-r from-primary/8 via-primary/[0.03] to-transparent text-primary shadow-[0_8px_20px_-12px_rgba(0,168,132,0.2)] ring-1 ring-primary/10"
             : "text-slate-500 hover:bg-slate-100/70 hover:text-slate-900"
         ].join(" ")
       }
       title={props.collapsed ? props.label : undefined}
       to={props.to}
     >
-      <Icon className={props.compact ? "text-lg" : "text-xl"} name={props.icon} fill={true} />
-      {!props.collapsed ? <span>{props.label}</span> : null}
-      {!props.collapsed && (
-        <span className="absolute right-4 h-1 w-1 rounded-full bg-primary opacity-0 group-hover:opacity-100 transition-opacity"></span>
+      {({ isActive }) => (
+        <>
+          <Icon className={props.compact ? "text-lg" : "text-xl"} name={props.icon} fill={true} />
+          {!props.collapsed ? <span>{props.label}</span> : null}
+          
+          {/* Active Indicator Bar */}
+          <div className={`absolute left-0 top-1/2 -translate-y-1/2 h-6 w-1 rounded-r-full bg-primary transition-all duration-300 ${isActive ? "opacity-100 scale-y-100" : "opacity-0 scale-y-0"}`} />
+        </>
       )}
     </NavLink>
   );
@@ -3890,13 +4104,13 @@ function AtriumNavLink(props: { to: string; label: string; icon: string; compact
 function SidebarUtility(props: { label: string; icon: string; collapsed?: boolean }) {
   return (
     <a
-      className={`flex rounded-xl px-4 py-3 text-left text-sm font-medium text-slate-500 transition-all hover:bg-slate-200/50 hover:text-emerald-800 ${
+      className={`group flex rounded-xl px-4 py-3.5 text-left text-sm font-bold text-slate-400 transition-all hover:bg-primary/5 hover:text-primary ${
         props.collapsed ? "justify-center" : "items-center gap-3"
       }`}
       href="#"
       title={props.collapsed ? props.label : undefined}
     >
-      <Icon className="text-lg" name={props.icon} />
+      <Icon className="text-xl transition-transform group-hover:scale-110" name={props.icon} />
       {!props.collapsed ? <span>{props.label}</span> : null}
     </a>
   );
