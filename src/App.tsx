@@ -357,6 +357,7 @@ function DashboardShell(props: {
   } as Record<string, { title: string; searchPlaceholder: string }>;
   
   const [isSearchExpanded, setIsSearchExpanded] = useState(false);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [activeMobileTab, setActiveMobileTab] = useState(location.pathname);
 
   useEffect(() => {
@@ -540,13 +541,16 @@ function DashboardShell(props: {
                 >
                   <Icon name="search" />
                 </button>
-                <div className="flex items-center gap-2 lg:gap-3 rounded-2xl bg-white/80 px-1 py-1 lg:px-2 lg:py-1.5 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)] border border-slate-100">
+                <button 
+                  onClick={() => setIsProfileOpen(true)}
+                  className="flex items-center gap-2 lg:gap-3 rounded-2xl bg-white/80 px-1 py-1 lg:px-2 lg:py-1.5 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)] border border-slate-100 hover:border-primary/30 transition-all"
+                >
                   <div className="hidden text-right sm:block">
                     <p className="text-[11px] font-extrabold leading-tight text-primary">{props.data.user.name}</p>
                     <p className="mt-0.5 text-[9px] font-bold uppercase tracking-[0.16em] text-outline/70">{props.data.user.role}</p>
                   </div>
                   <Avatar label={props.data.user.name} size="h-8 w-8 lg:h-9 lg:w-9" />
-                </div>
+                </button>
               </div>
             </>
           )}
@@ -622,6 +626,14 @@ function DashboardShell(props: {
           <Route path="*" element={<Navigate to="/inbox" replace />} />
         </Routes>
       </main>
+
+      {isProfileOpen && (
+        <MobileUserProfilePopUp 
+          user={props.data.user} 
+          onClose={() => setIsProfileOpen(false)} 
+          onLogout={props.onLogout} 
+        />
+      )}
     </div>
   );
 }
@@ -909,6 +921,13 @@ function InboxPage(props: {
       <div className={`flex min-w-0 flex-1 flex-col overflow-hidden bg-surface ${props.selectedConversationId ? 'flex' : 'hidden lg:flex'}`}>
         <div className="z-10 flex flex-col gap-3 bg-surface-container-lowest px-4 py-4 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:px-6">
           <div className="flex items-center gap-4">
+            <button 
+              onClick={() => props.onSelectConversation(null)}
+              className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-50 text-slate-400 hover:text-primary lg:hidden"
+              title="Return to list"
+            >
+               <Icon name="arrow_back" />
+            </button>
             <div className="relative">
               <Avatar label={selectedConversation ? fullName(selectedConversation.contact) : "Contact"} size="h-10 w-10" />
               <div className={`mt-1 flex h-4 w-4 items-center justify-center rounded-md border border-slate-200 bg-white shadow-inner`}>
@@ -6296,4 +6315,58 @@ function LandingPageEditor(props: { pageId: string | null; data: BootstrapData; 
   </div>
 </>
 );
+}
+function MobileUserProfilePopUp(props: { user: BootstrapData["user"]; onClose: () => void; onLogout: () => void }) {
+  const navigate = useNavigate();
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 lg:hidden">
+      <div className="fixed inset-0 bg-slate-950/40 backdrop-blur-sm animate-in fade-in duration-300" onClick={props.onClose} />
+      <div className="relative w-full max-w-sm rounded-[2.5rem] bg-white p-8 shadow-[0_20px_50px_rgba(0,0,0,0.15)] animate-in zoom-in-95 slide-in-from-bottom-10 duration-500 overflow-hidden">
+        <div className="absolute right-0 top-0 translate-x-1/4 -translate-y-1/4 opacity-5 pointer-events-none">
+          <Icon name="person" className="text-[12rem] text-primary" />
+        </div>
+        
+        <div className="relative z-10 flex flex-col items-center text-center">
+          <Avatar label={props.user.name} size="h-20 w-20 mb-4 ring-4 ring-slate-50 shadow-md" />
+          <h2 className="text-xl font-black text-slate-900 leading-tight">{props.user.name}</h2>
+          <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.2em] text-primary bg-primary/5 px-3 py-1 rounded-full">{props.user.role}</p>
+          
+          <div className="mt-8 w-full space-y-3">
+             <button 
+              onClick={() => { navigate("/settings"); props.onClose(); }}
+              className="flex w-full items-center gap-4 rounded-2xl bg-slate-50 px-5 py-4 text-left transition-all hover:bg-slate-100 active:scale-[0.98]"
+             >
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white shadow-sm text-slate-400">
+                   <Icon name="settings" fill={false} />
+                </div>
+                <div>
+                   <p className="text-[9px] font-extrabold uppercase tracking-widest text-slate-400">Workspace</p>
+                   <p className="text-sm font-bold text-slate-700">Studio Settings</p>
+                </div>
+             </button>
+             
+             <button 
+              onClick={props.onLogout}
+              className="flex w-full items-center gap-4 rounded-2xl bg-error/5 px-5 py-4 text-left text-error transition-all hover:bg-error/10 active:scale-[0.98]"
+             >
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white shadow-sm">
+                   <Icon name="logout" fill={false} />
+                </div>
+                <div>
+                   <p className="text-[9px] font-extrabold uppercase tracking-widest opacity-60">Security</p>
+                   <p className="text-sm font-bold">Log Out</p>
+                </div>
+             </button>
+          </div>
+          
+          <button 
+            onClick={props.onClose}
+            className="mt-8 text-[10px] font-black uppercase tracking-[0.3em] text-slate-300 hover:text-slate-900 transition-colors"
+          >
+            Dismiss
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }
