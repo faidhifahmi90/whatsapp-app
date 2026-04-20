@@ -66,7 +66,7 @@ import {
   findContactByRegistrationNo,
   normalizeRegNo
 } from "./db.js";
-import { generateLandingPageFromContent } from "./geminiService.js";
+import { generateLandingPageFromContent, generatePlan, executeWithSkills, refineSection } from "./geminiService.js";
 
 import {
   buildContentVariables,
@@ -1773,6 +1773,57 @@ let dispatcherInterval = setInterval(() => {
     }
   }
 }, 60000); // Evaluates the pipeline precisely every 60 seconds
+
+
+// ~~~ ANTIGRAVITY AGENT MANAGER API ~~~
+
+// 1. Generate Architecture Plan
+app.post("/api/ai/plan", async (req, res) => {
+  try {
+    const { rawContent, name, description } = req.body;
+    const plan = await generatePlan({
+      prompt: rawContent,
+      businessName: name,
+      description
+    });
+    res.json({ plan });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 2. Execute Plan to JSON
+app.post("/api/ai/execute", async (req, res) => {
+  try {
+    const { plan, name, industry, goal, description, sections } = req.body;
+    const aiSections = await executeWithSkills({
+      plan,
+      businessName: name,
+      industry,
+      goal,
+      description,
+      currentSections: sections
+    });
+    res.json({ sections: aiSections });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 3. Visual Feedback (Refine Section)
+app.post("/api/ai/refine-section", async (req, res) => {
+  try {
+    const { section, feedback, businessContext } = req.body;
+    const updatedSection = await refineSection({
+      section,
+      feedback,
+      businessContext
+    });
+    res.json({ section: updatedSection });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 function gracefulShutdown(signal: string) {
   console.log(`\n[${signal}] Initiating graceful shutdown sequence...`);

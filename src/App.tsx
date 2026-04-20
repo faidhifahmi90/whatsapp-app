@@ -4868,42 +4868,91 @@ function LandingPageEditor(props: { pageId: string | null; data: BootstrapData; 
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   
-  // Wix-style editor states
     const [activeTab, setActiveTab] = useState<'design' | 'magic'>('magic');
     const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
     const [showGallery, setShowGallery] = useState(false);
 
-  const generateWithGemini = async () => {
+    // Antigravity Agent Manager states
+    const [phase, setPhase] = useState<'input' | 'planning' | 'executing'>('input');
+    const [implementationPlan, setImplementationPlan] = useState("");
+    const [previewMode, setPreviewMode] = useState<'react' | 'sandbox'>('react');
+    const [feedbackIndex, setFeedbackIndex] = useState<number | null>(null);
+    const [feedbackText, setFeedbackText] = useState("");
+    const [isRefining, setIsRefining] = useState(false);
+
+  // Phase 1: Planning
+  const handleGeneratePlan = async () => {
     if (!magicPrompt) return;
+    setPhase('planning');
     setIsGenerating(true);
-    
     try {
-      const resp: any = await api("/api/ai/smart-build", {
+      const resp: any = await api("/api/ai/plan", {
         method: "POST",
         body: JSON.stringify({
-          name: form.name,
-          description: form.description,
           rawContent: magicPrompt,
-          sections: form.sections,
-          style: form.theme?.backgroundColor === '#000000' ? 'bold' : 'modern',
-          goal: 'info'
+          name: form.name,
+          description: form.description
         })
       });
-
-      if (resp && resp.sections) {
-        setForm(prev => ({ 
-          ...prev, 
-          sections: resp.sections,
-          name: prev.name || resp.name,
-          slug: prev.slug || resp.slug,
-          title: prev.title || resp.title
-        }));
-      }
+      setImplementationPlan(resp.plan);
     } catch (err) {
-      alert("AI generation failed. Please check your connection or API configuration.");
+      alert("Failed to generate plan.");
+      setPhase('input');
     } finally {
       setIsGenerating(false);
-      setMagicPrompt("");
+    }
+  };
+
+  // Phase 2: Execution
+  const handleExecutePlan = async () => {
+    setPhase('executing');
+    setIsGenerating(true);
+    try {
+      const resp: any = await api("/api/ai/execute", {
+        method: "POST",
+        body: JSON.stringify({
+          plan: implementationPlan,
+          name: form.name,
+          description: form.description,
+          sections: form.sections
+        })
+      });
+      if (resp.sections) {
+        setForm(prev => ({ ...prev, sections: resp.sections }));
+        setPhase('input');
+        setMagicPrompt("");
+      }
+    } catch (err) {
+      alert("Execution failed.");
+      setPhase('planning');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const handleRefineSection = async (idx: number) => {
+    if (!feedbackText) return;
+    setIsRefining(true);
+    try {
+      const resp: any = await api("/api/ai/refine-section", {
+        method: "POST",
+        body: JSON.stringify({
+          section: form.sections[idx],
+          feedback: feedbackText,
+          businessContext: { name: form.name, description: form.description }
+        })
+      });
+      if (resp.section) {
+        const next = [...form.sections];
+        next[idx] = resp.section;
+        setForm({ ...form, sections: next });
+        setFeedbackIndex(null);
+        setFeedbackText("");
+      }
+    } catch (err) {
+      alert("Refinement failed.");
+    } finally {
+      setIsRefining(false);
     }
   };
 
@@ -4956,43 +5005,88 @@ function LandingPageEditor(props: { pageId: string | null; data: BootstrapData; 
             {/* Tab Body */}
             <div className="flex-1 overflow-y-auto p-6 scrollbar-hide">
 
-              {/* Magic (AI Architect) */}
+              {/* Magic (AI Architect) - Agent Manager implementation */}
               {activeTab === 'magic' && (
                 <div className="space-y-6 animate-fade-in">
-                  <div className="p-5 rounded-3xl bg-primary/5 border border-primary/10 shadow-inner">
-                    <p className="text-[10px] font-bold text-primary uppercase tracking-[0.2em] mb-3 flex items-center gap-2">
-                      <Icon name="magic_button" className="text-sm" /> AI Architect
-                    </p>
-                    <textarea
-                      className="atrium-input bg-white text-xs min-h-[120px] resize-none border-primary/10 focus:border-primary/30"
-                      placeholder="e.g. 'Add a pricing section with 3 tiers' or 'Make the hero section headline more punchy'..."
-                      value={magicPrompt}
-                      onChange={e => setMagicPrompt(e.target.value)}
-                    />
-                    <button
-                      disabled={isGenerating || !magicPrompt}
-                      onClick={generateWithGemini}
-                      className="mt-3 w-full py-4 rounded-2xl bg-primary text-xs font-bold text-on-primary shadow-lg shadow-primary/20 disabled:opacity-50 flex items-center justify-center gap-2 active:scale-95 transition-all"
-                    >
-                      {isGenerating ? <span className="animate-spin text-sm">⌛</span> : <Icon name="auto_fix_high" className="text-sm" />}
-                      {isGenerating ? 'Update Page with Gemini' : 'Re-Architect with AI'}
-                    </button>
-                  </div>
                   
-                  <div className="p-5 rounded-3xl bg-slate-50 border border-slate-100">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">Current Structure</p>
-                    <div className="space-y-2">
-                       {form.sections.map((s: any, idx: number) => (
-                         <div key={idx} className="flex items-center gap-3 p-3 rounded-xl bg-white border border-slate-100 group">
-                           <div className="h-7 w-7 rounded-lg bg-slate-50 flex items-center justify-center text-slate-400 text-xs">
-                             {idx + 1}
-                           </div>
-                           <p className="text-[10px] font-bold text-slate-600 uppercase tracking-tight flex-1">{s.type}</p>
-                           <Icon name="check_circle" className="text-emerald-400 text-sm" />
-                         </div>
-                       ))}
+                  {/* Phase 1: Input */}
+                  {phase === 'input' && (
+                    <div className="p-5 rounded-3xl bg-primary/5 border border-primary/10 shadow-inner">
+                      <p className="text-[10px] font-bold text-primary uppercase tracking-[0.2em] mb-3 flex items-center gap-2">
+                        <Icon name="magic_button" className="text-sm" /> AI Architect
+                      </p>
+                      <textarea
+                        className="atrium-input bg-white text-xs min-h-[120px] resize-none border-primary/10 focus:border-primary/30"
+                        placeholder="e.g. 'Add a dark mode saas hero and 3 pricing tiers'..."
+                        value={magicPrompt}
+                        onChange={e => setMagicPrompt(e.target.value)}
+                      />
+                      <button
+                        disabled={isGenerating || !magicPrompt}
+                        onClick={handleGeneratePlan}
+                        className="mt-3 w-full py-4 rounded-2xl bg-primary text-xs font-bold text-on-primary shadow-lg shadow-primary/20 disabled:opacity-50 flex items-center justify-center gap-2 active:scale-95 transition-all"
+                      >
+                        {isGenerating ? <span className="animate-spin text-sm">⌛</span> : <Icon name="description" className="text-sm" />}
+                        {isGenerating ? 'Analyzing...' : 'Generate Implementation Plan'}
+                      </button>
                     </div>
-                  </div>
+                  )}
+
+                  {/* Phase 2: Planning */}
+                  {phase === 'planning' && (
+                    <div className="space-y-4 animate-fade-in">
+                      <div className="p-5 rounded-3xl bg-slate-50 border border-slate-100 shadow-sm relative group">
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                           <Icon name="assignment" className="text-sm text-primary" /> Implementation Plan
+                        </p>
+                        <div className="prose prose-slate prose-sm max-h-[400px] overflow-y-auto scrollbar-hide text-[10px] leading-relaxed text-slate-600 font-medium whitespace-pre-wrap">
+                          {implementationPlan}
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <button
+                          disabled={isGenerating}
+                          onClick={handleExecutePlan}
+                          className="w-full py-4 rounded-2xl bg-primary text-xs font-bold text-on-primary shadow-lg shadow-primary/20 flex items-center justify-center gap-2 active:scale-95 transition-all"
+                        >
+                          {isGenerating ? <span className="animate-spin text-sm">⌛</span> : <Icon name="play_arrow" className="text-sm" />}
+                          {isGenerating ? 'Executing Architecture...' : 'Approve & Build Site'}
+                        </button>
+                        <button
+                          onClick={() => setPhase('input')}
+                          className="w-full py-3 rounded-xl border border-slate-200 text-xs font-bold text-slate-400 hover:text-slate-600 transition-all"
+                        >
+                          Cancel / Edit Prompt
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Phase 3: Executing (Global Loader) */}
+                  {phase === 'executing' && (
+                    <div className="flex flex-col items-center justify-center py-20 animate-pulse">
+                      <div className="h-16 w-16 rounded-full border-4 border-primary/10 border-t-primary animate-spin mb-6" />
+                      <p className="text-xs font-bold text-primary uppercase tracking-widest">Building Live Canvas...</p>
+                    </div>
+                  )}
+
+                  {/* Structure View (Only in Input/Refine states) */}
+                  {phase === 'input' && (
+                    <div className="p-5 rounded-3xl bg-slate-50 border border-slate-100">
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">Current Structure</p>
+                      <div className="space-y-2">
+                        {form.sections.map((s: any, idx: number) => (
+                          <div key={idx} className="flex items-center gap-3 p-3 rounded-xl bg-white border border-slate-100 group">
+                            <div className="h-7 w-7 rounded-lg bg-slate-50 flex items-center justify-center text-slate-400 text-xs">
+                              {idx + 1}
+                            </div>
+                            <p className="text-[10px] font-bold text-slate-600 uppercase tracking-tight flex-1">{s.type}</p>
+                            <Icon name="check_circle" className="text-emerald-400 text-sm" />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -5048,25 +5142,104 @@ function LandingPageEditor(props: { pageId: string | null; data: BootstrapData; 
             </div>
           </div>
 
-          {/* Canvas */}
-          <div className="flex-1 bg-slate-100 overflow-y-auto p-12 scrollbar-hide">
-            <div className="mx-auto max-w-4xl min-h-[800px] bg-white shadow-2xl rounded-[3rem] overflow-hidden border border-slate-200">
-              {form.sections.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-[500px] text-slate-300">
-                  <Icon name="design_services" className="text-6xl mb-4 opacity-20" />
-                  <p className="font-bold text-xl">The canvas is blank.</p>
-                  <p className="text-sm mt-2">Use Magic AI or add sections from the sidebar.</p>
+          {/* Canvas & Sandbox Header */}
+          <div className="flex-1 bg-slate-100 flex flex-col overflow-hidden relative">
+            <div className="p-4 border-b border-slate-200 bg-white/80 backdrop-blur-md flex items-center justify-between sticky top-0 z-[70]">
+              <div className="flex bg-slate-100 rounded-xl p-1">
+                <button onClick={() => setPreviewMode('react')} className={`px-4 py-1.5 rounded-lg text-[10px] font-bold uppercase transition-all ${previewMode === 'react' ? 'bg-white shadow-sm text-primary' : 'text-slate-400'}`}>React Canvas</button>
+                <button onClick={() => setPreviewMode('sandbox')} className={`px-4 py-1.5 rounded-lg text-[10px] font-bold uppercase transition-all ${previewMode === 'sandbox' ? 'bg-white shadow-sm text-primary' : 'text-slate-400'}`}>Sandbox Iframe</button>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Antigravity Live</span>
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-12 scrollbar-hide relative">
+              {previewMode === 'sandbox' ? (
+                <div className="w-full h-full bg-slate-200 rounded-[3rem] overflow-hidden shadow-inner border-[12px] border-slate-900 relative">
+                  <div className="absolute top-0 left-0 w-full h-8 bg-slate-800 flex items-center px-4 gap-2">
+                    <div className="h-2 w-2 rounded-full bg-red-400" /><div className="h-2 w-2 rounded-full bg-amber-400" /><div className="h-2 w-2 rounded-full bg-emerald-400" />
+                    <div className="ml-4 h-4 flex-1 bg-slate-700/50 rounded-full" />
+                  </div>
+                  <iframe 
+                    className="w-full h-full pt-8 bg-white" 
+                    title="Sandbox Preview"
+                    srcDoc={`
+                      <html>
+                        <head>
+                          <script src="https://cdn.tailwindcss.com"></script>
+                          <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+                          <style> body { margin: 0; font-family: sans-serif; } </style>
+                        </head>
+                        <body>
+                          <div id="root">
+                            ${form.sections.map((s: any) => `
+                              <div style="padding: 100px 50px; border-bottom: 1px solid #eee;">
+                                <h1 style="font-size: 40px; font-weight: 800;">${s.title || s.type}</h1>
+                                <p style="opacity: 0.6;">${s.subtitle || ''}</p>
+                              </div>
+                            `).join('')}
+                          </div>
+                        </body>
+                      </html>
+                    `}
+                  />
                 </div>
               ) : (
-                <div className="w-full" style={{ backgroundColor: form.theme.backgroundColor, color: form.theme.textColor }}>
-                  {form.sections.map((section: any, idx: number) => (
-                    <div
-                      key={idx}
-                      className={`relative group/section transition-all cursor-pointer ${selectedIdx === idx ? 'ring-2 ring-primary ring-inset' : 'hover:bg-primary/[0.01]'}`}
-                      onClick={e => { e.stopPropagation(); setSelectedIdx(idx); }}
-                    >
-                      {/* Floating controls removed for AI-First feel */}
-                      
+                <div className="mx-auto max-w-4xl min-h-screen bg-white shadow-2xl rounded-[3rem] overflow-hidden border border-slate-200 relative">
+                  {form.sections.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center h-[500px] text-slate-300">
+                      <Icon name="design_services" className="text-6xl mb-4 opacity-20" />
+                      <p className="font-bold text-xl">The canvas is blank.</p>
+                      <p className="text-sm mt-2">Use AI Architect to build your page.</p>
+                    </div>
+                  ) : (
+                    <div className="w-full" style={{ backgroundColor: form.theme.backgroundColor, color: form.theme.textColor }}>
+                      {form.sections.map((section: any, idx: number) => (
+                        <div
+                          key={idx}
+                          className={`relative group/section transition-all cursor-pointer ${selectedIdx === idx ? 'ring-2 ring-primary ring-inset' : 'hover:bg-primary/[0.01]'}`}
+                          onClick={e => { e.stopPropagation(); setSelectedIdx(idx); }}
+                        >
+                          {/* Visual Feedback (Comment Tool) Overlay */}
+                          <div className="absolute left-6 top-6 opacity-0 group-hover/section:opacity-100 transition-all z-50 pointer-events-none">
+                            <div className="pointer-events-auto">
+                              {feedbackIndex === idx ? (
+                                <div className="bg-white p-3 rounded-[1.5rem] shadow-2xl border border-primary/20 flex flex-col gap-2 w-64 animate-scale-in origin-top-left">
+                                  <textarea 
+                                    autoFocus
+                                    className="atrium-input text-[10px] min-h-[60px] resize-none"
+                                    placeholder="e.g. 'Make this headline bigger'..."
+                                    value={feedbackText}
+                                    onChange={e => setFeedbackText(e.target.value)}
+                                  />
+                                  <div className="flex gap-1.5">
+                                    <button 
+                                      disabled={isRefining || !feedbackText}
+                                      onClick={() => handleRefineSection(idx)}
+                                      className="flex-1 py-1.5 rounded-lg bg-primary text-[9px] font-bold text-on-primary shadow-lg shadow-primary/20"
+                                    >
+                                      {isRefining ? 'Refining...' : 'Update Section'}
+                                    </button>
+                                    <button 
+                                      onClick={() => setFeedbackIndex(null)}
+                                      className="px-3 py-1.5 rounded-lg border border-slate-100 text-[9px] font-bold text-slate-400"
+                                    >
+                                      Cancel
+                                    </button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <button 
+                                  onClick={(e) => { e.stopPropagation(); setFeedbackIndex(idx); }}
+                                  className="h-10 w-10 rounded-full bg-white shadow-xl border border-slate-100 flex items-center justify-center text-primary hover:scale-110 active:scale-95 transition-all"
+                                >
+                                  <Icon name="chat_bubble_outline" className="text-sm" />
+                                </button>
+                              )}
+                            </div>
+                          </div>
 
                       {section.type === 'hero' && (
                         <div className={`py-24 px-12 border-b border-black/5 ${section.layout === 'centered' ? 'text-center' : section.layout === 'split' ? 'flex flex-col md:flex-row items-center gap-12' : 'text-left'}`}>
@@ -5178,10 +5351,11 @@ function LandingPageEditor(props: { pageId: string | null; data: BootstrapData; 
                 </div>
               )}
             </div>
-          </div>
-
+          )}
         </div>
       </div>
-    </>
-  );
+    </div>
+  </div>
+</>
+);
 }

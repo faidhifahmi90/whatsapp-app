@@ -1,5 +1,6 @@
 import { GoogleGenerativeAI, SchemaType } from "@google/generative-ai";
 import dotenv from "dotenv";
+import { SKILLS, SkillKey } from "./skills";
 
 dotenv.config();
 
@@ -67,5 +68,120 @@ export async function generateLandingPageFromContent(params: {
   } catch (err) {
     console.error("Failed to parse Gemini response:", err);
     throw new Error("AI returned invalid structure");
+  }
+}
+
+/**
+ * Agent Manager: Phase 1 - Planning
+ * Generates a high-level Implementation Plan (Markdown).
+ */
+export async function generatePlan(params: {
+  prompt: string;
+  businessName?: string;
+  description?: string;
+}) {
+  const model = genAI.getGenerativeModel({ 
+    model: "gemini-1.5-flash",
+    systemInstruction: "You are an Agent Manager. Analyze the user's prompt and create a technical Implementation Plan in Markdown. Focus on layout, tone, selected skills, and unique features. Do NOT return code, just the plan."
+  });
+
+  const prompt = `
+    Business: ${params.businessName || "Unknown"}
+    Prompt: ${params.prompt}
+    Description: ${params.description || "N/A"}
+    
+    1. Identify the core goal.
+    2. List the sections needed.
+    3. Determine which skills are required (Premium Aesthetic, Dark Mode, Conversion Engine, etc.).
+    4. Outline the technical approach for each section.
+  `;
+
+  const result = await model.generateContent(prompt);
+  return result.response.text();
+}
+
+/**
+ * Agent Manager: Phase 2 - Execution
+ * Generates the final JSON structure using injected Skills.
+ */
+export async function executeWithSkills(params: {
+  plan: string;
+  businessName: string;
+  industry?: string;
+  goal?: string;
+  rawContent?: string;
+  description?: string;
+  currentSections?: any[];
+}) {
+  // Logic to 'Auto-Select' skills based on the plan/prompt (simplified for now as full injection)
+  const activeSkills = Object.values(SKILLS).join("\n");
+
+  const model = genAI.getGenerativeModel({ 
+    model: "gemini-1.5-flash",
+    systemInstruction: SYSTEM_INSTRUCTION + "\n\nAPPLY THESE SKILLS:\n" + activeSkills
+  });
+
+  const prompt = `
+    IMPLEMENTATION PLAN:
+    ${params.plan}
+
+    CONTEXT:
+    Business Name: ${params.businessName}
+    Industry: ${params.industry || "General"}
+    Primary Goal: ${params.goal || "Brand Awareness"}
+    Description: ${params.description || "N/A"}
+    Current Sections: ${params.currentSections ? JSON.stringify(params.currentSections) : "None"}
+
+    Execute the plan and return the JSON array of sections.
+  `;
+
+  const result = await model.generateContent({
+    contents: [{ role: "user", parts: [{ text: prompt }] }],
+    generationConfig: { responseMimeType: "application/json" },
+  });
+
+  try {
+    return JSON.parse(result.response.text());
+  } catch (err) {
+    throw new Error("AI returned invalid JSON in Execution phase");
+  }
+}
+
+/**
+ * Visual Feedback: Section Refinement
+ * Updates a single section based on specific feedback.
+ */
+export async function refineSection(params: {
+  section: any;
+  feedback: string;
+  businessContext: any;
+}) {
+  const model = genAI.getGenerativeModel({ 
+    model: "gemini-1.5-flash",
+    systemInstruction: "You are a Section Specialist. You receive a JSON section and user feedback. Your goal is to apply the feedback and return the UPDATED JSON section only. Maintain the original schema."
+  });
+
+  const prompt = `
+    CURRENT SECTION:
+    ${JSON.stringify(params.section)}
+
+    FEEDBACK:
+    ${params.feedback}
+
+    CONTEXT:
+    ${JSON.stringify(params.businessContext)}
+
+    Return ONLY the updated JSON for this specific section.
+  `;
+
+  const result = await model.generateContent({
+    contents: [{ role: "user", parts: [{ text: prompt }] }],
+    generationConfig: { responseMimeType: "application/json" },
+  });
+
+  try {
+    return JSON.parse(result.response.text());
+  } catch (err) {
+    throw new Error("Failed to refine section");
   }
 }
