@@ -1,6 +1,6 @@
 import { GoogleGenerativeAI, SchemaType } from "@google/generative-ai";
 import dotenv from "dotenv";
-import { SKILLS, SkillKey } from "./skills";
+import { SKILLS, SkillKey } from "./skills.js";
 
 dotenv.config();
 
