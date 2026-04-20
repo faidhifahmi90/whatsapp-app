@@ -455,8 +455,7 @@ function DashboardShell(props: {
             <Icon name="rocket_launch" fill className="text-xl transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
             {!sidebarCollapsed ? "Start Broadcast" : null}
           </button>
-          <SidebarUtility collapsed={sidebarCollapsed} label="System Support" icon="headset_mic" />
-          <SidebarUtility collapsed={sidebarCollapsed} label="Developer API" icon="terminal" />
+
           <button
             className="flex w-full items-center rounded-xl px-5 py-4 text-left text-sm font-extrabold text-slate-400 transition-all hover:bg-error/5 hover:text-error group"
             onClick={() => void props.onLogout()}
@@ -499,12 +498,7 @@ function DashboardShell(props: {
             </div>
           </div>
           <div className="flex items-center gap-2 sm:gap-4">
-            <button className="rounded-full p-2.5 text-outline transition-colors hover:bg-surface-container-high hover:text-primary">
-              <Icon name="notifications" />
-            </button>
-            <button className="rounded-full p-2.5 text-outline transition-colors hover:bg-surface-container-high hover:text-primary">
-              <Icon name="settings" />
-            </button>
+
             <div className="flex items-center gap-3 rounded-2xl bg-white/80 px-2 py-1.5 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)] border border-slate-100 py-1.5 sm:px-4">
               <div className="hidden text-right sm:block">
                 <p className="text-[11px] font-extrabold leading-tight text-primary">{props.data.user.name}</p>
@@ -878,12 +872,7 @@ function InboxPage(props: {
                 </select>
               </div>
             )}
-            <button className="rounded-xl border border-outline-variant/30 p-2.5 text-slate-600 transition-colors hover:bg-slate-50">
-              <Icon name="call" className="text-xl" />
-            </button>
-            <button className="rounded-xl border border-outline-variant/30 p-2.5 text-slate-600 transition-colors hover:bg-slate-50">
-              <Icon name="videocam" className="text-xl" />
-            </button>
+
             {selectedConversation?.status !== "resolved" && (
               <button onClick={async () => {
                 if (selectedConversation) {
@@ -4690,20 +4679,7 @@ function AtriumNavLink(props: { to: string; label: string; icon: string; compact
   );
 }
 
-function SidebarUtility(props: { label: string; icon: string; collapsed?: boolean }) {
-  return (
-    <a
-      className={`group flex rounded-xl px-4 py-3.5 text-left text-sm font-bold text-slate-400 transition-all hover:bg-primary/5 hover:text-primary ${
-        props.collapsed ? "justify-center" : "items-center gap-3"
-      }`}
-      href="#"
-      title={props.collapsed ? props.label : undefined}
-    >
-      <Icon className="text-xl transition-transform group-hover:scale-110" name={props.icon} />
-      {!props.collapsed ? <span>{props.label}</span> : null}
-    </a>
-  );
-}
+
 
 function SectionTitle(props: { title: string; icon: string }) {
   return (
@@ -5320,18 +5296,7 @@ function DeploymentSuccessModal(props: { page: any; onClose: () => void }) {
           </div>
           
           <div className="flex items-center justify-center gap-6">
-            <button className="flex flex-col items-center gap-2 group">
-              <div className="w-12 h-12 rounded-2xl bg-blue-50 flex items-center justify-center text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-all">
-                <Icon name="share" />
-              </div>
-              <span className="text-[9px] font-black uppercase text-slate-400">Share</span>
-            </button>
-            <button className="flex flex-col items-center gap-2 group">
-              <div className="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-all">
-                <Icon name="qr_code" />
-              </div>
-              <span className="text-[9px] font-black uppercase text-slate-400">QR Code</span>
-            </button>
+
             <button className="flex flex-col items-center gap-2 group" onClick={props.onClose}>
               <div className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-600 group-hover:bg-slate-900 group-hover:text-white transition-all">
                 <Icon name="close" />

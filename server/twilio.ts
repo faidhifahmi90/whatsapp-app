@@ -228,8 +228,7 @@ export async function sendWhatsAppMessage(options: {
     };
   } catch (error: any) {
     if (error.status === 401) {
-      const maskedSid = accountSid.slice(0, 4) + "****" + accountSid.slice(-4);
-      console.error(`[TWILIO AUTH FAILURE] 401 Unauthorized. SID used: ${maskedSid}. Error: ${error.message}`);
+      console.error(`[TWILIO AUTH FAILURE] 401 Unauthorized for Account SID: ${config.accountSid.slice(0, 5)}...`);
     }
     throw error;
   }
