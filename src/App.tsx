@@ -1530,7 +1530,7 @@ function ContactProfileModal(props: { contact: Contact; onClose: () => void; onR
                           <tr className="bg-surface-container-low text-[10px] uppercase text-on- surface-variant">
                              <th className="px-5 py-3 border-b border-outline-variant/20 font-bold">Order No</th>
                              <th className="px-5 py-3 border-b border-outline-variant/20 font-bold">Cover Note / Method</th>
-                             <th className="px-5 py-3 border-b border-outline-variant/20 font-bold">Reg No</th>
+                             <th className="px-5 py-3 border-b border-outline-variant/20 font-bold">Vehicle Registration Number</th>
                              <th className="px-5 py-3 border-b border-outline-variant/20 font-bold">Date</th>
                              <th className="px-5 py-3 border-b border-outline-variant/20 font-bold">Status</th>
                              <th className="px-5 py-3 border-b border-outline-variant/20 font-bold text-right">Premium / Gross / Net</th>
@@ -1538,7 +1538,8 @@ function ContactProfileModal(props: { contact: Contact; onClose: () => void; onR
                        </thead>
                        <tbody className="divide-y divide-outline-variant/10">
                           {props.contact.orders.map(o => {
-                             const linkedVehicle = props.contact.vehicles?.find(v => v.registrationNo === o.registrationNo);
+                             const norm = (s: string) => (s || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+                             const linkedVehicle = props.contact.vehicles?.find(v => norm(v.registrationNo) === norm(o.registrationNo));
                              return (
                              <tr key={o.id} className="hover:bg-surface-container-low/50 align-top">
                                 <td className="px-5 py-4 font-mono font-bold text-secondary">{o.orderNo}</td>
@@ -2200,7 +2201,7 @@ function ContactsPage(props: {
                           <option value="labels">Tags / Labels</option>
                         </optgroup>
                         <optgroup label="Insurance: Vehicle">
-                          <option value="vehicle_registrationNo">Vehicle: Registration No</option>
+                          <option value="vehicle_registrationNo">Vehicle Registration Number</option>
                           <option value="vehicle_vehicleOwnerName">Vehicle: Owner Name</option>
                           <option value="vehicle_vehicleType">Vehicle: Type</option>
                           <option value="vehicle_vehicleModel">Vehicle: Model</option>
@@ -2209,7 +2210,7 @@ function ContactsPage(props: {
                         </optgroup>
                         <optgroup label="Insurance: Order">
                           <option value="order_orderNo">Order: Order No</option>
-                          <option value="order_registrationNo">Order: Linked Vehicle Reg No</option>
+                          <option value="order_registrationNo">Vehicle Registration Number</option>
                           <option value="order_orderStatus">Order: Status</option>
                           <option value="order_coverNoteNo">Order: Cover Note No</option>
                           <option value="order_netWrittenPremium">Order: Net Written Premium</option>

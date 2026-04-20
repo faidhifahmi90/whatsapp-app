@@ -56,7 +56,8 @@ import {
   clearContactsAndFields,
   registerCustomFields,
   listCustomFieldDefinitions,
-  findContactByRegistrationNo
+  findContactByRegistrationNo,
+  normalizeRegNo
 } from "./db.js";
 import {
   buildContentVariables,
@@ -658,7 +659,15 @@ app.post("/api/contacts/import", requireAuth, upload.single("file"), (req: Sessi
         customFields[targetHeader] = val;
       }
     }
-    const regForMissingPhone = vehicle.registrationNo || order.registrationNo;
+
+    // Smart cross-population: If reg number is in either vehicle or order, share it.
+    const rowRegNo = vehicle.registrationNo || order.registrationNo;
+    if (rowRegNo) {
+      if (!vehicle.registrationNo) vehicle.registrationNo = rowRegNo;
+      if (!order.registrationNo) order.registrationNo = rowRegNo;
+    }
+
+    const regForMissingPhone = rowRegNo;
     if (!translated.phone && regForMissingPhone) {
        const resolved = findContactByRegistrationNo(regForMissingPhone);
        if (resolved) translated.phone = resolved.phone;

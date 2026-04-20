@@ -599,7 +599,9 @@ export function importContacts(
       }
       if (contact.orders?.length) {
          for (const o of contact.orders) {
-            if (o.orderNo && o.registrationNo) upsertOrder({ contactId: saved.id, registrationNo: o.registrationNo, orderNo: o.orderNo, orderStatus: o.orderStatus, coverNoteNo: o.coverNoteNo, netWrittenPremium: o.netWrittenPremium, grossTransaction: o.grossTransaction, netTransaction: o.netTransaction, paymentMethod: o.paymentMethod, orderDate: o.orderDate });
+            // Smart lookup: if registrationNo is missing on the order object, try to steal it from the vehicle object on the same row
+            const regNo = o.registrationNo || (contact.vehicles && contact.vehicles[0]?.registrationNo);
+            if (o.orderNo && regNo) upsertOrder({ contactId: saved.id, registrationNo: regNo, orderNo: o.orderNo, orderStatus: o.orderStatus, coverNoteNo: o.coverNoteNo, netWrittenPremium: o.netWrittenPremium, grossTransaction: o.grossTransaction, netTransaction: o.netTransaction, paymentMethod: o.paymentMethod, orderDate: o.orderDate });
          }
       }
       imported.push(saved);
@@ -1119,6 +1121,11 @@ export function listCustomFieldDefinitions(): string[] {
   return rows.map(r => r.name);
 }
 
+export function normalizeRegNo(regNo: string | null | undefined): string {
+   if (!regNo) return "";
+   return regNo.toString().toUpperCase().replace(/[^A-Z0-9]/g, "");
+}
+
 export function upsertVehicle(data: {
   contactId: string;
   registrationNo: string;
@@ -1128,16 +1135,21 @@ export function upsertVehicle(data: {
   makeYear?: string | null;
   marketValue?: string | null;
 }) {
+  const normalized = normalizeRegNo(data.registrationNo);
   const existing = db.prepare("select id from vehicles where registration_no = ?").get(data.registrationNo) as { id: string } | undefined;
-  if (existing) {
+  
+  // Also try searching for normalized if direct match fails
+  const idToUpdate = existing?.id || (db.prepare("select id from vehicles where replace(replace(upper(registration_no), ' ', ''), '-', '') = ?").get(normalized) as { id: string } | undefined)?.id;
+
+  if (idToUpdate) {
     db.prepare(`
       update vehicles set
         contact_id = ?, vehicle_owner_name = ?, vehicle_type = ?, vehicle_model = ?, make_year = ?, market_value = ?
       where id = ?
     `).run(
-      data.contactId, data.vehicleOwnerName || null, data.vehicleType || null, data.vehicleModel || null, data.makeYear || null, data.marketValue || null, existing.id
+      data.contactId, data.vehicleOwnerName || null, data.vehicleType || null, data.vehicleModel || null, data.makeYear || null, data.marketValue || null, idToUpdate
     );
-    return existing.id;
+    return idToUpdate;
   } else {
     const id = randomUUID();
     db.prepare(`
@@ -1151,7 +1163,10 @@ export function upsertVehicle(data: {
 }
 
 export function findContactByRegistrationNo(registrationNo: string): Contact | null {
-  const v = db.prepare("select contact_id from vehicles where registration_no = ?").get(registrationNo) as { contact_id: string } | undefined;
+  const normalized = normalizeRegNo(registrationNo);
+  const v = (db.prepare("select contact_id from vehicles where registration_no = ?").get(registrationNo) || 
+            db.prepare("select contact_id from vehicles where replace(replace(upper(registration_no), ' ', ''), '-', '') = ?").get(normalized)) as { contact_id: string } | undefined;
+  
   if (!v) return null;
   const c = db.prepare("select phone from contacts where id = ?").get(v.contact_id) as { phone: string } | undefined;
   if (!c) return null;
@@ -1170,6 +1185,7 @@ export function upsertOrder(data: {
   paymentMethod?: string | null;
   orderDate?: string | null;
 }) {
+  const normalized = normalizeRegNo(data.registrationNo);
   const existing = db.prepare("select id from orders where order_no = ?").get(data.orderNo) as { id: string } | undefined;
   if (existing) {
     db.prepare(`
