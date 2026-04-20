@@ -348,6 +348,7 @@ export function initDb() {
       channel_id text,
       segment_id text,
       delay_minutes integer,
+      template_variables_json text,
       flow_data_json text,
       is_active integer not null default 1,
       created_at text not null
@@ -399,6 +400,7 @@ export function initDb() {
   try { db.prepare(`alter table automations modify column template_id text`).run(); } catch (e) {}
   try { db.prepare(`alter table automations modify column channel_id text`).run(); } catch (e) {}
   try { db.prepare(`alter table automations modify column delay_minutes integer`).run(); } catch (e) {}
+  try { db.prepare(`alter table automations add column template_variables_json text`).run(); } catch (e) {}
 
   seedIfEmpty();
   cleanupDummyData();
@@ -1015,6 +1017,7 @@ export function listAutomations(): Automation[] {
     channelId: row.channel_id,
     segmentId: row.segment_id,
     delayMinutes: row.delay_minutes,
+    templateVariables: parseJson<string[] | null>(row.template_variables_json, null),
     flowData: parseJson<any[] | null>(row.flow_data_json, null),
     isActive: Boolean(row.is_active)
   }));
@@ -1029,13 +1032,14 @@ export function createAutomation(input: {
   channelId?: string | null;
   segmentId?: string | null;
   delayMinutes?: number | null;
+  templateVariables?: string[] | null;
   flowData?: any[] | null;
 }) {
   const id = randomUUID();
   db.prepare(
     `insert into automations
-      (id, name, version, trigger_type, trigger_value, template_id, channel_id, segment_id, delay_minutes, flow_data_json, is_active, created_at)
-     values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      (id, name, version, trigger_type, trigger_value, template_id, channel_id, segment_id, delay_minutes, template_variables_json, flow_data_json, is_active, created_at)
+     values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).run(
     id,
     input.name,
@@ -1046,6 +1050,7 @@ export function createAutomation(input: {
     input.channelId ?? "",
     input.segmentId ?? null,
     input.delayMinutes ?? 0,
+    input.templateVariables ? JSON.stringify(input.templateVariables) : null,
     input.flowData ? JSON.stringify(input.flowData) : null,
     1,
     now()

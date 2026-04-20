@@ -158,6 +158,7 @@ export type Automation = {
   triggerType?: "incoming_keyword" | "new_contact" | "segment_joined" | null;
   triggerValue?: string | null;
   templateId?: string | null;
+  templateVariables?: string[] | null;
   channelId?: string | null;
   segmentId?: string | null;
   delayMinutes?: number | null;

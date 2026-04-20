@@ -966,6 +966,7 @@ app.post("/api/automations", requireAuth, (req: SessionRequest, res) => {
     channelId: req.body.channelId,
     segmentId: req.body.segmentId,
     delayMinutes: req.body.delayMinutes !== undefined ? Number(req.body.delayMinutes) : null,
+    templateVariables: req.body.templateVariables,
     flowData: req.body.flowData
   });
   refreshClients("automation");

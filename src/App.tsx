@@ -210,6 +210,22 @@ function LoginPage(props: { onLogin: (credential: CredentialResponse) => Promise
   );
 }
 
+function formatWhatsAppText(text: string) {
+  let html = String(text)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+    
+  // Bold: *text*
+  html = html.replace(/\*([^\*]+)\*/g, "<strong>$1</strong>");
+  // Italic: _text_
+  html = html.replace(/_([^_]+)_/g, "<em>$1</em>");
+  // Strikethrough: ~text~
+  html = html.replace(/~([^~]+)~/g, "<del>$1</del>");
+  
+  return html;
+}
+
 function TemplateLivePreview(props: { template?: Template; variables: string[]; overrideMediaUrl?: string }) {
   if (!props.template) {
     return (
@@ -260,9 +276,10 @@ function TemplateLivePreview(props: { template?: Template; variables: string[]; 
               <img src={mediaSource} alt="Attached Media" className="h-auto w-full object-cover transition-transform group-hover:scale-105" />
             </div>
           )}
-          <div className="whitespace-pre-wrap text-[#111b21] leading-[22px]">
-            {renderedBody}
-          </div>
+          <div 
+            className="whitespace-pre-wrap text-[#111b21] leading-[22px] break-words"
+            dangerouslySetInnerHTML={{ __html: formatWhatsAppText(renderedBody) }}
+          />
           <div className="mt-1 flex items-center justify-end gap-1 text-[11px] text-[#667781]">
             <span>10:42 AM</span>
           </div>
@@ -1640,10 +1657,10 @@ function ContactProfileModal(props: { contact: Contact; onClose: () => void; onR
                           {props.contact.vehicles.map(v => (
                              <tr key={v.id} className="hover:bg-surface-container-low/50">
                                 <td className="px-5 py-3 font-semibold font-mono text-primary">{v.vehicleRegistrationNo}</td>
-                                <td className="px-5 py-3 text-on-surface-variant">{v.vehicleOwnerName || "—"}</td>
+                                <td className="px-5 py-3 text-on-surface-variant font-medium">{v.vehicleOwnerName || "—"}</td>
                                 <td className="px-5 py-3 text-on-surface-variant">{v.vehicleModel || v.vehicleType || "—"}</td>
                                 <td className="px-5 py-3 text-on-surface-variant">{v.makeYear || "—"}</td>
-                                <td className="px-5 py-3 font-mono text-right font-medium">{v.marketValue || "—"}</td>
+                                <td className="px-5 py-3 font-mono text-right font-bold text-slate-700">{v.marketValue || "—"}</td>
                              </tr>
                           ))}
                        </tbody>
@@ -1652,13 +1669,62 @@ function ContactProfileModal(props: { contact: Contact; onClose: () => void; onR
               </div>
            )}
 
+            {(props.contact.vehicles && props.contact.vehicles.length > 1) && (
+               <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {props.contact.vehicles.map(v => (
+                     <div key={v.id} className="p-5 rounded-3xl border border-slate-100 bg-slate-50/30 shadow-sm relative overflow-hidden group hover:border-primary/30 transition-colors">
+                        <div className="absolute top-0 right-0 p-3">
+                           <div className="h-2 w-2 rounded-full bg-primary" />
+                        </div>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Vehicle Asset</p>
+                        <h4 className="font-mono font-bold text-xl text-primary mb-3">{v.vehicleRegistrationNo}</h4>
+                        <div className="space-y-2 border-t border-slate-100 pt-3">
+                           <div className="flex justify-between text-xs">
+                              <span className="text-slate-500">Owner</span>
+                              <span className="font-bold text-slate-800">{v.vehicleOwnerName || "—"}</span>
+                           </div>
+                           <div className="flex justify-between text-xs">
+                              <span className="text-slate-500">Model</span>
+                              <span className="font-medium text-slate-600">{v.vehicleModel || v.vehicleType || "—"}</span>
+                           </div>
+                           <div className="flex justify-between text-xs">
+                              <span className="text-slate-500">Valuation</span>
+                              <span className="font-bold text-emerald-600">{v.marketValue || "—"}</span>
+                           </div>
+                        </div>
+                     </div>
+                  ))}
+               </div>
+            )}
+
+            {(props.contact.vehicles && props.contact.vehicles.length === 1) && (
+               <div className="mt-6">
+                  <h4 className="text-xs font-bold text-secondary uppercase tracking-widest mb-4">Insured Asset</h4>
+                  <div className="p-6 rounded-[2rem] border border-outline-variant/30 bg-surface-container-low/30">
+                     <div className="flex items-center gap-6">
+                        <div className="h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
+                           <Icon name="directions_car" className="text-3xl" />
+                        </div>
+                        <div>
+                           <h4 className="font-mono text-2xl font-bold text-slate-800">{props.contact.vehicles[0].vehicleRegistrationNo}</h4>
+                           <p className="text-sm text-slate-500 font-medium">{props.contact.vehicles[0].vehicleModel} • {props.contact.vehicles[0].makeYear}</p>
+                        </div>
+                        <div className="ml-auto text-right">
+                           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Market Value</p>
+                           <p className="text-xl font-bold text-emerald-600">{props.contact.vehicles[0].marketValue}</p>
+                        </div>
+                     </div>
+                  </div>
+               </div>
+            )}
+
            {(props.contact.orders && props.contact.orders.length > 0) && (
               <div className="mt-12">
                  <h4 className="text-xs font-bold text-secondary uppercase tracking-widest mb-4">Insurance Policies & Orders</h4>
                  <div className="overflow-x-auto rounded-xl border border-outline-variant/30">
                     <table className="w-full text-left text-sm bg-surface-container-lowest whitespace-nowrap">
                        <thead>
-                          <tr className="bg-surface-container-low text-[10px] uppercase text-on- surface-variant">
+                          <tr className="bg-surface-container-low text-[10px] uppercase text-on-surface-variant">
                              <th className="px-5 py-3 border-b border-outline-variant/20 font-bold">Order No</th>
                              <th className="px-5 py-3 border-b border-outline-variant/20 font-bold">Cover Note / Method</th>
                              <th className="px-5 py-3 border-b border-outline-variant/20 font-bold">Vehicle Registration Number</th>
@@ -1697,7 +1763,51 @@ function ContactProfileModal(props: { contact: Contact; onClose: () => void; onR
                     </table>
                  </div>
               </div>
-           )}
+            )}
+
+            {(props.contact.orders && props.contact.orders.length > 1) && (
+               <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {props.contact.orders.map(o => {
+                     const norm = (s: string) => (s || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+                     const linkedVehicle = props.contact.vehicles?.find(v => norm(v.vehicleRegistrationNo) === norm(o.vehicleRegistrationNo));
+                     return (
+                        <div key={o.id} className="p-6 rounded-[2.5rem] border border-slate-100 bg-white shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
+                           <div className="absolute top-0 right-0 p-4">
+                              <span className={`px-3 py-1 text-[10px] rounded-full font-extrabold uppercase tracking-widest ${o.orderStatus?.toLowerCase() === 'paid' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-slate-100 text-slate-500'}`}>
+                                 {o.orderStatus || 'Pending'}
+                              </span>
+                           </div>
+                           <div className="flex items-center gap-3 mb-4">
+                              <div className="h-10 w-10 rounded-2xl bg-secondary/10 flex items-center justify-center text-secondary">
+                                 <Icon name="description" className="text-xl" />
+                              </div>
+                              <div>
+                                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none mb-1">Policy Number</p>
+                                 <h4 className="font-mono font-bold text-slate-800">{o.orderNo}</h4>
+                              </div>
+                           </div>
+                           
+                           <div className="space-y-3 pt-3 border-t border-slate-50">
+                              <div className="flex justify-between items-end">
+                                 <div>
+                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Asset Link</p>
+                                    <p className="font-mono text-sm font-bold text-slate-700">{o.vehicleRegistrationNo}</p>
+                                 </div>
+                                 <div className="text-right">
+                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Premium</p>
+                                    <p className="font-bold text-primary">{o.netTransaction || "—"}</p>
+                                 </div>
+                              </div>
+                              <div className="flex justify-between items-center text-[11px] bg-slate-50 p-2 rounded-xl">
+                                 <span className="text-slate-500 font-medium">Cover Note: {o.coverNoteNo || "—"}</span>
+                                 <span className="text-slate-500 font-medium">{o.orderDate || "—"}</span>
+                              </div>
+                           </div>
+                        </div>
+                     );
+                  })}
+               </div>
+            )}
 
         </div>
       </div>
@@ -3463,7 +3573,8 @@ function AutomationsStudioPage(props: { data: BootstrapData; onRefresh: (preferr
     templateId: props.data.templates[0]?.id ?? "",
     channelId: props.data.channels[0]?.id ?? "",
     segmentId: props.data.segments[0]?.id ?? "",
-    delayMinutes: "0"
+    delayMinutes: "0",
+    templateVariables: [] as string[]
   });
 
   const [isBuilderOpen, setIsBuilderOpen] = useState(false);
@@ -3596,7 +3707,7 @@ function AutomationsStudioPage(props: { data: BootstrapData; onRefresh: (preferr
                 </Field>
               ) : null}
               <Field label="Broadcast Template">
-                <select className="atrium-input" value={form.templateId || ""} onChange={(event) => setForm((current) => ({ ...current, templateId: event.target.value }))}>
+                <select className="atrium-input" value={form.templateId || ""} onChange={(event) => setForm((current) => ({ ...current, templateId: event.target.value, templateVariables: [] }))}>
                   {props.data.templates.map((template) => (
                     <option key={template.id} value={template.id}>
                       {template.name}
@@ -3604,6 +3715,31 @@ function AutomationsStudioPage(props: { data: BootstrapData; onRefresh: (preferr
                   ))}
                 </select>
               </Field>
+              {(() => {
+                const selectedTmpl = props.data.templates.find(t => t.id === form.templateId);
+                if (!selectedTmpl?.placeholders?.length) return null;
+                return (
+                  <div className="space-y-4 p-5 rounded-3xl bg-slate-50 border border-slate-100">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-2">
+                       <Icon name="variable" className="text-sm" /> Automated Variables ({selectedTmpl.placeholders.length})
+                    </p>
+                    {selectedTmpl.placeholders.map((ph, idx) => (
+                       <Field key={ph + idx} label={`Variable: ${ph}`}>
+                          <input 
+                            className="atrium-input bg-white" 
+                            placeholder={`Value for ${ph}...`}
+                            value={form.templateVariables[idx] || ""}
+                            onChange={(e) => {
+                               const next = [...form.templateVariables];
+                               next[idx] = e.target.value;
+                               setForm(cur => ({ ...cur, templateVariables: next }));
+                            }}
+                          />
+                       </Field>
+                    ))}
+                  </div>
+                );
+              })()}
               <Field label="Channel">
                 <select className="atrium-input" value={form.channelId || ""} onChange={(event) => setForm((current) => ({ ...current, channelId: event.target.value }))}>
                   {props.data.channels.map((channel) => (
