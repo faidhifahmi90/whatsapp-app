@@ -3900,8 +3900,18 @@ function SettingsStudioPage(props: { data: BootstrapData; onRefresh: (preferredC
   const [editingChannelId, setEditingChannelId] = useState<string | null>(null);
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
 
-  const [geminiKey, setGeminiKey] = useState(props.data.settings.GEMINI_API_KEY || "");
-  const [showKey, setShowKey] = useState(false);
+  // Consolidated Settings State
+  const [settingsForm, setSettingsForm] = useState({
+    GEMINI_API_KEY: props.data.settings.GEMINI_API_KEY || "",
+    TWILIO_ACCOUNT_SID: props.data.settings.TWILIO_ACCOUNT_SID || "",
+    TWILIO_AUTH_TOKEN: props.data.settings.TWILIO_AUTH_TOKEN || "",
+    TWILIO_DEFAULT_MESSAGING_SERVICE_SID: props.data.settings.TWILIO_DEFAULT_MESSAGING_SERVICE_SID || "",
+    VITE_GOOGLE_CLIENT_ID: props.data.settings.VITE_GOOGLE_CLIENT_ID || ""
+  });
+  
+  const [showKeys, setShowKeys] = useState<Record<string, boolean>>({});
+  const toggleVisibility = (key: string) => setShowKeys(prev => ({ ...prev, [key]: !prev[key] }));
+
   const [isSavingSettings, setIsSavingSettings] = useState(false);
 
   async function saveChannel(event: FormEvent) {
@@ -3973,12 +3983,12 @@ function SettingsStudioPage(props: { data: BootstrapData; onRefresh: (preferredC
     try {
       await api("/api/settings", {
         method: "POST",
-        body: JSON.stringify({ GEMINI_API_KEY: geminiKey })
+        body: JSON.stringify(settingsForm)
       });
       await props.onRefresh();
-      alert("Settings saved successfully.");
+      alert("All integration settings updated successfully.");
     } catch (err) {
-      alert("Failed to save settings.");
+      alert("Failed to save settings. Please check your permissions.");
     } finally {
       setIsSavingSettings(false);
     }
@@ -3987,8 +3997,112 @@ function SettingsStudioPage(props: { data: BootstrapData; onRefresh: (preferredC
   return (
     <StudioPageShell title="Shared Settings" subtitle="Manage multi-user access and multiple WhatsApp senders for the same workspace.">
       <div className="grid gap-6 xl:grid-cols-2">
-        <div className="rounded-[2rem] bg-surface-container-lowest p-6 shadow-sm">
-          <SectionTitle icon="call" title={editingChannelId ? "Edit WhatsApp Number" : "Add WhatsApp Number"} />
+        {/* Workspace Credentials & AI (Consolidated) */}
+        <div className="space-y-6">
+           {/* Section 1: AI Architect */}
+           <div className="rounded-[2rem] bg-surface-container-lowest p-8 shadow-sm border border-outline-variant/10">
+              <div className="flex items-center justify-between mb-8">
+                <SectionTitle icon="auto_fix_high" title="AI Architect Integration" />
+                <button 
+                  disabled={isSavingSettings} 
+                  onClick={saveSettings} 
+                  className="px-6 py-2 bg-primary text-on-primary rounded-xl font-bold text-xs shadow-lg shadow-primary/20 hover:opacity-90 active:scale-95 transition-all"
+                >
+                  {isSavingSettings ? 'Saving...' : 'Update Keys'}
+                </button>
+              </div>
+              
+              <div className="space-y-6">
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Gemini API Key</label>
+                    <button onClick={() => toggleVisibility('GEMINI_API_KEY')} className="text-[10px] font-bold text-primary flex items-center gap-1">
+                      <Icon name={showKeys.GEMINI_API_KEY ? "visibility_off" : "visibility"} className="text-xs" />
+                      {showKeys.GEMINI_API_KEY ? 'Hide' : 'Reveal'}
+                    </button>
+                  </div>
+                  <input 
+                    type={showKeys.GEMINI_API_KEY ? "text" : "password"}
+                    className="atrium-input bg-surface-container-low border-transparent focus:bg-white transition-all font-mono text-xs" 
+                    placeholder="AIza..." 
+                    value={settingsForm.GEMINI_API_KEY} 
+                    onChange={e => setSettingsForm({ ...settingsForm, GEMINI_API_KEY: e.target.value })} 
+                  />
+                  <p className="mt-2 text-[10px] text-slate-400 font-medium italic">Used for AI Landing Page generation and Agent Manager orchestration.</p>
+                </div>
+
+                <div className="pt-4 border-t border-outline-variant/10">
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Google OAuth Client ID</label>
+                    <button onClick={() => toggleVisibility('VITE_GOOGLE_CLIENT_ID')} className="text-[10px] font-bold text-primary flex items-center gap-1">
+                      <Icon name={showKeys.VITE_GOOGLE_CLIENT_ID ? "visibility_off" : "visibility"} className="text-xs" />
+                      {showKeys.VITE_GOOGLE_CLIENT_ID ? 'Hide' : 'Reveal'}
+                    </button>
+                  </div>
+                  <input 
+                    type={showKeys.VITE_GOOGLE_CLIENT_ID ? "text" : "password"}
+                    className="atrium-input bg-surface-container-low border-transparent focus:bg-white transition-all font-mono text-xs" 
+                    placeholder="4783...apps.googleusercontent.com" 
+                    value={settingsForm.VITE_GOOGLE_CLIENT_ID} 
+                    onChange={e => setSettingsForm({ ...settingsForm, VITE_GOOGLE_CLIENT_ID: e.target.value })} 
+                  />
+                  <p className="mt-2 text-[10px] text-slate-400 font-medium italic">Enables secure "Sign in with Google" for your team.</p>
+                </div>
+              </div>
+           </div>
+
+           {/* Section 2: Communication Gateway */}
+           <div className="rounded-[2rem] bg-surface-container-lowest p-8 shadow-sm border border-outline-variant/10">
+              <SectionTitle icon="hub" title="Communication Gateway" />
+              <div className="mt-8 space-y-6">
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Twilio Account SID</label>
+                  </div>
+                  <input 
+                    type="text"
+                    className="atrium-input bg-surface-container-low border-transparent focus:bg-white transition-all font-mono text-xs" 
+                    placeholder="AC..." 
+                    value={settingsForm.TWILIO_ACCOUNT_SID} 
+                    onChange={e => setSettingsForm({ ...settingsForm, TWILIO_ACCOUNT_SID: e.target.value })} 
+                  />
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Twilio Auth Token</label>
+                    <button onClick={() => toggleVisibility('TWILIO_AUTH_TOKEN')} className="text-[10px] font-bold text-primary flex items-center gap-1">
+                      <Icon name={showKeys.TWILIO_AUTH_TOKEN ? "visibility_off" : "visibility"} className="text-xs" />
+                      {showKeys.TWILIO_AUTH_TOKEN ? 'Hide' : 'Reveal'}
+                    </button>
+                  </div>
+                  <input 
+                    type={showKeys.TWILIO_AUTH_TOKEN ? "text" : "password"}
+                    className="atrium-input bg-surface-container-low border-transparent focus:bg-white transition-all font-mono text-xs" 
+                    placeholder="••••••••••••••••••••••••••••••••" 
+                    value={settingsForm.TWILIO_AUTH_TOKEN} 
+                    onChange={e => setSettingsForm({ ...settingsForm, TWILIO_AUTH_TOKEN: e.target.value })} 
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 block">Default Messaging Service SID</label>
+                  <input 
+                    type="text"
+                    className="atrium-input bg-surface-container-low border-transparent focus:bg-white transition-all font-mono text-xs" 
+                    placeholder="MG..." 
+                    value={settingsForm.TWILIO_DEFAULT_MESSAGING_SERVICE_SID} 
+                    onChange={e => setSettingsForm({ ...settingsForm, TWILIO_DEFAULT_MESSAGING_SERVICE_SID: e.target.value })} 
+                  />
+                </div>
+              </div>
+           </div>
+        </div>
+
+        {/* Existing User/Channel Management */}
+        <div className="space-y-6">
+          <div className="rounded-[2rem] bg-surface-container-lowest p-6 shadow-sm border border-outline-variant/10">
+            <SectionTitle icon="call" title={editingChannelId ? "Edit WhatsApp Sender" : "Add WhatsApp Sender"} />
           <form className="space-y-4" onSubmit={saveChannel}>
             <Field label="Channel name">
               <input className="atrium-input" value={channelForm.name} onChange={(event) => setChannelForm((current) => ({ ...current, name: event.target.value }))} />
@@ -4096,52 +4210,6 @@ function SettingsStudioPage(props: { data: BootstrapData; onRefresh: (preferredC
           </div>
         </div>
         
-        <div className="rounded-[2rem] bg-surface-container-lowest p-6 shadow-sm flex flex-col justify-between">
-          <div>
-            <SectionTitle icon="sync" title="CRM Synchronization" />
-            <p className="mt-2 text-sm text-on-surface-variant">
-              Instantly pull contacts from upstream systems, then batch and segment them for WhatsApp outreach.
-            </p>
-          </div>
-          <button className="mt-8 rounded-xl bg-primary py-3 text-sm font-bold text-on-primary w-full">Configure Bridge</button>
-        </div>
-
-        <div className="rounded-[2rem] bg-indigo-50/30 border border-indigo-100 p-6 shadow-sm flex flex-col justify-between">
-          <div>
-            <SectionTitle icon="psychology" title="AI Architect Integration" />
-            <p className="mt-2 text-sm text-indigo-900/60 leading-relaxed">
-              Power your Landing Page Studio with Google's Gemini 1.5 Flash. Manage your API key here to enable prompt-first orchestration.
-            </p>
-            <div className="mt-6 space-y-4">
-              <Field label="Gemini API Key">
-                <div className="relative group">
-                  <input 
-                    type={showKey ? "text" : "password"}
-                    className="atrium-input pr-12 font-mono text-xs" 
-                    placeholder="AIzaSy..." 
-                    value={geminiKey} 
-                    onChange={e => setGeminiKey(e.target.value)} 
-                  />
-                  <button 
-                    type="button" 
-                    onClick={() => setShowKey(!showKey)}
-                    className="absolute right-4 top-2 text-slate-400 hover:text-primary transition-colors"
-                  >
-                    <Icon name={showKey ? "visibility_off" : "visibility"} className="text-sm" />
-                  </button>
-                </div>
-              </Field>
-            </div>
-          </div>
-          <button 
-            disabled={isSavingSettings}
-            onClick={saveSettings}
-            className="mt-8 rounded-xl bg-indigo-600 py-3 text-sm font-bold text-white shadow-lg shadow-indigo-200 hover:bg-indigo-700 active:scale-[0.98] transition-all disabled:opacity-50"
-          >
-            {isSavingSettings ? "Saving..." : "Update AI Configuration"}
-          </button>
-        </div>
-
       </div>
     </StudioPageShell>
   );

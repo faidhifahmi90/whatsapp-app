@@ -90,7 +90,10 @@ type SessionRequest = Request & {
 
 const app = express();
 const server = createServer(app);
-const oauthClient = new OAuth2Client(process.env.VITE_GOOGLE_CLIENT_ID);
+function getGoogleClientId() {
+  const settings = getSettings();
+  return settings.VITE_GOOGLE_CLIENT_ID || process.env.VITE_GOOGLE_CLIENT_ID || "";
+}
 const io = new Server(server, {
   cors: {
     origin: true,
@@ -393,15 +396,19 @@ setInterval(() => {
 }, 5000);
 
 app.get("/api/health", (_req, res) => {
+  const settings = getSettings();
   res.json({
     ok: true,
-    twilioConfigured: Boolean(process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN)
+    twilioConfigured: Boolean(
+      (settings.TWILIO_ACCOUNT_SID || process.env.TWILIO_ACCOUNT_SID) && 
+      (settings.TWILIO_AUTH_TOKEN || process.env.TWILIO_AUTH_TOKEN)
+    )
   });
 });
 
 app.get("/api/public-config", (_req, res) => {
   res.json({
-    googleClientId: process.env.VITE_GOOGLE_CLIENT_ID ?? ""
+    googleClientId: getGoogleClientId()
   });
 });
 
@@ -412,9 +419,11 @@ app.post("/api/auth/google", async (req: SessionRequest, res) => {
   }
 
   try {
+    const clientId = getGoogleClientId();
+    const oauthClient = new OAuth2Client(clientId);
     const ticket = await oauthClient.verifyIdToken({
       idToken: credential,
-      audience: process.env.VITE_GOOGLE_CLIENT_ID
+      audience: clientId
     });
     const payload = ticket.getPayload();
     

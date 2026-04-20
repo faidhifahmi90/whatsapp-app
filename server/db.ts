@@ -403,6 +403,32 @@ export function initDb() {
     );
   `);
 
+  // Migration: Sync .env keys to DB on boot
+  const migrateEnvToDb = () => {
+    const settings = getSettings();
+    const keysToMigrate = [
+      'GEMINI_API_KEY',
+      'TWILIO_ACCOUNT_SID',
+      'TWILIO_AUTH_TOKEN',
+      'TWILIO_DEFAULT_MESSAGING_SERVICE_SID',
+      'VITE_GOOGLE_CLIENT_ID'
+    ];
+
+    const migrationPayload: Record<string, string> = {};
+    for (const envKey of keysToMigrate) {
+      if (process.env[envKey] && !settings[envKey]) {
+        migrationPayload[envKey] = process.env[envKey] as string;
+      }
+    }
+
+    if (Object.keys(migrationPayload).length > 0) {
+      console.log(`[Migration] Persisting ${Object.keys(migrationPayload).join(', ')} from .env to database.`);
+      updateSettings(migrationPayload);
+    }
+  };
+
+  migrateEnvToDb();
+
   // Migrations for existing databases
   try {
     db.prepare(`alter table campaigns add column created_at text not null default CURRENT_TIMESTAMP`).run();
@@ -1133,12 +1159,18 @@ export function getBootstrapData(userId: string): BootstrapData {
   const templates = listTemplates();
   const settings = getSettings();
   
-  // Mask sensitive values for frontend but allow reveal
+  // Universal Masking for sensitive values in frontend
   const safeSettings: Record<string, string> = { ...settings };
-  if (safeSettings.GEMINI_API_KEY) {
-    const key = safeSettings.GEMINI_API_KEY;
-    if (key.length > 8) {
-      safeSettings.GEMINI_API_KEY = key.substring(0, 4) + "..." + key.substring(key.length - 4);
+  const sensitivePatterns = [/KEY/i, /TOKEN/i, /SID/i, /SECRET/i, /CLIENT_ID/i];
+
+  for (const key of Object.keys(safeSettings)) {
+    if (sensitivePatterns.some(p => p.test(key))) {
+      const val = safeSettings[key];
+      if (val && val.length > 8) {
+        safeSettings[key] = val.substring(0, 4) + "..." + val.substring(val.length - 4);
+      } else if (val) {
+        safeSettings[key] = "****";
+      }
     }
   }
 

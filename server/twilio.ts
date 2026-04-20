@@ -1,12 +1,23 @@
 import Twilio from "twilio";
 import type { Channel, Contact, Template } from "../src/types.js";
 
-const accountSid = process.env.TWILIO_ACCOUNT_SID;
-const authToken = process.env.TWILIO_AUTH_TOKEN;
-const defaultMessagingServiceSid = process.env.TWILIO_DEFAULT_MESSAGING_SERVICE_SID;
-const contentApiBase = process.env.TWILIO_CONTENT_API_BASE ?? "https://content.twilio.com/v1/Content";
+import { getSettings } from "./db.js";
 
-const client = accountSid && authToken ? Twilio(accountSid, authToken) : null;
+function getTwilioConfig() {
+  const settings = getSettings();
+  return {
+    accountSid: settings.TWILIO_ACCOUNT_SID || process.env.TWILIO_ACCOUNT_SID || "",
+    authToken: settings.TWILIO_AUTH_TOKEN || process.env.TWILIO_AUTH_TOKEN || "",
+    defaultMessagingServiceSid: settings.TWILIO_DEFAULT_MESSAGING_SERVICE_SID || process.env.TWILIO_DEFAULT_MESSAGING_SERVICE_SID || "",
+    contentApiBase: settings.TWILIO_CONTENT_API_BASE || process.env.TWILIO_CONTENT_API_BASE || "https://content.twilio.com/v1/Content"
+  };
+}
+
+function getTwilioClient() {
+  const { accountSid, authToken } = getTwilioConfig();
+  if (!accountSid || !authToken) return null;
+  return Twilio(accountSid, authToken);
+}
 
 type TwilioContentTemplate = {
   sid: string;
@@ -170,6 +181,8 @@ export async function sendWhatsAppMessage(options: {
   contentSid?: string | null;
   contentVariables?: string | null;
 }) {
+  const client = getTwilioClient();
+  const { defaultMessagingServiceSid } = getTwilioConfig();
   if (!client) {
     return {
       sid: `SIMULATED_${Date.now()}`,
@@ -214,6 +227,7 @@ export async function sendWhatsAppMessage(options: {
 }
 
 export async function syncTemplateToTwilioContent(template: Template) {
+  const { accountSid, authToken, contentApiBase } = getTwilioConfig();
   if (!accountSid || !authToken) {
     return {
       sid: null,
@@ -287,6 +301,7 @@ export async function syncTemplateToTwilioContent(template: Template) {
 }
 
 export async function fetchApprovedTemplatesFromTwilio() {
+  const { accountSid, authToken, contentApiBase } = getTwilioConfig();
   if (!accountSid || !authToken) {
     return {
       synced: false,
