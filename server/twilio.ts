@@ -219,11 +219,19 @@ export async function sendWhatsAppMessage(options: {
     }
   }
 
-  const message = await client.messages.create(payload as any);
-  return {
-    sid: message.sid,
-    status: message.status ?? "queued"
-  };
+  try {
+    const message = await client.messages.create(payload as any);
+    return {
+      sid: message.sid,
+      status: message.status ?? "queued"
+    };
+  } catch (error: any) {
+    if (error.status === 401) {
+      const maskedSid = accountSid.slice(0, 4) + "****" + accountSid.slice(-4);
+      console.error(`[TWILIO AUTH FAILURE] 401 Unauthorized. SID used: ${maskedSid}. Error: ${error.message}`);
+    }
+    throw error;
+  }
 }
 
 export async function syncTemplateToTwilioContent(template: Template) {
@@ -275,14 +283,20 @@ export async function syncTemplateToTwilioContent(template: Template) {
     };
   }
 
-  const response = await fetch(contentApiBase, {
-    method: "POST",
-    headers: {
-      Authorization: `Basic ${Buffer.from(`${accountSid}:${authToken}`).toString("base64")}`,
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify(body)
-  });
+  let response;
+  try {
+    response = await fetch(contentApiBase, {
+      method: "POST",
+      headers: {
+        Authorization: `Basic ${Buffer.from(`${accountSid}:${authToken}`).toString("base64")}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(body)
+    });
+  } catch (error: any) {
+    console.error(`[TWILIO SYNC ERROR] Network failure or Auth error: ${error.message}`);
+    return { sid: null, synced: false, reason: error.message };
+  }
 
   if (!response.ok) {
     const text = await response.text();

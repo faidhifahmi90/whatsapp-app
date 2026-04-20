@@ -4166,7 +4166,7 @@ function SettingsStudioPage(props: { data: BootstrapData; onRefresh: (preferredC
     setUserForm({ name: user.name, preferredName: user.preferredName || "", email: user.email, role: user.role });
   }
 
-  async function saveSettings() {
+    async function saveSettings() {
     // Basic Safeguard: Prevent saving truncated placeholders with ellipses
     const truncatedFields = Object.entries(settingsForm)
       .filter(([key, value]) => typeof value === 'string' && value.includes("..."))
@@ -4174,6 +4174,17 @@ function SettingsStudioPage(props: { data: BootstrapData; onRefresh: (preferredC
 
     if (truncatedFields.length > 0) {
       alert(`Safety Block: The following fields appear to contain truncated placeholders (ellipses): ${truncatedFields.join(", ")}. Please enter the full value before saving.`);
+      return;
+    }
+
+    // Twilio Credential Validation
+    if (settingsForm.TWILIO_ACCOUNT_SID && !settingsForm.TWILIO_ACCOUNT_SID.startsWith("AC")) {
+      alert("Validation Error: Twilio Account SID must start with 'AC'. Please check your Twilio Console dashboard.");
+      return;
+    }
+
+    if (settingsForm.TWILIO_AUTH_TOKEN && settingsForm.TWILIO_AUTH_TOKEN.length < 32) {
+      alert("Validation Error: Twilio Auth Token appears too short. It should be a 32-character hexadecimal string.");
       return;
     }
 
@@ -4311,8 +4322,17 @@ function SettingsStudioPage(props: { data: BootstrapData; onRefresh: (preferredC
 
            {/* Section 2: Communication Gateway */}
            <div className="rounded-[2rem] bg-surface-container-lowest p-8 shadow-sm border border-outline-variant/10">
-              <SectionTitle icon="hub" title="Communication Gateway" />
-              <div className="mt-8 space-y-6">
+              <div className="flex items-center justify-between mb-8">
+                <SectionTitle icon="hub" title="Communication Gateway" />
+                <button 
+                 disabled={isSavingSettings} 
+                 onClick={saveSettings} 
+                 className="px-6 py-2 bg-primary text-on-primary rounded-xl font-bold text-xs shadow-lg shadow-primary/20 hover:opacity-90 active:scale-95 transition-all"
+               >
+                 {isSavingSettings ? 'Saving...' : 'Update Gateway'}
+               </button>
+              </div>
+              <div className="space-y-6">
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Twilio Account SID</label>
