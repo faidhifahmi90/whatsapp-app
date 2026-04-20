@@ -4698,6 +4698,135 @@ function SettingsStudioPage(props: { data: BootstrapData; onRefresh: (preferredC
               <Field label="Email">
                 <input className="atrium-input" value={userForm.email} onChange={(event) => setUserForm((current) => ({ ...current, email: event.target.value }))} />
               </Field>
+              <div className="flex gap-2">
+                <button className="flex-1 rounded-xl bg-primary px-5 py-3 text-sm font-bold text-on-primary shadow-sm hover:opacity-90">
+                  {editingUserId ? "Update User" : "Add User"}
+                </button>
+                {editingUserId && (
+                  <button 
+                    type="button" 
+                    className="rounded-xl border border-outline-variant/30 px-5 py-3 text-sm font-bold text-on-surface hover:bg-surface-container"
+                    onClick={() => { setEditingUserId(null); setUserForm({ name: "", preferredName: "", email: "", role: "agent" }); }}
+                  >
+                    Cancel
+                  </button>
+                )}
+              </div>
+            </form>
+          </div>
+
+          {/* SaaS Core: Team Invitations */}
+          <TeamInvitationsSection data={props.data} onRefresh={props.onRefresh} />
+
+          {/* SaaS Core: Billing & Subscription */}
+          <BillingSection data={props.data} />
+        </div>
+      </div>
+    </StudioPageShell>
+  );
+}
+
+function TeamInvitationsSection(props: { data: BootstrapData; onRefresh: () => Promise<void> }) {
+  const [email, setEmail] = useState("");
+  const [role, setRole] = useState<"admin" | "agent">("agent");
+  const [loading, setLoading] = useState(false);
+
+  const handleInvite = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      await api("/api/org/invite", {
+        method: "POST",
+        body: JSON.stringify({ email, role })
+      });
+      setEmail("");
+      await props.onRefresh();
+      alert(`Invitation sent to ${email}`);
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="rounded-[2rem] bg-indigo-50/50 p-6 shadow-sm border border-indigo-100">
+      <SectionTitle icon="mail" title="Invite Team Members" />
+      <p className="mb-4 text-[11px] text-slate-500">Collaborate with your team. They will receive an email to join this workspace.</p>
+      <form className="flex flex-col gap-3" onSubmit={handleInvite}>
+        <div className="flex gap-2">
+          <input 
+            required
+            className="atrium-input flex-1 bg-white" 
+            placeholder="colleague@company.com" 
+            value={email} 
+            onChange={e => setEmail(e.target.value)} 
+          />
+          <select 
+            className="atrium-input w-28 bg-white" 
+            value={role} 
+            onChange={e => setRole(e.target.value as any)}
+          >
+            <option value="agent">Agent</option>
+            <option value="admin">Admin</option>
+          </select>
+        </div>
+        <button 
+          disabled={loading || !email}
+          className="w-full rounded-xl bg-indigo-600 px-5 py-3 text-xs font-bold text-white shadow-md hover:bg-indigo-700 transition-all disabled:opacity-50"
+        >
+          {loading ? "Sending..." : "Send Invitation"}
+        </button>
+      </form>
+    </div>
+  );
+}
+
+function BillingSection(props: { data: BootstrapData }) {
+  const org = props.data.organization!;
+  const plan = org.subscriptionPlan || "Free";
+  const status = org.subscriptionStatus || "Active";
+
+  return (
+    <div className="rounded-[2rem] bg-surface-container-lowest p-6 shadow-sm border border-outline-variant/10">
+      <div className="flex items-center justify-between mb-6">
+        <SectionTitle icon="credit_card" title="Billing & Subscription" />
+        <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${status === 'Active' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'}`}>
+          {status}
+        </span>
+      </div>
+      
+      <div className="p-5 rounded-3xl bg-slate-50 border border-slate-100">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Current Plan</p>
+            <h3 className="text-xl font-black text-slate-900">{plan} Professional</h3>
+          </div>
+          <Icon name="verified" className="text-3xl text-primary" fill />
+        </div>
+        
+        <div className="space-y-2 mb-6">
+          <div className="flex items-center gap-2 text-[11px] font-bold text-slate-600">
+            <Icon name="check_circle" className="text-emerald-500 text-sm" /> Unlimited Shared Inbox
+          </div>
+          <div className="flex items-center gap-2 text-[11px] font-bold text-slate-600">
+            <Icon name="check_circle" className="text-emerald-500 text-sm" /> 5,000 Free Marketing Messages
+          </div>
+          <div className="flex items-center gap-2 text-[11px] font-bold text-slate-600">
+            <Icon name="check_circle" className="text-emerald-500 text-sm" /> Priority AI Architect Support
+          </div>
+        </div>
+
+        <button 
+          className="w-full py-4 rounded-2xl bg-white border border-slate-200 text-xs font-black text-slate-900 shadow-sm hover:border-primary transition-all active:scale-95"
+          onClick={() => alert("Stripe Portal is being provisioned for your workspace.")}
+        >
+          Manage in Stripe Portal
+        </button>
+      </div>
+    </div>
+  );
+}
               <Field label="Role">
                 <select className="atrium-input" value={userForm.role} onChange={(event) => setUserForm((current) => ({ ...current, role: event.target.value }))}>
                   <option value="agent">Agent</option>
