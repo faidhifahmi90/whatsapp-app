@@ -3997,7 +3997,7 @@ function SettingsStudioPage(props: { data: BootstrapData; onRefresh: (preferredC
   return (
     <StudioPageShell title="Shared Settings" subtitle="Manage multi-user access and multiple WhatsApp senders for the same workspace.">
       <div className="grid gap-6 xl:grid-cols-2">
-        {/* Workspace Credentials & AI (Consolidated) */}
+        {/* COL 1: Credentials & AI */}
         <div className="space-y-6">
            {/* Section 1: AI Architect */}
            <div className="rounded-[2rem] bg-surface-container-lowest p-8 shadow-sm border border-outline-variant/10">
@@ -4099,117 +4099,117 @@ function SettingsStudioPage(props: { data: BootstrapData; onRefresh: (preferredC
            </div>
         </div>
 
-        {/* Existing User/Channel Management */}
+        {/* COL 2: Teams & Numbers */}
         <div className="space-y-6">
           <div className="rounded-[2rem] bg-surface-container-lowest p-6 shadow-sm border border-outline-variant/10">
             <SectionTitle icon="call" title={editingChannelId ? "Edit WhatsApp Sender" : "Add WhatsApp Sender"} />
-          <form className="space-y-4" onSubmit={saveChannel}>
-            <Field label="Channel name">
-              <input className="atrium-input" value={channelForm.name} onChange={(event) => setChannelForm((current) => ({ ...current, name: event.target.value }))} />
-            </Field>
-            <Field label="WhatsApp number">
-              <input className="atrium-input" placeholder="whatsapp:+14155238886" value={channelForm.whatsappNumber} onChange={(event) => setChannelForm((current) => ({ ...current, whatsappNumber: event.target.value }))} />
-            </Field>
-            <Field label="Messaging service SID">
-              <input className="atrium-input" value={channelForm.messagingServiceSid} onChange={(event) => setChannelForm((current) => ({ ...current, messagingServiceSid: event.target.value }))} />
-            </Field>
-            <div className="flex gap-2">
-              <button className="flex-1 rounded-xl bg-primary px-5 py-3 text-sm font-bold text-on-primary shadow-sm hover:opacity-90">
-                {editingChannelId ? "Save Changes" : "Add number"}
-              </button>
-              {editingChannelId && (
-                <button 
-                  type="button" 
-                  className="rounded-xl border border-outline-variant/30 px-5 py-3 text-sm font-bold text-on-surface hover:bg-surface-container"
-                  onClick={() => { setEditingChannelId(null); setChannelForm({ name: "", whatsappNumber: "", messagingServiceSid: "" }); }}
-                >
-                  Cancel
+            <form className="space-y-4" onSubmit={saveChannel}>
+              <Field label="Channel name">
+                <input className="atrium-input" value={channelForm.name} onChange={(event) => setChannelForm((current) => ({ ...current, name: event.target.value }))} />
+              </Field>
+              <Field label="WhatsApp number">
+                <input className="atrium-input" placeholder="whatsapp:+14155238886" value={channelForm.whatsappNumber} onChange={(event) => setChannelForm((current) => ({ ...current, whatsappNumber: event.target.value }))} />
+              </Field>
+              <Field label="Messaging service SID">
+                <input className="atrium-input" value={channelForm.messagingServiceSid} onChange={(event) => setChannelForm((current) => ({ ...current, messagingServiceSid: event.target.value }))} />
+              </Field>
+              <div className="flex gap-2">
+                <button className="flex-1 rounded-xl bg-primary px-5 py-3 text-sm font-bold text-on-primary shadow-sm hover:opacity-90">
+                  {editingChannelId ? "Save Changes" : "Add number"}
                 </button>
-              )}
-            </div>
-          </form>
-          <div className="mt-6 space-y-3">
-            {props.data.channels.map((channel) => (
-              <div className="flex items-center justify-between rounded-2xl bg-surface-container-low p-4 group" key={channel.id}>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <p className="font-bold text-on-surface">{channel.name}</p>
-                    <span className="rounded-full bg-secondary/10 px-2 py-0.5 text-[10px] font-bold text-secondary uppercase tracking-widest">{channel.status}</span>
-                  </div>
-                  <p className="mt-1 text-xs text-on-surface-variant font-mono">{channel.whatsappNumber}</p>
-                </div>
-                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button type="button" onClick={() => startEditingChannel(channel)} className="rounded-lg p-2 text-on-surface-variant hover:bg-surface-container hover:text-primary transition-colors focus:outline-none">
-                    <Icon className="text-sm" name="edit" />
+                {editingChannelId && (
+                  <button 
+                    type="button" 
+                    className="rounded-xl border border-outline-variant/30 px-5 py-3 text-sm font-bold text-on-surface hover:bg-surface-container"
+                    onClick={() => { setEditingChannelId(null); setChannelForm({ name: "", whatsappNumber: "", messagingServiceSid: "" }); }}
+                  >
+                    Cancel
                   </button>
-                  <button type="button" onClick={() => void deleteChannel(channel.id)} className="rounded-lg p-2 text-on-surface-variant hover:bg-error/10 hover:text-error transition-colors focus:outline-none">
-                    <Icon className="text-sm" name="delete" />
-                  </button>
-                </div>
+                )}
               </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="rounded-[2rem] bg-surface-container-lowest p-6 shadow-sm">
-          <SectionTitle icon="group" title={editingUserId ? "Edit Team Member" : "Add Team Member"} />
-          <form className="space-y-4" onSubmit={saveUser}>
-            <Field label="Full Name">
-              <input className="atrium-input" value={userForm.name} onChange={(event) => setUserForm((current) => ({ ...current, name: event.target.value }))} />
-            </Field>
-            <Field label="Preferred Name (Agent Alias)">
-              <input className="atrium-input" placeholder="e.g. John" value={userForm.preferredName} onChange={(event) => setUserForm((current) => ({ ...current, preferredName: event.target.value }))} />
-            </Field>
-            <Field label="Email">
-              <input className="atrium-input" value={userForm.email} onChange={(event) => setUserForm((current) => ({ ...current, email: event.target.value }))} />
-            </Field>
-            <Field label="Role">
-              <select className="atrium-input" value={userForm.role} onChange={(event) => setUserForm((current) => ({ ...current, role: event.target.value }))}>
-                <option value="agent">Agent</option>
-                <option value="owner">Owner</option>
-              </select>
-            </Field>
-            <div className="flex gap-2">
-              <button className="flex-1 rounded-xl bg-primary px-5 py-3 text-sm font-bold text-on-primary shadow-sm hover:opacity-90">
-                {editingUserId ? "Save Changes" : "Invite teammate"}
-              </button>
-              {editingUserId && (
-                <button 
-                  type="button" 
-                  className="rounded-xl border border-outline-variant/30 px-5 py-3 text-sm font-bold text-on-surface hover:bg-surface-container"
-                  onClick={() => { setEditingUserId(null); setUserForm({ name: "", preferredName: "", email: "", role: "agent" }); }}
-                >
-                  Cancel
-                </button>
-              )}
-            </div>
-          </form>
-          <div className="mt-6 space-y-3">
-            {props.data.users.map((user) => (
-              <div className="flex items-center justify-between rounded-2xl bg-surface-container-low p-4 group" key={user.id}>
-                <div className="flex items-center gap-3">
-                  <Avatar label={user.preferredName || user.name} size="h-10 w-10" />
+            </form>
+            <div className="mt-6 space-y-3">
+              {props.data.channels.map((channel) => (
+                <div className="flex items-center justify-between rounded-2xl bg-surface-container-low p-4 group" key={channel.id}>
                   <div>
                     <div className="flex items-center gap-2">
-                      <p className="font-bold text-on-surface">{user.name}</p>
-                      <span className="rounded-full bg-primary-fixed/20 px-2 py-0.5 text-[10px] uppercase tracking-widest font-bold text-primary">{user.role}</span>
+                      <p className="font-bold text-on-surface">{channel.name}</p>
+                      <span className="rounded-full bg-secondary/10 px-2 py-0.5 text-[10px] font-bold text-secondary uppercase tracking-widest">{channel.status}</span>
                     </div>
-                    <p className="text-xs text-on-surface-variant font-medium mt-1">{user.email}{user.preferredName && ` • Alias: ${user.preferredName}`}{user.lastLoginAt && ` • Last Seen: ${new Date(user.lastLoginAt).toLocaleDateString()}`}</p>
+                    <p className="mt-1 text-xs text-on-surface-variant font-mono">{channel.whatsappNumber}</p>
+                  </div>
+                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button type="button" onClick={() => startEditingChannel(channel)} className="rounded-lg p-2 text-on-surface-variant hover:bg-surface-container hover:text-primary transition-colors focus:outline-none">
+                      <Icon className="text-sm" name="edit" />
+                    </button>
+                    <button type="button" onClick={() => void deleteChannel(channel.id)} className="rounded-lg p-2 text-on-surface-variant hover:bg-error/10 hover:text-error transition-colors focus:outline-none">
+                      <Icon className="text-sm" name="delete" />
+                    </button>
                   </div>
                 </div>
-                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button type="button" onClick={() => startEditingUser(user)} className="rounded-lg p-2 text-on-surface-variant hover:bg-surface-container hover:text-primary transition-colors focus:outline-none">
-                    <Icon className="text-sm" name="edit" />
+              ))}
+            </div>
+          </div>
+
+          <div className="rounded-[2rem] bg-surface-container-lowest p-6 shadow-sm border border-outline-variant/10">
+            <SectionTitle icon="group" title={editingUserId ? "Edit Team Member" : "Add Team Member"} />
+            <form className="space-y-4" onSubmit={saveUser}>
+              <Field label="Full Name">
+                <input className="atrium-input" value={userForm.name} onChange={(event) => setUserForm((current) => ({ ...current, name: event.target.value }))} />
+              </Field>
+              <Field label="Preferred Name (Agent Alias)">
+                <input className="atrium-input" placeholder="e.g. John" value={userForm.preferredName} onChange={(event) => setUserForm((current) => ({ ...current, preferredName: event.target.value }))} />
+              </Field>
+              <Field label="Email">
+                <input className="atrium-input" value={userForm.email} onChange={(event) => setUserForm((current) => ({ ...current, email: event.target.value }))} />
+              </Field>
+              <Field label="Role">
+                <select className="atrium-input" value={userForm.role} onChange={(event) => setUserForm((current) => ({ ...current, role: event.target.value }))}>
+                  <option value="agent">Agent</option>
+                  <option value="owner">Owner</option>
+                </select>
+              </Field>
+              <div className="flex gap-2">
+                <button className="flex-1 rounded-xl bg-primary px-5 py-3 text-sm font-bold text-on-primary shadow-sm hover:opacity-90">
+                  {editingUserId ? "Save Changes" : "Invite teammate"}
+                </button>
+                {editingUserId && (
+                  <button 
+                    type="button" 
+                    className="rounded-xl border border-outline-variant/30 px-5 py-3 text-sm font-bold text-on-surface hover:bg-surface-container"
+                    onClick={() => { setEditingUserId(null); setUserForm({ name: "", preferredName: "", email: "", role: "agent" }); }}
+                  >
+                    Cancel
                   </button>
-                  <button type="button" onClick={() => void deleteUser(user.id)} className="rounded-lg p-2 text-on-surface-variant hover:bg-error/10 hover:text-error transition-colors focus:outline-none">
-                    <Icon className="text-sm" name="delete" />
-                  </button>
-                </div>
+                )}
               </div>
-            ))}
+            </form>
+            <div className="mt-6 space-y-3">
+              {props.data.users.map((user) => (
+                <div className="flex items-center justify-between rounded-2xl bg-surface-container-low p-4 group" key={user.id}>
+                  <div className="flex items-center gap-3">
+                    <Avatar label={user.preferredName || user.name} size="h-10 w-10" />
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <p className="font-bold text-on-surface">{user.name}</p>
+                        <span className="rounded-full bg-primary-fixed/20 px-2 py-0.5 text-[10px] uppercase tracking-widest font-bold text-primary">{user.role}</span>
+                      </div>
+                      <p className="text-xs text-on-surface-variant font-medium mt-1">{user.email}{user.preferredName && ` • Alias: ${user.preferredName}`}{user.lastLoginAt && ` • Last Seen: ${new Date(user.lastLoginAt).toLocaleDateString()}`}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button type="button" onClick={() => startEditingUser(user)} className="rounded-lg p-2 text-on-surface-variant hover:bg-surface-container hover:text-primary transition-colors focus:outline-none">
+                      <Icon className="text-sm" name="edit" />
+                    </button>
+                    <button type="button" onClick={() => void deleteUser(user.id)} className="rounded-lg p-2 text-on-surface-variant hover:bg-error/10 hover:text-error transition-colors focus:outline-none">
+                      <Icon className="text-sm" name="delete" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
-        
       </div>
     </StudioPageShell>
   );
