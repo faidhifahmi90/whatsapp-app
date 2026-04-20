@@ -4931,6 +4931,7 @@ function LandingPageEditor(props: { pageId: string | null; data: BootstrapData; 
     const [feedbackIndex, setFeedbackIndex] = useState<number | null>(null);
     const [feedbackText, setFeedbackText] = useState("");
     const [isRefining, setIsRefining] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
   // Phase 1: Planning
   const handleGeneratePlan = async () => {
@@ -4947,8 +4948,10 @@ function LandingPageEditor(props: { pageId: string | null; data: BootstrapData; 
         })
       });
       setImplementationPlan(resp.plan);
-    } catch (err) {
-      alert("Failed to generate plan.");
+      setError(null);
+    } catch (err: any) {
+      console.error("Architect Phase 1 Error:", err);
+      setError(err.message || "Failed to generate plan.");
       setPhase('input');
     } finally {
       setIsGenerating(false);
@@ -4980,9 +4983,11 @@ function LandingPageEditor(props: { pageId: string | null; data: BootstrapData; 
         }));
         setPhase('input');
         setMagicPrompt("");
+        setError(null);
       }
-    } catch (err) {
-      alert("Execution failed.");
+    } catch (err: any) {
+      console.error("Architect Phase 2 Error:", err);
+      setError(err.message || "Execution failed.");
       setPhase('planning');
     } finally {
       setIsGenerating(false);
@@ -5007,9 +5012,10 @@ function LandingPageEditor(props: { pageId: string | null; data: BootstrapData; 
         setForm({ ...form, sections: next });
         setFeedbackIndex(null);
         setFeedbackText("");
+        setError(null);
       }
-    } catch (err) {
-      alert("Refinement failed.");
+    } catch (err: any) {
+      alert(`Refinement failed: ${err.message}`);
     } finally {
       setIsRefining(false);
     }
@@ -5074,11 +5080,27 @@ function LandingPageEditor(props: { pageId: string | null; data: BootstrapData; 
                       <p className="text-[10px] font-bold text-primary uppercase tracking-[0.2em] mb-3 flex items-center gap-2">
                         <Icon name="magic_button" className="text-sm" /> AI Architect
                       </p>
+
+                      {error && (
+                        <div className="mb-4 p-3 rounded-xl bg-red-50 border border-red-100 text-[10px] text-red-600 font-medium animate-fade-in flex flex-col gap-1">
+                          <div className="flex items-center gap-1.5 font-bold uppercase tracking-widest text-[9px]">
+                            <Icon name="error" className="text-xs" /> Diagnosis
+                          </div>
+                          {error}
+                          {error.includes("API_KEY") && (
+                            <div className="mt-1 pt-1 border-t border-red-100 italic text-[9px] opacity-70">
+                              Suggestion: Update your Gemini API Key in Settings.
+                            </div>
+                          )}
+                        </div>
+                      )}
+
                       <textarea
                         className="atrium-input bg-white text-xs min-h-[120px] resize-none border-primary/10 focus:border-primary/30"
                         placeholder="e.g. 'Add a dark mode saas hero and 3 pricing tiers'..."
                         value={magicPrompt}
                         onChange={e => setMagicPrompt(e.target.value)}
+                        onFocus={() => setError(null)}
                       />
                       <button
                         disabled={isGenerating || !magicPrompt}
