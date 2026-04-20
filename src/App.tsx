@@ -4968,6 +4968,139 @@ function LandingPagesPage(props: { data: BootstrapData; onRefresh: () => Promise
   );
 }
 
+function DeploymentSuccessModal(props: { page: any; onClose: () => void }) {
+  const url = `${window.location.origin}/l/${props.page.slug}`;
+  
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-950/80 backdrop-blur-xl animate-fade-in">
+      <div className="w-full max-w-xl bg-white rounded-[3rem] p-10 shadow-2xl relative overflow-hidden animate-slide-up">
+        {/* Confetti simulation background */}
+        <div className="absolute -top-10 -right-10 w-40 h-40 bg-primary/10 rounded-full blur-3xl animate-pulse" />
+        <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-emerald-500/10 rounded-full blur-3xl animate-pulse delay-500" />
+        
+        <div className="relative z-10 text-center">
+          <div className="w-20 h-20 bg-emerald-50 rounded-3xl flex items-center justify-center text-emerald-500 mx-auto mb-8 transform rotate-6 animate-bounce-subtle">
+            <Icon name="check_circle" className="text-4xl" />
+          </div>
+          
+          <h2 className="text-3xl font-black text-slate-900 mb-2">Deployed to Edge!</h2>
+          <p className="text-slate-500 font-medium mb-10 italic">Your vision is now live and globally accessible.</p>
+          
+          <div className="p-6 rounded-[2rem] bg-slate-50 border border-slate-100 text-left space-y-4 mb-10">
+            <div>
+              <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Live Endpoint</div>
+              <div className="flex items-center justify-between gap-4">
+                <code className="text-xs font-bold text-primary truncate flex-1">{url}</code>
+                <button 
+                  onClick={() => {
+                    navigator.clipboard.writeText(url);
+                    alert("URL copied to clipboard!");
+                  }}
+                  className="p-2 rounded-xl bg-white border border-slate-200 hover:border-primary text-slate-400 hover:text-primary transition-all"
+                >
+                  <Icon name="content_copy" className="text-sm" />
+                </button>
+              </div>
+            </div>
+            
+            <div className="pt-4 border-t border-slate-200/50 flex items-center justify-between">
+              <div>
+                <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Status</div>
+                <div className="flex items-center gap-1.5 text-emerald-600 font-bold text-xs uppercase tracking-tighter">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
+                  Active
+                </div>
+              </div>
+              <a 
+                href={url}
+                target="_blank"
+                rel="noreferrer"
+                className="py-3 px-8 rounded-full bg-slate-900 text-white text-xs font-bold shadow-lg shadow-slate-900/20 hover:scale-105 transition-all"
+              >
+                Visit Site
+              </a>
+            </div>
+          </div>
+          
+          <div className="flex items-center justify-center gap-6">
+            <button className="flex flex-col items-center gap-2 group">
+              <div className="w-12 h-12 rounded-2xl bg-blue-50 flex items-center justify-center text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-all">
+                <Icon name="share" />
+              </div>
+              <span className="text-[9px] font-black uppercase text-slate-400">Share</span>
+            </button>
+            <button className="flex flex-col items-center gap-2 group">
+              <div className="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-all">
+                <Icon name="qr_code" />
+              </div>
+              <span className="text-[9px] font-black uppercase text-slate-400">QR Code</span>
+            </button>
+            <button className="flex flex-col items-center gap-2 group" onClick={props.onClose}>
+              <div className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-600 group-hover:bg-slate-900 group-hover:text-white transition-all">
+                <Icon name="close" />
+              </div>
+              <span className="text-[9px] font-black uppercase text-slate-400">Close</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function BuildProgressOverlay(props: { label: string; percent: number }) {
+  return (
+    <div className="absolute inset-0 z-[100] flex flex-col items-center justify-center p-10 bg-white/80 backdrop-blur-2xl animate-fade-in overflow-hidden">
+      {/* Decorative pulse circles */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-primary/5 rounded-full animate-pulse-slow" />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] bg-primary/5 rounded-full animate-pulse-slow delay-1000" />
+      
+      <div className="relative z-10 w-full max-w-md text-center">
+        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary text-[10px] font-black uppercase tracking-[0.3em] mb-8 animate-bounce-subtle">
+           <span className="relative flex h-2 w-2">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
+          </span>
+          Architect System Active
+        </div>
+        
+        <h2 className="text-3xl font-black text-slate-900 mb-4 tracking-tight leading-none h-[2em] flex items-center justify-center">
+          {props.label}
+        </h2>
+        
+        <div className="relative h-4 w-full bg-slate-100 rounded-full overflow-hidden shadow-inner border border-slate-200/50">
+          <div 
+            className="absolute top-0 left-0 h-full bg-gradient-to-r from-primary via-indigo-500 to-primary flex items-center justify-end px-2 transition-all duration-700 ease-out"
+            style={{ width: `${props.percent}%` }}
+          >
+            <div className="h-1.5 w-1.5 rounded-full bg-white animate-pulse" />
+          </div>
+        </div>
+        
+        <div className="mt-4 flex justify-between items-center text-[10px] font-bold tracking-widest text-slate-400 uppercase">
+          <span>Processing Logic</span>
+          <span className="text-primary">{props.percent}% Complete</span>
+        </div>
+        
+        <div className="mt-12 grid grid-cols-3 gap-8 opacity-40">
+           <div className="flex flex-col items-center gap-2">
+              <div className={`h-1.5 w-full rounded-full ${props.percent > 30 ? 'bg-primary' : 'bg-slate-200'}`} />
+              <span className="text-[8px] font-black">Structure</span>
+           </div>
+           <div className="flex flex-col items-center gap-2">
+              <div className={`h-1.5 w-full rounded-full ${props.percent > 60 ? 'bg-primary' : 'bg-slate-200'}`} />
+              <span className="text-[8px] font-black">Content</span>
+           </div>
+           <div className="flex flex-col items-center gap-2">
+              <div className={`h-1.5 w-full rounded-full ${props.percent > 90 ? 'bg-primary' : 'bg-slate-200'}`} />
+              <span className="text-[8px] font-black">Visuals</span>
+           </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function LandingPageEditor(props: { pageId: string | null; data: BootstrapData; onClose: () => void; onRefresh: () => Promise<void> }) {
   const isNew = props.pageId === "new";
   const existingPage = props.data.landingPages.find(p => p.id === props.pageId);
@@ -5000,6 +5133,61 @@ function LandingPageEditor(props: { pageId: string | null; data: BootstrapData; 
     const [feedbackText, setFeedbackText] = useState("");
     const [isRefining, setIsRefining] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    
+    // Progress Tracking
+    const [progressPercent, setProgressPercent] = useState(0);
+    const [progressLabel, setProgressLabel] = useState("");
+    
+    // Deployment Tracking
+    const [isDeploying, setIsDeploying] = useState(false);
+    const [showSuccess, setShowSuccess] = useState(false);
+
+    useEffect(() => {
+      let interval: any;
+      if (isGenerating) {
+        setProgressPercent(0);
+        let current = 0;
+        
+        const planningLabels = [
+          "Analyzing Brand Context...",
+          "Identifying Key Sectors...",
+          "Mapping Information Hierarchy...",
+          "Optimizing User Journey...",
+          "Finalizing Blueprint..."
+        ];
+        
+        const executionLabels = [
+          "Allocating Design Tokens...",
+          "Drafting Persuasive Copy...",
+          "Simulating Conversions...",
+          "Polishing UI Synergy...",
+          "Finalizing Export..."
+        ];
+        
+        const labels = phase === 'planning' ? planningLabels : executionLabels;
+        setProgressLabel(labels[0]);
+
+        interval = setInterval(() => {
+          current += Math.random() * 15;
+          if (current >= 100) {
+            current = 99;
+            clearInterval(interval);
+          }
+          setProgressPercent(Math.floor(current));
+          
+          // Rotate labels based on percentage
+          const labelIdx = Math.min(
+            Math.floor((current / 100) * labels.length),
+            labels.length - 1
+          );
+          setProgressLabel(labels[labelIdx]);
+        }, 1200);
+      } else {
+        clearInterval(interval);
+        setTimeout(() => setProgressPercent(0), 1000);
+      }
+      return () => clearInterval(interval);
+    }, [isGenerating, phase]);
 
   // Phase 1: Planning
   const handleGeneratePlan = async () => {
@@ -5093,15 +5281,47 @@ function LandingPageEditor(props: { pageId: string | null; data: BootstrapData; 
 
   const handleSave = async () => {
     setIsSaving(true);
+    setIsDeploying(true);
+    setProgressPercent(0);
+    setProgressLabel("Compiling Edge Assets...");
+    
+    // Step 1: Simulated Deployment Sequence
+    const deploySteps = [
+      "Optimizing Asset Bundles...",
+      "Generating Static Content...",
+      "Syncing to Global CDN...",
+      "Propagating DNS Records...",
+      "Deployment Finalizing..."
+    ];
+    
+    let step = 0;
+    const interval = setInterval(() => {
+      setProgressPercent(prev => Math.min(prev + 20, 95));
+      setProgressLabel(deploySteps[step] || "Finalizing...");
+      step++;
+      if (step >= deploySteps.length) clearInterval(interval);
+    }, 400);
+
     try {
       const endpoint = isNew ? "/api/landing-pages" : `/api/landing-pages/${props.pageId}`;
       const method = isNew ? "POST" : "PUT";
-      await api(endpoint, {
+      const resp: any = await api(endpoint, {
         method,
         body: JSON.stringify(form)
       });
+      
+      clearInterval(interval);
+      setProgressPercent(100);
+      setProgressLabel("Live!");
+      
       await props.onRefresh();
-      props.onClose();
+      
+      setIsDeploying(false);
+      setShowSuccess(true);
+    } catch (err: any) {
+      clearInterval(interval);
+      alert(`Deployment failed: ${err.message}`);
+      setIsDeploying(false);
     } finally {
       setIsSaving(false);
     }
@@ -5110,8 +5330,10 @@ function LandingPageEditor(props: { pageId: string | null; data: BootstrapData; 
   return (
     <>
       {/* Main Editor Shell */}
+      {showSuccess && <DeploymentSuccessModal page={existingPage || form} onClose={() => { setShowSuccess(false); props.onClose(); }} />}
       <div className="fixed inset-0 z-[60] flex bg-slate-950/20 backdrop-blur-sm">
-        <div className="flex h-full w-full max-w-7xl mx-auto overflow-hidden bg-white shadow-2xl md:rounded-l-[3rem] animate-slide-up">
+        <div className="flex h-full w-full max-w-7xl mx-auto overflow-hidden bg-white shadow-2xl md:rounded-l-[3rem] animate-slide-up relative">
+          {(isGenerating || isDeploying) && <BuildProgressOverlay label={progressLabel} percent={progressPercent} />}
 
           {/* Sidebar */}
           <div className="w-80 border-r border-slate-100 flex flex-col bg-[#fcfdfd]">

@@ -1167,6 +1167,44 @@ app.get("/l/:slug", (req, res) => {
               </section>
             `;
           }
+          if (section.type === 'cta_banner') {
+            return `
+              <section class="py-24 px-6">
+                <div class="max-w-5xl mx-auto rounded-[3rem] p-16 text-center shadow-2xl relative overflow-hidden" style="background-color: ${page.theme?.primaryColor || '#2563eb'}; color: white;">
+                  <div class="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -mr-32 -mt-32"></div>
+                  <h2 class="text-4xl font-extrabold mb-6 relative z-10">${section.title}</h2>
+                  <p class="text-xl mb-10 opacity-90 max-w-2xl mx-auto relative z-10">${section.subtitle}</p>
+                  <a href="#form" class="bg-white text-slate-900 px-10 py-4 rounded-full font-bold text-lg inline-block shadow-xl hover:scale-105 transition-transform relative z-10">${section.cta}</a>
+                </div>
+              </section>
+            `;
+          }
+          if (section.type === 'logos') {
+            return `
+              <section class="py-12 border-y border-black/5 bg-slate-50/30 overflow-hidden">
+                <div class="max-w-6xl mx-auto px-6">
+                  <p class="text-center text-[10px] font-bold uppercase tracking-[0.3em] text-slate-400 mb-8">${section.title || 'Trusted By Industry Leaders'}</p>
+                  <div class="flex flex-wrap items-center justify-center gap-12 opacity-50 grayscale hover:grayscale-0 transition-all">
+                    ${section.logos?.map((logo: string) => `<span class="text-xl font-black text-slate-800">${logo}</span>`).join('')}
+                  </div>
+                </div>
+              </section>
+            `;
+          }
+          if (section.type === 'stats') {
+            return `
+              <section class="py-24 px-6 bg-white">
+                <div class="max-w-6xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-12 text-center">
+                  ${section.items?.map((item: any) => `
+                    <div>
+                      <div class="text-5xl font-black mb-2" style="color: ${page.theme?.primaryColor || '#000'}">${item.value}</div>
+                      <div class="text-[10px] font-bold uppercase tracking-widest text-slate-400">${item.label}</div>
+                    </div>
+                  `).join('')}
+                </div>
+              </section>
+            `;
+          }
           if (section.type === 'form') {
             return `
               <section id="form" class="py-20 px-6 text-center">

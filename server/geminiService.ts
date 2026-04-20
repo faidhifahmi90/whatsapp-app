@@ -24,7 +24,7 @@ function handleGeminiError(err: any, context: string): never {
   throw new Error(`${context} failed: ${message}`);
 }
 
-const MODEL_NAME = "gemini-1.5-flash";
+const MODEL_NAME = "gemini-flash-latest";
 
 /**
  * System instruction to ensure Gemini behaves as a high-end web architect.
@@ -41,6 +41,9 @@ JSON Schema for sections:
 - type: 'testimonials', title: string, items: { name: string, role: string, quote: string }[]
 - type: 'faq', title: string, items: { q: string, a: string }[]
 - type: 'form', title: string, subtitle: string, fields: { label: string, name: string, type: 'text'|'email'|'tel'|'textarea', placeholder: string }[]
+- type: 'logos', title: string, logos: string[] // List of brand names or emoji logos
+- type: 'stats', title: string, items: { value: string, label: string }[]
+- type: 'cta_banner', title: string, subtitle: string, cta: string
 `;
 
 export async function generateLandingPageFromContent(params: {
@@ -159,11 +162,12 @@ export async function executeWithSkills(params: {
         items: {
           type: SchemaType.OBJECT,
           properties: {
-            type: { type: SchemaType.STRING, enum: ["hero", "features", "pricing", "testimonials", "faq", "form", "events", "cta", "content", "gallery"] },
+            type: { type: SchemaType.STRING, enum: ["hero", "features", "pricing", "testimonials", "faq", "form", "events", "cta", "content", "gallery", "logos", "stats", "cta_banner"] },
             title: { type: SchemaType.STRING },
             subtitle: { type: SchemaType.STRING },
             cta: { type: SchemaType.STRING },
-            items: { type: SchemaType.ARRAY, items: { type: SchemaType.OBJECT, properties: { title: { type: SchemaType.STRING }, text: { type: SchemaType.STRING }, icon: { type: SchemaType.STRING } } } },
+            items: { type: SchemaType.ARRAY, items: { type: SchemaType.OBJECT, properties: { title: { type: SchemaType.STRING }, text: { type: SchemaType.STRING }, icon: { type: SchemaType.STRING }, value: { type: SchemaType.STRING }, label: { type: SchemaType.STRING } } } },
+            logos: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING } },
             plans: { type: SchemaType.ARRAY, items: { type: SchemaType.OBJECT, properties: { name: { type: SchemaType.STRING }, price: { type: SchemaType.STRING }, features: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING } }, featured: { type: SchemaType.BOOLEAN } } } },
             fields: { type: SchemaType.ARRAY, items: { type: SchemaType.OBJECT, properties: { label: { type: SchemaType.STRING }, type: { type: SchemaType.STRING }, placeholder: { type: SchemaType.STRING } } } }
           },
