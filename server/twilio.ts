@@ -182,7 +182,8 @@ export async function sendWhatsAppMessage(options: {
   contentVariables?: string | null;
 }) {
   const client = getTwilioClient();
-  const { defaultMessagingServiceSid } = getTwilioConfig();
+  const config = getTwilioConfig();
+  const { accountSid, defaultMessagingServiceSid } = config;
   if (!client) {
     return {
       sid: `SIMULATED_${Date.now()}`,
