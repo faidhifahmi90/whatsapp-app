@@ -25,10 +25,11 @@ JSON Schema for sections:
 
 export async function generateLandingPageFromContent(params: {
   businessName: string;
-  industry: string;
-  goal: string;
+  industry?: string;
+  goal?: string;
   rawContent?: string;
   description?: string;
+  currentSections?: any[];
 }) {
   if (!apiKey) {
     throw new Error("GEMINI_API_KEY is not configured in .env");
@@ -41,12 +42,14 @@ export async function generateLandingPageFromContent(params: {
 
   const prompt = `
     Business Name: ${params.businessName}
-    Industry: ${params.industry}
-    Primary Goal: ${params.goal}
+    Industry: ${params.industry || "General"}
+    Primary Goal: ${params.goal || "Brand Awareness"}
     Description: ${params.description || "N/A"}
-    Raw Content to parse: ${params.rawContent || "Generate best practice content based on industry if raw content is sparse."}
+    Current Sections Structure: ${params.currentSections ? JSON.stringify(params.currentSections) : "None (Fresh Build)"}
+    Raw Content / Prompt: ${params.rawContent || "Generate best practice content based on industry if raw content is sparse."}
 
     Generate a complete sections array for this website. 
+    If Current Sections Structure is provided, use the 'Raw Content / Prompt' to modify, add, or replace sections in that structure while maintaining overall consistency.
     Make the copy persuasive, modern, and aligned with the "tomorrowX" premium aesthetic (bold, minimalist, futuristic).
     Return only the JSON array of sections.
   `;

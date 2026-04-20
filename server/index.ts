@@ -1423,7 +1423,8 @@ app.post("/api/ai/smart-build", async (req, res) => {
         industry,
         goal,
         rawContent,
-        description
+        description,
+        currentSections: userSections
       });
 
       return res.json({

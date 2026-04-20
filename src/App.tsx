@@ -4521,60 +4521,12 @@ function SmartBuilderWizard(props: { onComplete: (config: any) => void; onClose:
     goal: "lead",
     style: "modern",
     sections: [] as any[],
-    rawContent: "",
-    buildMode: 'manual' as 'manual' | 'magic'
+    rawContent: ""
   });
   const [isBuilding, setIsBuilding] = useState(false);
   const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
 
-  const sectionTemplates: Record<string, any> = {
-    hero: { type: 'hero', title: 'Your Big Headline Here', subtitle: '', cta: 'Get Started' },
-    features: { type: 'features', items: [{ icon: '✨', title: 'Feature One', text: 'Describe the benefit.' }] },
-    pricing: { type: 'pricing', title: 'Our Pricing', plans: [{ name: 'Starter', price: '$29', features: ['Core access', 'Email support'], featured: false }] },
-    testimonials: { type: 'testimonials', title: 'What People Say', items: [{ name: 'Happy Customer', role: 'CEO', quote: 'This product changed everything.' }] },
-    faq: { type: 'faq', title: 'FAQ', items: [{ q: 'How does it work?', a: 'Simply sign up and get started.' }] },
-    form: { type: 'form', title: 'Get in Touch', subtitle: 'Leave your details below.', fields: [{ label: 'Name', name: 'name', type: 'text', placeholder: 'Your name' }, { label: 'WhatsApp', name: 'phone', type: 'tel', placeholder: '+1 234...' }] }
-  };
 
-  const sectionMeta: Record<string, { icon: string; label: string }> = {
-    hero: { icon: 'auto_awesome', label: 'Hero' },
-    features: { icon: 'grid_view', label: 'Features' },
-    pricing: { icon: 'payments', label: 'Pricing' },
-    testimonials: { icon: 'forum', label: 'Testimonials' },
-    faq: { icon: 'help_outline', label: 'FAQ' },
-    form: { icon: 'contact_page', label: 'Form' }
-  };
-
-  const addSection = (type: string) => {
-    const t = sectionTemplates[type];
-    if (!t) return;
-    setFormData(prev => ({ ...prev, sections: [...prev.sections, JSON.parse(JSON.stringify(t))] }));
-    setExpandedIdx(formData.sections.length);
-  };
-
-  const removeSection = (idx: number) => {
-    setFormData(prev => ({ ...prev, sections: prev.sections.filter((_: any, i: number) => i !== idx) }));
-    if (expandedIdx === idx) setExpandedIdx(null);
-  };
-
-  const updateSection = (idx: number, patch: any) => {
-    setFormData(prev => {
-      const next = [...prev.sections];
-      next[idx] = { ...next[idx], ...patch };
-      return { ...prev, sections: next };
-    });
-  };
-
-  const moveSection = (idx: number, dir: 'up' | 'down') => {
-    const target = dir === 'up' ? idx - 1 : idx + 1;
-    if (target < 0 || target >= formData.sections.length) return;
-    setFormData(prev => {
-      const next = [...prev.sections];
-      [next[idx], next[target]] = [next[target], next[idx]];
-      return { ...prev, sections: next };
-    });
-    setExpandedIdx(target);
-  };
 
   async function handleBuild() {
     setIsBuilding(true);
@@ -4610,7 +4562,7 @@ function SmartBuilderWizard(props: { onComplete: (config: any) => void; onClose:
     { id: 'ocean', label: 'Ocean', colors: ['#0ea5e9', '#f0f9ff', '#0c4a6e'] }
   ];
 
-  const canProceed = step === 1 ? !!formData.name : step === 2 ? (formData.buildMode === 'manual' ? formData.sections.length > 0 : formData.rawContent.length > 20) : true;
+  const canProceed = step === 1 ? !!formData.name : step === 2 ? formData.rawContent.length > 20 : true;
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/40 backdrop-blur-md">
@@ -4623,7 +4575,7 @@ function SmartBuilderWizard(props: { onComplete: (config: any) => void; onClose:
                  {step === 1 ? 'Your Brand' : step === 2 ? 'Add Your Content' : 'Style & Launch'}
                </h2>
                <p className="text-on-primary/60 text-sm font-medium">
-                 {step === 1 ? 'Tell us about your business.' : step === 2 ? 'Build your page section by section.' : 'Choose a look and generate.'}
+                 {step === 1 ? 'Tell us about your business.' : step === 2 ? 'Let the AI architect your content.' : 'Choose a look and generate.'}
                </p>
             </div>
             <div className="mt-6 flex items-center gap-3 relative z-10">
@@ -4689,244 +4641,23 @@ function SmartBuilderWizard(props: { onComplete: (config: any) => void; onClose:
                   {/* Step 2: Content Builder */}
                   {step === 2 && (
                      <div className="space-y-6">
-                        {/* Mode Toggle */}
-                        <div className="flex p-1 bg-slate-100 rounded-2xl">
-                           <button 
-                             onClick={() => setFormData({...formData, buildMode: 'manual'})}
-                             className={`flex-1 py-3 rounded-xl text-xs font-bold transition-all ${formData.buildMode === 'manual' ? 'bg-white shadow-sm text-primary' : 'text-slate-400'}`}
-                           >
-                             Assemble Sections
-                           </button>
-                           <button 
-                             onClick={() => setFormData({...formData, buildMode: 'magic'})}
-                             className={`flex-1 py-3 rounded-xl text-xs font-bold transition-all ${formData.buildMode === 'magic' ? 'bg-white shadow-sm text-primary' : 'text-slate-400'}`}
-                           >
-                             Magic Auto-Generate
-                           </button>
+                        <div className="space-y-4 animate-fade-in">
+                           <div>
+                              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 block">What are you building?</label>
+                              <textarea 
+                                className="atrium-input text-sm min-h-[300px] py-6 rounded-3xl resize-none"
+                                placeholder="Paste website copy, brochures, or describe your product here. The AI will intelligently map this to Hero, Features, and FAQ sections..."
+                                value={formData.rawContent}
+                                onChange={e => setFormData({...formData, rawContent: e.target.value})}
+                              />
+                           </div>
+                           <div className="p-4 rounded-2xl bg-primary/5 border border-primary/10 flex gap-3">
+                              <Icon name="auto_fix_high" className="text-primary mt-0.5" />
+                              <p className="text-[10px] text-slate-500 leading-relaxed font-medium uppercase tracking-tight">
+                                 AI Studio Google will structure your content into a high-converting landing page.
+                              </p>
+                           </div>
                         </div>
-
-                        {formData.buildMode === 'manual' ? (
-                          <>
-                            {/* Add Section Bar */}
-                            <div>
-                              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 block">Add Sections</label>
-                              <div className="flex flex-wrap gap-2">
-                                 {Object.entries(sectionMeta).map(([type, meta]) => (
-                                   <button
-                                     key={type}
-                                     onClick={() => addSection(type)}
-                                     className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-slate-50 border border-slate-100 hover:border-primary hover:bg-primary/5 text-sm font-bold text-slate-500 hover:text-primary transition-all"
-                                   >
-                                     <Icon name={meta.icon} className="text-sm" /> {meta.label}
-                                   </button>
-                                 ))}
-                              </div>
-                            </div>
-
-                            {/* Section Cards */}
-                            {formData.sections.length === 0 && (
-                              <div className="text-center py-16 text-slate-300">
-                                <Icon name="add_circle" className="text-6xl mb-4 opacity-20" />
-                                <p className="font-bold text-lg">No sections yet</p>
-                                <p className="text-sm mt-1">Click the buttons above to start building your page.</p>
-                              </div>
-                            )}
-
-                            <div className="space-y-3">
-                              {formData.sections.map((section: any, idx: number) => {
-                                const meta = sectionMeta[section.type] || { icon: 'widgets', label: section.type };
-                                const isExpanded = expandedIdx === idx;
-                                return (
-                                  <div key={idx} className={`rounded-3xl border transition-all ${isExpanded ? 'border-primary bg-primary/[0.02] shadow-lg' : 'border-slate-100 bg-white hover:shadow-md'}`}>
-                                    {/* Section Header */}
-                                    <div className="flex items-center justify-between p-5 cursor-pointer" onClick={() => setExpandedIdx(isExpanded ? null : idx)}>
-                                      <div className="flex items-center gap-3">
-                                        <div className={`h-9 w-9 rounded-xl flex items-center justify-center ${isExpanded ? 'bg-primary text-on-primary' : 'bg-slate-100 text-slate-400'}`}>
-                                          <Icon name={meta.icon} className="text-sm" />
-                                        </div>
-                                        <div>
-                                          <p className="font-bold text-sm text-slate-700">{meta.label}</p>
-                                          <p className="text-[10px] text-slate-400">{section.title || section.type}</p>
-                                        </div>
-                                      </div>
-                                      <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
-                                        <button onClick={() => moveSection(idx, 'up')} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400"><Icon name="arrow_upward" className="text-xs" /></button>
-                                        <button onClick={() => moveSection(idx, 'down')} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400"><Icon name="arrow_downward" className="text-xs" /></button>
-                                        <button onClick={() => removeSection(idx)} className="p-1.5 rounded-lg hover:bg-error/10 text-slate-400 hover:text-error"><Icon name="delete" className="text-xs" /></button>
-                                        <Icon name={isExpanded ? 'expand_less' : 'expand_more'} className="text-slate-400 ml-1" />
-                                      </div>
-                                    </div>
-
-                                    {/* Expanded Editor */}
-                                    {isExpanded && (
-                                      <div className="px-5 pb-5 space-y-4 border-t border-slate-100 pt-4">
-
-                                        {/* Hero Editor */}
-                                        {section.type === 'hero' && (
-                                          <>
-                                            <div>
-                                              <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Headline</label>
-                                              <input className="atrium-input text-sm" value={section.title} onChange={e => updateSection(idx, { title: e.target.value })} placeholder="Your main headline" />
-                                            </div>
-                                            <div>
-                                              <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Subtitle</label>
-                                              <textarea className="atrium-input text-sm resize-none min-h-[60px]" value={section.subtitle || ''} onChange={e => updateSection(idx, { subtitle: e.target.value })} placeholder="Supporting description (optional — AI will generate if empty)" />
-                                            </div>
-                                            <div>
-                                              <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">CTA Button Text</label>
-                                              <input className="atrium-input text-sm" value={section.cta || ''} onChange={e => updateSection(idx, { cta: e.target.value })} placeholder="Get Started" />
-                                            </div>
-                                          </>
-                                        )}
-
-                                        {/* Features Editor */}
-                                        {section.type === 'features' && (
-                                          <>
-                                            {(section.items || []).map((item: any, i: number) => (
-                                              <div key={i} className="flex gap-3 items-start">
-                                                <input className="atrium-input text-sm w-12 text-center flex-shrink-0" value={item.icon} onChange={e => {
-                                                  const items = [...section.items]; items[i] = { ...items[i], icon: e.target.value }; updateSection(idx, { items });
-                                                }} />
-                                                <div className="flex-1 space-y-2">
-                                                  <input className="atrium-input text-sm" value={item.title} onChange={e => {
-                                                    const items = [...section.items]; items[i] = { ...items[i], title: e.target.value }; updateSection(idx, { items });
-                                                  }} placeholder="Feature name" />
-                                                  <input className="atrium-input text-xs" value={item.text} onChange={e => {
-                                                    const items = [...section.items]; items[i] = { ...items[i], text: e.target.value }; updateSection(idx, { items });
-                                                  }} placeholder="Short description" />
-                                                </div>
-                                                <button onClick={() => { const items = section.items.filter((_: any, j: number) => j !== i); updateSection(idx, { items }); }} className="p-1 text-slate-300 hover:text-error"><Icon name="close" className="text-xs" /></button>
-                                              </div>
-                                            ))}
-                                            <button onClick={() => updateSection(idx, { items: [...(section.items || []), { icon: '⭐', title: '', text: '' }] })} className="text-xs font-bold text-primary flex items-center gap-1 hover:underline">
-                                              <Icon name="add" className="text-sm" /> Add Feature
-                                            </button>
-                                          </>
-                                        )}
-
-                                        {/* Pricing Editor */}
-                                        {section.type === 'pricing' && (
-                                          <>
-                                            <div>
-                                              <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Section Title</label>
-                                              <input className="atrium-input text-sm" value={section.title} onChange={e => updateSection(idx, { title: e.target.value })} />
-                                            </div>
-                                            {(section.plans || []).map((plan: any, i: number) => (
-                                              <div key={i} className="p-4 rounded-2xl bg-slate-50 space-y-2 relative">
-                                                <button onClick={() => { const plans = section.plans.filter((_: any, j: number) => j !== i); updateSection(idx, { plans }); }} className="absolute top-3 right-3 text-slate-300 hover:text-error"><Icon name="close" className="text-xs" /></button>
-                                                <div className="flex gap-2">
-                                                  <input className="atrium-input text-sm flex-1" value={plan.name} onChange={e => { const plans = [...section.plans]; plans[i] = { ...plans[i], name: e.target.value }; updateSection(idx, { plans }); }} placeholder="Plan name" />
-                                                  <input className="atrium-input text-sm w-24" value={plan.price} onChange={e => { const plans = [...section.plans]; plans[i] = { ...plans[i], price: e.target.value }; updateSection(idx, { plans }); }} placeholder="$29" />
-                                                </div>
-                                                <input className="atrium-input text-xs" value={(plan.features || []).join(', ')} onChange={e => { const plans = [...section.plans]; plans[i] = { ...plans[i], features: e.target.value.split(',').map((s: string) => s.trim()).filter(Boolean) }; updateSection(idx, { plans }); }} placeholder="Feature 1, Feature 2, ..." />
-                                                <label className="flex items-center gap-2 text-xs text-slate-500 cursor-pointer">
-                                                  <input type="checkbox" checked={plan.featured || false} onChange={e => { const plans = [...section.plans]; plans[i] = { ...plans[i], featured: e.target.checked }; updateSection(idx, { plans }); }} className="rounded" /> Featured Plan
-                                                </label>
-                                              </div>
-                                            ))}
-                                            <button onClick={() => updateSection(idx, { plans: [...(section.plans || []), { name: '', price: '', features: [], featured: false }] })} className="text-xs font-bold text-primary flex items-center gap-1 hover:underline">
-                                              <Icon name="add" className="text-sm" /> Add Plan
-                                            </button>
-                                          </>
-                                        )}
-
-                                        {/* Testimonials Editor */}
-                                        {section.type === 'testimonials' && (
-                                          <>
-                                            <div>
-                                              <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Section Title</label>
-                                              <input className="atrium-input text-sm" value={section.title} onChange={e => updateSection(idx, { title: e.target.value })} />
-                                            </div>
-                                            {(section.items || []).map((item: any, i: number) => (
-                                              <div key={i} className="p-4 rounded-2xl bg-slate-50 space-y-2 relative">
-                                                <button onClick={() => { const items = section.items.filter((_: any, j: number) => j !== i); updateSection(idx, { items }); }} className="absolute top-3 right-3 text-slate-300 hover:text-error"><Icon name="close" className="text-xs" /></button>
-                                                <div className="flex gap-2">
-                                                  <input className="atrium-input text-sm flex-1" value={item.name} onChange={e => { const items = [...section.items]; items[i] = { ...items[i], name: e.target.value }; updateSection(idx, { items }); }} placeholder="Name" />
-                                                  <input className="atrium-input text-sm flex-1" value={item.role || ''} onChange={e => { const items = [...section.items]; items[i] = { ...items[i], role: e.target.value }; updateSection(idx, { items }); }} placeholder="Role" />
-                                                </div>
-                                                <textarea className="atrium-input text-xs resize-none min-h-[50px]" value={item.quote} onChange={e => { const items = [...section.items]; items[i] = { ...items[i], quote: e.target.value }; updateSection(idx, { items }); }} placeholder="Their testimonial..." />
-                                              </div>
-                                            ))}
-                                            <button onClick={() => updateSection(idx, { items: [...(section.items || []), { name: '', role: '', quote: '' }] })} className="text-xs font-bold text-primary flex items-center gap-1 hover:underline">
-                                              <Icon name="add" className="text-sm" /> Add Testimonial
-                                            </button>
-                                          </>
-                                        )}
-
-                                        {/* FAQ Editor */}
-                                        {section.type === 'faq' && (
-                                          <>
-                                            <div>
-                                              <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Section Title</label>
-                                              <input className="atrium-input text-sm" value={section.title} onChange={e => updateSection(idx, { title: e.target.value })} />
-                                            </div>
-                                            {(section.items || []).map((item: any, i: number) => (
-                                              <div key={i} className="p-4 rounded-2xl bg-slate-50 space-y-2 relative">
-                                                <button onClick={() => { const items = section.items.filter((_: any, j: number) => j !== i); updateSection(idx, { items }); }} className="absolute top-3 right-3 text-slate-300 hover:text-error"><Icon name="close" className="text-xs" /></button>
-                                                <input className="atrium-input text-sm" value={item.q} onChange={e => { const items = [...section.items]; items[i] = { ...items[i], q: e.target.value }; updateSection(idx, { items }); }} placeholder="Question" />
-                                                <textarea className="atrium-input text-xs resize-none min-h-[40px]" value={item.a} onChange={e => { const items = [...section.items]; items[i] = { ...items[i], a: e.target.value }; updateSection(idx, { items }); }} placeholder="Answer" />
-                                              </div>
-                                            ))}
-                                            <button onClick={() => updateSection(idx, { items: [...(section.items || []), { q: '', a: '' }] })} className="text-xs font-bold text-primary flex items-center gap-1 hover:underline">
-                                              <Icon name="add" className="text-sm" /> Add Question
-                                            </button>
-                                          </>
-                                        )}
-
-                                        {/* Form Editor */}
-                                        {section.type === 'form' && (
-                                          <>
-                                            <div>
-                                              <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Form Title</label>
-                                              <input className="atrium-input text-sm" value={section.title} onChange={e => updateSection(idx, { title: e.target.value })} />
-                                            </div>
-                                            <div>
-                                              <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Subtitle</label>
-                                              <input className="atrium-input text-xs" value={section.subtitle || ''} onChange={e => updateSection(idx, { subtitle: e.target.value })} />
-                                            </div>
-                                            {(section.fields || []).map((f: any, i: number) => (
-                                              <div key={i} className="flex gap-2 items-center">
-                                                <input className="atrium-input text-sm flex-1" value={f.label} onChange={e => { const fields = [...section.fields]; fields[i] = { ...fields[i], label: e.target.value }; updateSection(idx, { fields }); }} placeholder="Label" />
-                                                <select className="atrium-input text-xs w-28" value={f.type} onChange={e => { const fields = [...section.fields]; fields[i] = { ...fields[i], type: e.target.value }; updateSection(idx, { fields }); }}>
-                                                  <option value="text">Text</option>
-                                                  <option value="email">Email</option>
-                                                  <option value="tel">Phone</option>
-                                                  <option value="textarea">Textarea</option>
-                                                </select>
-                                                <button onClick={() => { const fields = section.fields.filter((_: any, j: number) => j !== i); updateSection(idx, { fields }); }} className="p-1 text-slate-300 hover:text-error"><Icon name="close" className="text-xs" /></button>
-                                              </div>
-                                            ))}
-                                            <button onClick={() => updateSection(idx, { fields: [...(section.fields || []), { label: '', name: `field_${Date.now()}`, type: 'text', placeholder: '' }] })} className="text-xs font-bold text-primary flex items-center gap-1 hover:underline">
-                                              <Icon name="add" className="text-sm" /> Add Field
-                                            </button>
-                                          </>
-                                        )}
-                                      </div>
-                                    )}
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          </>
-                        ) : (
-                          <div className="space-y-4 animate-fade-in">
-                             <div>
-                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 block">Paste Unstructured Content</label>
-                                <textarea 
-                                  className="atrium-input text-sm min-h-[300px] py-6 rounded-3xl resize-none"
-                                  placeholder="Paste website copy, brochures, or bullet points here. The AI will intelligently map this to Hero, Features, and FAQ sections..."
-                                  value={formData.rawContent}
-                                  onChange={e => setFormData({...formData, rawContent: e.target.value})}
-                                />
-                             </div>
-                             <div className="p-4 rounded-2xl bg-primary/5 border border-primary/10 flex gap-3">
-                                <Icon name="info" className="text-primary mt-0.5" />
-                                <p className="text-[10px] text-slate-500 leading-relaxed font-medium">
-                                   For best results, include a headline, some bullet points, and perhaps a quote from a customer.
-                                </p>
-                             </div>
-                          </div>
-                        )}
                      </div>
                   )}
 
@@ -4975,7 +4706,7 @@ function SmartBuilderWizard(props: { onComplete: (config: any) => void; onClose:
                           <p className="text-[10px] font-bold text-slate-400 uppercase mb-3">Build Summary</p>
                           <div className="flex items-center gap-3 flex-wrap">
                             <span className="px-3 py-1 bg-white rounded-full text-xs font-bold text-slate-600 border border-slate-100">{formData.name || 'Untitled'}</span>
-                            <span className="px-3 py-1 bg-white rounded-full text-xs font-bold text-slate-600 border border-slate-100">{formData.buildMode === 'manual' ? `${formData.sections.length} sections` : 'Magic Generation'}</span>
+                            <span className="px-3 py-1 bg-white rounded-full text-xs font-bold text-slate-600 border border-slate-100">{formData.rawContent.length > 0 ? 'AI Studio Google' : 'Empty'}</span>
                             <span className="px-3 py-1 bg-white rounded-full text-xs font-bold text-slate-600 border border-slate-100 capitalize">{formData.style} theme</span>
                           </div>
                         </div>
@@ -5138,9 +4869,9 @@ function LandingPageEditor(props: { pageId: string | null; data: BootstrapData; 
   const [isSaving, setIsSaving] = useState(false);
   
   // Wix-style editor states
-  const [activeTab, setActiveTab] = useState<'layers' | 'design' | 'magic'>('layers');
-  const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
-  const [showGallery, setShowGallery] = useState(false);
+    const [activeTab, setActiveTab] = useState<'design' | 'magic'>('magic');
+    const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
+    const [showGallery, setShowGallery] = useState(false);
 
   const generateWithGemini = async () => {
     if (!magicPrompt) return;
@@ -5151,7 +4882,9 @@ function LandingPageEditor(props: { pageId: string | null; data: BootstrapData; 
         method: "POST",
         body: JSON.stringify({
           name: form.name,
+          description: form.description,
           rawContent: magicPrompt,
+          sections: form.sections,
           style: form.theme?.backgroundColor === '#000000' ? 'bold' : 'modern',
           goal: 'info'
         })
@@ -5175,29 +4908,6 @@ function LandingPageEditor(props: { pageId: string | null; data: BootstrapData; 
   };
 
 
-  const addSection = (type: string) => {
-    const defaults: Record<string, any> = {
-      hero: { type: 'hero', title: 'New Hero Section', subtitle: 'Describe your value proposition here.', cta: 'Check it out' },
-      features: { type: 'features', items: [{ icon: '✨', title: 'Feature One', text: 'Benefit description' }] },
-      pricing: { type: 'pricing', title: 'Our Pricing', plans: [{ name: 'Basic', price: '$0', features: ['Feature A'] }] },
-      testimonials: { type: 'testimonials', title: 'What They Say', items: [{ name: 'User', quote: 'Amazing product!' }] },
-      faq: { type: 'faq', title: 'Questions?', items: [{ q: 'How does it work?', a: 'Like magic.' }] },
-      form: { type: 'form', title: 'Connect With Us', subtitle: 'Leave your details.', fields: [{ label: 'Email', name: 'email', type: 'email', placeholder: 'email@example.com' }] }
-    };
-    setForm(prev => ({ ...prev, sections: [...prev.sections, defaults[type]] }));
-  };
-
-  const removeSection = (idx: number) => {
-    setForm(prev => ({ ...prev, sections: prev.sections.filter((_: any, i: number) => i !== idx) }));
-  };
-
-  const moveSection = (idx: number, dir: 'up' | 'down') => {
-    const nextIdx = dir === 'up' ? idx - 1 : idx + 1;
-    if (nextIdx < 0 || nextIdx >= form.sections.length) return;
-    const nextSections = [...form.sections];
-    [nextSections[idx], nextSections[nextIdx]] = [nextSections[nextIdx], nextSections[idx]];
-    setForm(prev => ({ ...prev, sections: nextSections }));
-  };
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -5232,13 +4942,13 @@ function LandingPageEditor(props: { pageId: string | null; data: BootstrapData; 
 
             {/* Tabs */}
             <div className="flex border-b border-slate-100">
-              {(['layers', 'design', 'magic'] as const).map(tab => (
+              {(['magic', 'design'] as const).map(tab => (
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
                   className={`flex-1 py-3 text-[10px] font-bold uppercase tracking-widest transition-all ${activeTab === tab ? 'text-primary border-b-2 border-primary bg-primary/5' : 'text-slate-400 hover:text-slate-600'}`}
                 >
-                  {tab}
+                  {tab === 'magic' ? 'AI Architect' : tab}
                 </button>
               ))}
             </div>
@@ -5246,16 +4956,16 @@ function LandingPageEditor(props: { pageId: string | null; data: BootstrapData; 
             {/* Tab Body */}
             <div className="flex-1 overflow-y-auto p-6 scrollbar-hide">
 
-              {/* Magic */}
+              {/* Magic (AI Architect) */}
               {activeTab === 'magic' && (
                 <div className="space-y-6 animate-fade-in">
                   <div className="p-5 rounded-3xl bg-primary/5 border border-primary/10 shadow-inner">
                     <p className="text-[10px] font-bold text-primary uppercase tracking-[0.2em] mb-3 flex items-center gap-2">
-                      <Icon name="magic_button" className="text-sm" /> Magic AI Generator
+                      <Icon name="magic_button" className="text-sm" /> AI Architect
                     </p>
                     <textarea
-                      className="atrium-input bg-white text-xs min-h-[120px] resize-none"
-                      placeholder="Describe your page..."
+                      className="atrium-input bg-white text-xs min-h-[120px] resize-none border-primary/10 focus:border-primary/30"
+                      placeholder="e.g. 'Add a pricing section with 3 tiers' or 'Make the hero section headline more punchy'..."
                       value={magicPrompt}
                       onChange={e => setMagicPrompt(e.target.value)}
                     />
@@ -5265,77 +4975,24 @@ function LandingPageEditor(props: { pageId: string | null; data: BootstrapData; 
                       className="mt-3 w-full py-4 rounded-2xl bg-primary text-xs font-bold text-on-primary shadow-lg shadow-primary/20 disabled:opacity-50 flex items-center justify-center gap-2 active:scale-95 transition-all"
                     >
                       {isGenerating ? <span className="animate-spin text-sm">⌛</span> : <Icon name="auto_fix_high" className="text-sm" />}
-                      {isGenerating ? 'Generating...' : 'Build with Gemini'}
+                      {isGenerating ? 'Update Page with Gemini' : 'Re-Architect with AI'}
                     </button>
                   </div>
-                </div>
-              )}
-
-              {/* Layers */}
-              {activeTab === 'layers' && (
-                <div className="space-y-4 animate-fade-in">
-                  <div className="flex items-center justify-between">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Page Layers</p>
-                    <button
-                      onClick={() => setShowGallery(true)}
-                      className="px-3 py-1.5 rounded-full bg-primary text-[10px] font-bold text-on-primary shadow-lg shadow-primary/20 hover:scale-105 active:scale-95 transition-all flex items-center gap-1"
-                    >
-                      <Icon name="add" className="text-xs" /> Add
-                    </button>
-                  </div>
-                  {form.sections.length === 0 ? (
-                    <div className="text-center py-12 text-slate-300">
-                      <Icon name="layers" className="text-5xl mb-3 opacity-20" />
-                      <p className="font-bold text-sm">No sections yet</p>
-                    </div>
-                  ) : (
+                  
+                  <div className="p-5 rounded-3xl bg-slate-50 border border-slate-100">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">Current Structure</p>
                     <div className="space-y-2">
-                      {form.sections.map((section: any, idx: number) => (
-                        <div
-                          key={idx}
-                          onClick={() => setSelectedIdx(idx === selectedIdx ? null : idx)}
-                          className={`p-4 rounded-2xl border cursor-pointer transition-all ${selectedIdx === idx ? 'border-primary bg-primary/5' : 'border-slate-100 hover:border-slate-200 bg-white'}`}
-                        >
-                          <div className="flex items-center justify-between">
-                            <p className="font-bold text-xs text-slate-600 capitalize">{section.type}</p>
-                            <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
-                              <button onClick={() => moveSection(idx, 'up')} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400"><Icon name="arrow_upward" className="text-xs" /></button>
-                              <button onClick={() => moveSection(idx, 'down')} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400"><Icon name="arrow_downward" className="text-xs" /></button>
-                              <button onClick={() => removeSection(idx)} className="p-1.5 rounded-lg hover:bg-error/10 text-slate-400 hover:text-error"><Icon name="delete" className="text-xs" /></button>
-                            </div>
-                          </div>
-
-                          {selectedIdx === idx && section.type === 'hero' && (
-                            <div className="mt-3 pt-3 border-t border-primary/10">
-                              <p className="text-[10px] font-bold text-slate-400 uppercase mb-2">Layout</p>
-                              <div className="flex gap-2">
-                                {['standard', 'centered', 'split'].map(l => (
-                                  <button key={l}
-                                    onClick={e => { e.stopPropagation(); const next = [...form.sections]; next[idx] = { ...next[idx], layout: l }; setForm({ ...form, sections: next }); }}
-                                    className={`flex-1 py-1.5 rounded-lg text-[9px] font-bold uppercase transition-all ${(section.layout === l || (!section.layout && l === 'standard')) ? 'bg-primary text-on-primary' : 'bg-slate-100 text-slate-400'}`}
-                                  >{l}</button>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-
-                          {selectedIdx === idx && section.type === 'features' && (
-                            <div className="mt-3 pt-3 border-t border-primary/10">
-                              <p className="text-[10px] font-bold text-slate-400 uppercase mb-2">Layout</p>
-                              <div className="flex gap-2">
-                                {['grid', 'centered'].map(l => (
-                                  <button key={l}
-                                    onClick={e => { e.stopPropagation(); const next = [...form.sections]; next[idx] = { ...next[idx], layout: l }; setForm({ ...form, sections: next }); }}
-                                    className={`flex-1 py-1.5 rounded-lg text-[9px] font-bold uppercase transition-all ${(section.layout === l || (!section.layout && l === 'grid')) ? 'bg-primary text-on-primary' : 'bg-slate-100 text-slate-400'}`}
-                                  >{l}</button>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      ))}
+                       {form.sections.map((s: any, idx: number) => (
+                         <div key={idx} className="flex items-center gap-3 p-3 rounded-xl bg-white border border-slate-100 group">
+                           <div className="h-7 w-7 rounded-lg bg-slate-50 flex items-center justify-center text-slate-400 text-xs">
+                             {idx + 1}
+                           </div>
+                           <p className="text-[10px] font-bold text-slate-600 uppercase tracking-tight flex-1">{s.type}</p>
+                           <Icon name="check_circle" className="text-emerald-400 text-sm" />
+                         </div>
+                       ))}
                     </div>
-                  )}
+                  </div>
                 </div>
               )}
 
@@ -5406,16 +5063,10 @@ function LandingPageEditor(props: { pageId: string | null; data: BootstrapData; 
                     <div
                       key={idx}
                       className={`relative group/section transition-all cursor-pointer ${selectedIdx === idx ? 'ring-2 ring-primary ring-inset' : 'hover:bg-primary/[0.01]'}`}
-                      onClick={e => { e.stopPropagation(); setSelectedIdx(idx); setActiveTab('layers'); }}
+                      onClick={e => { e.stopPropagation(); setSelectedIdx(idx); }}
                     >
-                      {/* Floating controls */}
-                      <div className="absolute right-6 top-6 opacity-0 group-hover/section:opacity-100 transition-opacity z-50 flex items-center gap-2 pointer-events-none">
-                        <div className="flex bg-white/90 backdrop-blur-md rounded-2xl shadow-xl border border-slate-100 overflow-hidden pointer-events-auto">
-                          <button onClick={e => { e.stopPropagation(); moveSection(idx, 'up'); }} className="p-2.5 hover:bg-slate-50 text-slate-400 hover:text-primary transition-colors"><Icon name="arrow_upward" className="text-sm" /></button>
-                          <button onClick={e => { e.stopPropagation(); moveSection(idx, 'down'); }} className="p-2.5 hover:bg-slate-50 text-slate-400 hover:text-primary border-l border-slate-100 transition-colors"><Icon name="arrow_downward" className="text-sm" /></button>
-                          <button onClick={e => { e.stopPropagation(); removeSection(idx); }} className="p-2.5 hover:bg-error/5 text-slate-400 hover:text-error border-l border-slate-100 transition-colors"><Icon name="delete" className="text-sm" /></button>
-                        </div>
-                      </div>
+                      {/* Floating controls removed for AI-First feel */}
+                      
 
                       {section.type === 'hero' && (
                         <div className={`py-24 px-12 border-b border-black/5 ${section.layout === 'centered' ? 'text-center' : section.layout === 'split' ? 'flex flex-col md:flex-row items-center gap-12' : 'text-left'}`}>
@@ -5531,52 +5182,6 @@ function LandingPageEditor(props: { pageId: string | null; data: BootstrapData; 
 
         </div>
       </div>
-
-      {/* Section Gallery Modal */}
-      {showGallery && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-950/40 backdrop-blur-md">
-          <div className="bg-white w-full max-w-4xl rounded-[3rem] shadow-2xl overflow-hidden flex flex-col h-[80vh]">
-            <div className="p-8 border-b border-slate-100 flex items-center justify-between">
-              <div>
-                <h3 className="text-2xl font-extrabold text-primary">Add Section</h3>
-                <p className="text-sm text-slate-400">Choose a component to add to your page</p>
-              </div>
-              <button onClick={() => setShowGallery(false)} className="h-12 w-12 rounded-full hover:bg-slate-50 flex items-center justify-center text-slate-400 border border-slate-100">
-                <Icon name="close" />
-              </button>
-            </div>
-            <div className="flex-1 overflow-y-auto p-8 scrollbar-hide">
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
-                {[
-                  { id: 'hero', icon: 'auto_awesome', label: 'Hero Section', desc: 'Main headline & CTA' },
-                  { id: 'features', icon: 'grid_view', label: 'Features Grid', desc: 'Benefits & capabilities' },
-                  { id: 'pricing', icon: 'payments', label: 'Pricing Table', desc: 'Plans & packages' },
-                  { id: 'testimonials', icon: 'forum', label: 'Testimonials', desc: 'Social proof' },
-                  { id: 'faq', icon: 'help_outline', label: 'FAQ', desc: 'Questions & answers' },
-                  { id: 'form', icon: 'contact_page', label: 'Lead Form', desc: 'Contact & data collection' },
-                ].map(item => (
-                  <button
-                    key={item.id}
-                    onClick={() => { addSection(item.id); setShowGallery(false); setActiveTab('layers'); setSelectedIdx(form.sections.length); }}
-                    className="p-6 rounded-[2.5rem] bg-slate-50 border border-slate-100 hover:border-primary hover:bg-primary/5 text-left transition-all group"
-                  >
-                    <div className="h-12 w-12 rounded-2xl bg-white shadow-sm flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                      <Icon name={item.icon} className="text-2xl text-primary" />
-                    </div>
-                    <p className="font-bold text-slate-700">{item.label}</p>
-                    <p className="text-[10px] text-slate-400 mt-1">{item.desc}</p>
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className="p-6 border-t border-slate-100 bg-slate-50 flex items-center justify-center">
-              <p className="text-xs text-slate-400 flex items-center gap-2">
-                <Icon name="info" className="text-sm" /> All sections are automatically themed to match your brand.
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
     </>
   );
 }
