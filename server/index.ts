@@ -92,7 +92,10 @@ const app = express();
 const server = createServer(app);
 function getGoogleClientId() {
   const settings = getSettings();
-  return settings.VITE_GOOGLE_CLIENT_ID || process.env.VITE_GOOGLE_CLIENT_ID || "";
+  const dbValue = settings.VITE_GOOGLE_CLIENT_ID;
+  const isTruncated = dbValue && (dbValue.includes("...") || dbValue.length < 20);
+  
+  return (dbValue && !isTruncated) ? dbValue : (process.env.VITE_GOOGLE_CLIENT_ID || "");
 }
 const io = new Server(server, {
   cors: {
@@ -1170,22 +1173,23 @@ app.get("/l/:slug", (req, res) => {
           if (section.type === 'cta_banner') {
             return `
               <section class="py-24 px-6">
-                <div class="max-w-5xl mx-auto rounded-[3rem] p-16 text-center shadow-2xl relative overflow-hidden" style="background-color: ${page.theme?.primaryColor || '#2563eb'}; color: white;">
-                  <div class="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -mr-32 -mt-32"></div>
-                  <h2 class="text-4xl font-extrabold mb-6 relative z-10">${section.title}</h2>
-                  <p class="text-xl mb-10 opacity-90 max-w-2xl mx-auto relative z-10">${section.subtitle}</p>
-                  <a href="#form" class="bg-white text-slate-900 px-10 py-4 rounded-full font-bold text-lg inline-block shadow-xl hover:scale-105 transition-transform relative z-10">${section.cta}</a>
+                <div class="max-w-5xl mx-auto rounded-[3.5rem] p-20 text-center shadow-[0_32px_64px_-16px_rgba(0,0,0,0.2)] relative overflow-hidden" style="background-color: ${page.theme?.primaryColor || '#2563eb'}; color: white;">
+                  <div class="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-[100px] -mr-48 -mt-48 animate-pulse"></div>
+                  <div class="absolute bottom-0 left-0 w-64 h-64 bg-black/10 rounded-full blur-[80px] -ml-32 -mb-32"></div>
+                  <h2 class="text-5xl font-black mb-8 relative z-10 tracking-tight">${section.title}</h2>
+                  <p class="text-xl mb-12 opacity-90 max-w-2xl mx-auto relative z-10 leading-relaxed font-medium">${section.subtitle}</p>
+                  <a href="#form" class="bg-white text-slate-950 px-12 py-5 rounded-2xl font-black text-lg inline-block shadow-2xl hover:scale-105 active:scale-95 transition-all relative z-10">${section.cta}</a>
                 </div>
               </section>
             `;
           }
           if (section.type === 'logos') {
             return `
-              <section class="py-12 border-y border-black/5 bg-slate-50/30 overflow-hidden">
+              <section class="py-16 border-y border-black/5 bg-slate-50/20 overflow-hidden">
                 <div class="max-w-6xl mx-auto px-6">
-                  <p class="text-center text-[10px] font-bold uppercase tracking-[0.3em] text-slate-400 mb-8">${section.title || 'Trusted By Industry Leaders'}</p>
-                  <div class="flex flex-wrap items-center justify-center gap-12 opacity-50 grayscale hover:grayscale-0 transition-all">
-                    ${section.logos?.map((logo: string) => `<span class="text-xl font-black text-slate-800">${logo}</span>`).join('')}
+                  <p class="text-center text-[10px] font-black uppercase tracking-[0.4em] text-slate-400 mb-12">${section.title || 'Powering World-Class Teams'}</p>
+                  <div class="flex flex-wrap items-center justify-center gap-x-16 gap-y-10 opacity-30 grayscale contrast-125">
+                    ${section.logos?.map((logo: string) => `<span class="text-2xl font-black text-slate-900 tracking-tighter hover:grayscale-0 transition-all cursor-default">${logo}</span>`).join('') || ''}
                   </div>
                 </div>
               </section>
@@ -1194,13 +1198,13 @@ app.get("/l/:slug", (req, res) => {
           if (section.type === 'stats') {
             return `
               <section class="py-24 px-6 bg-white">
-                <div class="max-w-6xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-12 text-center">
+                <div class="max-w-6xl mx-auto grid grid-cols-2 lg:grid-cols-4 gap-16 text-center">
                   ${section.items?.map((item: any) => `
-                    <div>
-                      <div class="text-5xl font-black mb-2" style="color: ${page.theme?.primaryColor || '#000'}">${item.value}</div>
-                      <div class="text-[10px] font-bold uppercase tracking-widest text-slate-400">${item.label}</div>
+                    <div class="group">
+                      <div class="text-6xl font-black mb-3 tracking-tighter transition-transform group-hover:scale-110 duration-500" style="color: ${page.theme?.primaryColor || '#000'}">${item.value || '0'}</div>
+                      <div class="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400 group-hover:text-slate-600 transition-colors">${item.label || 'Metric'}</div>
                     </div>
-                  `).join('')}
+                  `).join('') || ''}
                 </div>
               </section>
             `;
@@ -1224,6 +1228,66 @@ app.get("/l/:slug", (req, res) => {
                     <div class="text-5xl mb-4">✅</div>
                     <h3 class="text-2xl font-bold mb-2">Thank you!</h3>
                     <p class="opacity-70">We've received your information and we'll reach out soon.</p>
+                  </div>
+                </div>
+              </section>
+            `;
+          }
+          if (section.type === 'cta') {
+            return `
+              <section class="py-24 px-6 text-center">
+                <div class="max-w-3xl mx-auto">
+                  <h2 class="text-4xl font-extrabold mb-6">${section.title || ''}</h2>
+                  <p class="text-xl opacity-70 mb-10 leading-relaxed">${section.subtitle || ''}</p>
+                  ${section.cta ? `<a href="#form" class="primary-btn px-12 py-5 font-bold text-lg inline-block shadow-xl">${section.cta}</a>` : ''}
+                </div>
+              </section>
+            `;
+          }
+          if (section.type === 'content') {
+            return `
+              <section class="py-20 px-6 bg-white border-y border-black/5">
+                <div class="max-w-4xl mx-auto prose prose-lg">
+                  <h2 class="text-3xl font-extrabold mb-6">${section.title || ''}</h2>
+                  <p class="opacity-70 leading-relaxed text-lg">${section.subtitle || section.text || ''}</p>
+                </div>
+              </section>
+            `;
+          }
+          if (section.type === 'gallery') {
+            return `
+              <section class="py-20 px-6 bg-slate-50/30">
+                <div class="max-w-6xl mx-auto">
+                  <h2 class="text-3xl font-extrabold text-center mb-12">${section.title || ''}</h2>
+                  <div class="grid grid-cols-2 md:grid-cols-3 gap-6">
+                    ${(section.items || []).map((item: any) => `
+                      <div class="aspect-square rounded-3xl bg-white border border-black/5 shadow-sm flex items-center justify-center p-6">
+                        <span class="text-4xl">${item.icon || '🖼️'}</span>
+                      </div>
+                    `).join('')}
+                  </div>
+                </div>
+              </section>
+            `;
+          }
+          if (section.type === 'events') {
+            return `
+              <section class="py-20 px-6 bg-white">
+                <div class="max-w-5xl mx-auto">
+                  <h2 class="text-3xl font-extrabold mb-12">${section.title || ''}</h2>
+                  <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    ${(section.items || []).map((item: any) => `
+                      <div class="flex gap-6 p-8 rounded-[2.5rem] bg-slate-50 border border-black/5 hover:bg-white hover:shadow-lg transition-all">
+                        <div class="w-16 h-16 rounded-2xl bg-white shadow-sm flex flex-col items-center justify-center border border-black/5 shrink-0">
+                          <span class="text-[10px] font-bold uppercase" style="color: ${page.theme?.primaryColor || '#2563eb'}">EVT</span>
+                          <span class="text-xl font-extrabold">▶</span>
+                        </div>
+                        <div>
+                          <h3 class="text-lg font-bold mb-2">${item.title || ''}</h3>
+                          <p class="text-sm opacity-60 leading-relaxed">${item.text || ''}</p>
+                        </div>
+                      </div>
+                    `).join('')}
                   </div>
                 </div>
               </section>

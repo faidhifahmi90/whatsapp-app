@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI, SchemaType } from "@google/generative-ai";
+import { GoogleGenAI, Type } from "@google/genai";
 import dotenv from "dotenv";
 import { SKILLS, SkillKey } from "./skills.js";
 import { getSettings } from "./db.js";
@@ -11,8 +11,7 @@ function getGenAI() {
   if (!apiKey) {
     throw new Error("GEMINI_API_KEY is not configured. Please add it in Settings.");
   }
-  const genAI = new GoogleGenerativeAI(apiKey);
-  return genAI;
+  return new GoogleGenAI({ apiKey });
 }
 
 function handleGeminiError(err: any, context: string): never {
@@ -24,26 +23,14 @@ function handleGeminiError(err: any, context: string): never {
   throw new Error(`${context} failed: ${message}`);
 }
 
-const MODEL_NAME = "gemini-flash-latest";
+const MODEL_NAME = "gemini-2.5-flash";
 
 /**
  * System instruction to ensure Gemini behaves as a high-end web architect.
  */
-const SYSTEM_INSTRUCTION = `You are an elite Landing Page Architect. 
-Your goal is to parse unstructured business content and transform it into a high-converting, professional landing page structure.
-Always respond in strictly valid JSON format.
-Each section must have a 'type' from the following list: 'hero', 'features', 'pricing', 'testimonials', 'faq', 'form'.
-
-JSON Schema for sections:
-- type: 'hero', title: string, subtitle: string, cta: string
-- type: 'features', title: string, items: { icon: string, title: string, text: string }[]
-- type: 'pricing', title: string, plans: { name: string, price: string, features: string[], featured?: boolean }[]
-- type: 'testimonials', title: string, items: { name: string, role: string, quote: string }[]
-- type: 'faq', title: string, items: { q: string, a: string }[]
-- type: 'form', title: string, subtitle: string, fields: { label: string, name: string, type: 'text'|'email'|'tel'|'textarea', placeholder: string }[]
-- type: 'logos', title: string, logos: string[] // List of brand names or emoji logos
-- type: 'stats', title: string, items: { value: string, label: string }[]
-- type: 'cta_banner', title: string, subtitle: string, cta: string
+const SYSTEM_INSTRUCTION = `You are an elite Landing Page Website Developer. 
+Your goal is to parse unstructured content and develop and render it into a high-converting, professional landing page.
+Always respond in strictly valid JSON format. The sections built are depend on the prompt.
 `;
 
 export async function generateLandingPageFromContent(params: {
@@ -54,10 +41,7 @@ export async function generateLandingPageFromContent(params: {
   description?: string;
   currentSections?: any[];
 }) {
-  const model = getGenAI().getGenerativeModel({ 
-    model: MODEL_NAME,
-    systemInstruction: SYSTEM_INSTRUCTION
-  });
+  const ai = getGenAI();
 
   const prompt = `
     Business Name: ${params.businessName}
@@ -73,19 +57,18 @@ export async function generateLandingPageFromContent(params: {
     Return only the JSON array of sections.
   `;
 
-  const result = await model.generateContent({
-    contents: [{ role: "user", parts: [{ text: prompt }] }],
-    generationConfig: {
-      responseMimeType: "application/json",
-    },
-  });
-
   try {
-    const text = result.response.text();
-    return JSON.parse(text);
-  } catch (err) {
-    console.error("Failed to parse Gemini response:", err);
-    throw new Error("AI returned invalid structure");
+    const result = await ai.models.generateContent({
+      model: MODEL_NAME,
+      contents: prompt,
+      config: {
+        systemInstruction: SYSTEM_INSTRUCTION,
+        responseMimeType: "application/json",
+      },
+    });
+    return JSON.parse(result.text ?? "[]");
+  } catch (err: any) {
+    handleGeminiError(err, "Landing Page Generation");
   }
 }
 
@@ -98,10 +81,7 @@ export async function generatePlan(params: {
   businessName?: string;
   description?: string;
 }) {
-  const model = getGenAI().getGenerativeModel({ 
-    model: MODEL_NAME,
-    systemInstruction: "You are an Agent Manager. Analyze the user's prompt and create a technical Implementation Plan in Markdown. Focus on layout, tone, selected skills, and unique features. Do NOT return code, just the plan."
-  });
+  const ai = getGenAI();
 
   const prompt = `
     Business: ${params.businessName || "Unknown"}
@@ -115,8 +95,14 @@ export async function generatePlan(params: {
   `;
 
   try {
-    const result = await model.generateContent(prompt);
-    return result.response.text();
+    const result = await ai.models.generateContent({
+      model: MODEL_NAME,
+      contents: prompt,
+      config: {
+        systemInstruction: "You are an Agent Manager. Analyze the user's prompt and create a technical Implementation Plan in Markdown. Focus on layout, tone, selected skills, and unique features. Do NOT return code, just the plan.",
+      },
+    });
+    return result.text;
   } catch (err: any) {
     handleGeminiError(err, "Planning");
   }
@@ -135,41 +121,36 @@ export async function executeWithSkills(params: {
   description?: string;
   currentSections?: any[];
 }) {
-  // Logic to 'Auto-Select' skills based on the plan/prompt (simplified for now as full injection)
+  const ai = getGenAI();
   const activeSkills = Object.values(SKILLS).join("\n");
-
-  const model = getGenAI().getGenerativeModel({ 
-    model: MODEL_NAME,
-    systemInstruction: SYSTEM_INSTRUCTION + "\n\nAPPLY THESE SKILLS:\n" + activeSkills
-  });
 
   const schema = {
     description: "Landing page holistic structure",
-    type: SchemaType.OBJECT,
+    type: Type.OBJECT,
     properties: {
       metadata: {
-        type: SchemaType.OBJECT,
+        type: Type.OBJECT,
         properties: {
-          name: { type: SchemaType.STRING, description: "Refined business/brand name" },
-          slug: { type: SchemaType.STRING, description: "URL-safe slug (e.g. 'chrono-luxury')" },
-          title: { type: SchemaType.STRING, description: "Benefit-driven SEO title" },
-          description: { type: SchemaType.STRING, description: "Compelling meta description" }
+          name: { type: Type.STRING, description: "Refined business/brand name" },
+          slug: { type: Type.STRING, description: "URL-safe slug (e.g. 'chrono-luxury')" },
+          title: { type: Type.STRING, description: "Benefit-driven SEO title" },
+          description: { type: Type.STRING, description: "Compelling meta description" }
         },
         required: ["name", "slug", "title", "description"]
       },
       sections: {
-        type: SchemaType.ARRAY,
+        type: Type.ARRAY,
         items: {
-          type: SchemaType.OBJECT,
+          type: Type.OBJECT,
           properties: {
-            type: { type: SchemaType.STRING, enum: ["hero", "features", "pricing", "testimonials", "faq", "form", "events", "cta", "content", "gallery", "logos", "stats", "cta_banner"] },
-            title: { type: SchemaType.STRING },
-            subtitle: { type: SchemaType.STRING },
-            cta: { type: SchemaType.STRING },
-            items: { type: SchemaType.ARRAY, items: { type: SchemaType.OBJECT, properties: { title: { type: SchemaType.STRING }, text: { type: SchemaType.STRING }, icon: { type: SchemaType.STRING }, value: { type: SchemaType.STRING }, label: { type: SchemaType.STRING } } } },
-            logos: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING } },
-            plans: { type: SchemaType.ARRAY, items: { type: SchemaType.OBJECT, properties: { name: { type: SchemaType.STRING }, price: { type: SchemaType.STRING }, features: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING } }, featured: { type: SchemaType.BOOLEAN } } } },
-            fields: { type: SchemaType.ARRAY, items: { type: SchemaType.OBJECT, properties: { label: { type: SchemaType.STRING }, type: { type: SchemaType.STRING }, placeholder: { type: SchemaType.STRING } } } }
+            type: { type: Type.STRING, enum: ["hero", "features", "pricing", "testimonials", "faq", "form", "events", "cta", "content", "gallery", "logos", "stats", "cta_banner"] },
+            title: { type: Type.STRING },
+            subtitle: { type: Type.STRING },
+            cta: { type: Type.STRING },
+            items: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { title: { type: Type.STRING }, text: { type: Type.STRING }, icon: { type: Type.STRING }, value: { type: Type.STRING }, label: { type: Type.STRING } } } },
+            logos: { type: Type.ARRAY, items: { type: Type.STRING } },
+            plans: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { name: { type: Type.STRING }, price: { type: Type.STRING }, features: { type: Type.ARRAY, items: { type: Type.STRING } }, featured: { type: Type.BOOLEAN } } } },
+            fields: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { label: { type: Type.STRING }, type: { type: Type.STRING }, placeholder: { type: Type.STRING } } } }
           },
           required: ["type"]
         }
@@ -196,14 +177,16 @@ export async function executeWithSkills(params: {
   `;
 
   try {
-    const result = await model.generateContent({
-      contents: [{ role: "user", parts: [{ text: prompt }] }],
-      generationConfig: { 
+    const result = await ai.models.generateContent({
+      model: MODEL_NAME,
+      contents: prompt,
+      config: {
+        systemInstruction: SYSTEM_INSTRUCTION + "\n\nAPPLY THESE SKILLS:\n" + activeSkills,
         responseMimeType: "application/json",
-        responseSchema: schema as any
+        responseSchema: schema,
       },
     });
-    return JSON.parse(result.response.text());
+    return JSON.parse(result.text ?? "{}");
   } catch (err: any) {
     handleGeminiError(err, "Execution");
   }
@@ -218,10 +201,7 @@ export async function refineSection(params: {
   feedback: string;
   businessContext: any;
 }) {
-  const model = getGenAI().getGenerativeModel({ 
-    model: MODEL_NAME,
-    systemInstruction: "You are a Section Specialist. You receive a JSON section and user feedback. Your goal is to apply the feedback and return the UPDATED JSON section only. Maintain the original schema."
-  });
+  const ai = getGenAI();
 
   const prompt = `
     CURRENT SECTION:
@@ -236,14 +216,17 @@ export async function refineSection(params: {
     Return ONLY the updated JSON for this specific section.
   `;
 
-  const result = await model.generateContent({
-    contents: [{ role: "user", parts: [{ text: prompt }] }],
-    generationConfig: { responseMimeType: "application/json" },
-  });
-
   try {
-    return JSON.parse(result.response.text());
-  } catch (err) {
+    const result = await ai.models.generateContent({
+      model: MODEL_NAME,
+      contents: prompt,
+      config: {
+        systemInstruction: "You are a Section Specialist. You receive a JSON section and user feedback. Your goal is to apply the feedback and return the UPDATED JSON section only. Maintain the original schema.",
+        responseMimeType: "application/json",
+      },
+    });
+    return JSON.parse(result.text ?? "{}");
+  } catch (err: any) {
     handleGeminiError(err, "Refinement");
   }
 }

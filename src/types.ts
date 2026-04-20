@@ -105,7 +105,7 @@ export type Conversation = {
   id: string;
   contactId: string;
   channelId: string;
-  status: "open" | "kiv" | "resolved" | "attention" | "pending";
+  status: "open" | "KIV" | "resolved" | "pending" | "follow up";
   unreadCount?: number;
   updatedAt: string;
   lastMessageAt: string;

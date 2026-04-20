@@ -1177,7 +1177,7 @@ export function getBootstrapData(userId: string): BootstrapData {
   return {
     user: getUserForSession(userId)!,
     stats: {
-      unreadCount: conversations.filter((c) => c.status === "attention").length,
+      unreadCount: conversations.filter((c) => c.status === "follow up").length,
       contactCount: contacts.length,
       conversationCount: conversations.length,
       templateCount: templates.length

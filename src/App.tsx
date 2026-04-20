@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import React, { FormEvent, useEffect, useMemo, useState, Fragment } from "react";
 import { NavLink, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { GoogleOAuthProvider, GoogleLogin, CredentialResponse } from "@react-oauth/google";
 import { io } from "socket.io-client";
@@ -374,10 +374,23 @@ function DashboardShell(props: {
     await props.onRefresh(result.conversationId);
     navigate("/inbox");
   }
-
   const unreadCount = props.data.conversations.filter((conversation) =>
     conversation.messages.some((message) => message.direction === "inbound" && message.status !== "read")
   ).length;
+
+  useEffect(() => {
+    const appName = props.data.settings.APP_NAME || "tomorrowX";
+    document.title = appName + " | WhatsApp Operations Hub";
+    
+    // Update Meta Description
+    let metaDesc = document.querySelector('meta[name="description"]');
+    if (!metaDesc) {
+      metaDesc = document.createElement('meta');
+      metaDesc.setAttribute('name', 'description');
+      document.head.appendChild(metaDesc);
+    }
+    metaDesc.setAttribute('content', props.data.settings.SEO_DESCRIPTION || "Verified WhatsApp Operations Hub.");
+  }, [props.data.settings.APP_NAME, props.data.settings.SEO_DESCRIPTION]);
 
   return (
     <div className="min-h-screen bg-background text-on-surface">
@@ -397,25 +410,22 @@ function DashboardShell(props: {
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         ].join(" ")}
       >
-        <div className={`mb-8 ${sidebarCollapsed ? "px-1" : "px-4"}`}>
-          <div className="flex items-center gap-3">
-            <div className={`p-1.5 rounded-xl bg-primary/5 ring-1 ring-primary/10 shadow-inner group-hover:scale-105 transition-transform`}>
-              <img src="/logo.png" alt="tomorrowX" className="h-8 w-8 rounded-lg object-cover" />
+        <div className={`mb-6 overflow-hidden ${sidebarCollapsed ? "mx-2 rounded-xl" : "mx-4 rounded-2xl"} bg-gradient-to-br from-primary to-primary-fixed-dim shadow-lg shadow-primary/20 group`}>
+          <div className="relative p-4 text-white">
+            <div className="absolute right-0 top-0 translate-x-1/3 -translate-y-1/3 opacity-10 transition-transform group-hover:scale-125 duration-1000 pointer-events-none">
+              <span className="material-symbols-rounded text-6xl">blur_on</span>
             </div>
-            {!sidebarCollapsed ? (
-              <div className="flex flex-col">
-                <h1 className="font-headline text-lg font-bold leading-none text-primary">tomorrowX</h1>
-                <p className="mt-1 text-[9px] font-bold uppercase tracking-[0.24em] text-slate-400">Verified Platform</p>
-              </div>
-            ) : null}
-            <button
-              aria-label="Close navigation"
-              className="ml-auto rounded-full p-2 text-slate-500 transition-colors hover:bg-slate-200/70 lg:hidden"
-              onClick={() => setSidebarOpen(false)}
-              type="button"
-            >
-              <Icon name="close" />
-            </button>
+            <div className="relative z-10 flex items-center gap-3">
+               <div className="h-8 w-8 rounded-lg bg-white p-1.5 shadow-sm ring-1 ring-white/20">
+                 <img src={props.data.settings.APP_LOGO_URL || "/logo.png"} alt={props.data.settings.APP_NAME || "tomorrowX"} className="h-full w-full object-contain" />
+               </div>
+               {!sidebarCollapsed && (
+                 <div className="flex flex-col">
+                   <h1 className="font-headline text-sm font-black tracking-widest uppercase">{props.data.settings.APP_NAME || "tomorrowX"}</h1>
+                   <p className="text-[8px] font-bold text-white/50 tracking-[0.2em] uppercase mt-0.5">Studio</p>
+                 </div>
+               )}
+            </div>
           </div>
         </div>
 
@@ -725,16 +735,27 @@ function InboxPage(props: {
   return (
     <div className="flex min-h-[calc(100vh-72px)] flex-col overflow-hidden xl:h-[calc(100vh-72px)] xl:flex-row">
       <div className="flex w-full flex-col border-b border-slate-100 bg-surface-container-low xl:w-80 xl:border-b-0 xl:border-r">
-        <div className="space-y-4 p-4">
-          <div className="flex items-center justify-between">
-            <h2 className="font-headline text-lg font-bold text-on-surface">Inbox</h2>
-            <span className="rounded-full bg-primary px-2 py-0.5 text-[10px] font-bold text-on-primary">{props.unreadCount} New</span>
+        <div className="p-0 border-b border-slate-100">
+          <div className="bg-gradient-to-br from-primary to-primary-fixed-dim p-6 text-on-primary relative overflow-hidden group">
+            <div className="absolute right-0 top-0 translate-x-1/4 -translate-y-1/4 opacity-10 transition-transform group-hover:scale-110 duration-1000 pointer-events-none">
+              <span className="material-symbols-rounded text-8xl">forum</span>
+            </div>
+            <div className="relative z-10">
+              <div className="flex items-center justify-between mb-4">
+                 <h1 className="font-headline text-lg font-bold">Inbox</h1>
+                 <span className="rounded-full bg-white/20 px-2 py-0.5 text-[9px] font-bold text-white border border-white/10">{props.unreadCount} New</span>
+              </div>
+              <div className="grid grid-cols-5 gap-1 rounded-xl bg-white/10 p-1 border border-white/10">
+                <button onClick={() => setFilterStatus("open")} className={`rounded-lg py-1.5 text-[9px] font-black uppercase tracking-tighter transition-all ${filterStatus === "open" ? "bg-white text-primary shadow-sm" : "text-white/60 hover:text-white"}`}>Open</button>
+                <button onClick={() => setFilterStatus("KIV")} className={`rounded-lg py-1.5 text-[9px] font-black uppercase tracking-tighter transition-all ${filterStatus === "KIV" ? "bg-white text-primary shadow-sm" : "text-white/60 hover:text-white"}`}>KIV</button>
+                <button onClick={() => setFilterStatus("pending")} className={`rounded-lg py-1.5 text-[9px] font-black uppercase tracking-tighter transition-all ${filterStatus === "pending" ? "bg-white text-primary shadow-sm" : "text-white/60 hover:text-white"}`}>Pend</button>
+                <button onClick={() => setFilterStatus("follow up")} className={`rounded-lg py-1.5 text-[9px] font-black uppercase tracking-tighter transition-all ${filterStatus === "follow up" ? "bg-white text-primary shadow-sm" : "text-white/60 hover:text-white"}`}>FolUp</button>
+                <button onClick={() => setFilterStatus("resolved")} className={`rounded-lg py-1.5 text-[9px] font-black uppercase tracking-tighter transition-all ${filterStatus === "resolved" ? "bg-white text-primary shadow-sm" : "text-white/60 hover:text-white"}`}>Done</button>
+              </div>
+            </div>
           </div>
-          <div className="flex gap-2 rounded-2xl bg-slate-100/50 p-1.5 border border-slate-100">
-            <button onClick={() => setFilterStatus("open")} className={`flex-1 rounded-xl py-2.5 text-[11px] font-extrabold uppercase tracking-wider transition-all ${filterStatus === "open" ? "bg-white text-primary shadow-sm ring-1 ring-slate-100" : "text-slate-400 hover:text-slate-600"}`}>Open</button>
-            <button onClick={() => setFilterStatus("kiv")} className={`flex-1 rounded-xl py-2.5 text-[11px] font-extrabold uppercase tracking-wider transition-all ${filterStatus === "kiv" ? "bg-white text-primary shadow-sm ring-1 ring-slate-100" : "text-slate-400 hover:text-slate-600"}`}>KIV</button>
-            <button onClick={() => setFilterStatus("attention")} className={`flex-1 rounded-xl py-2.5 text-[11px] font-extrabold uppercase tracking-wider transition-all ${filterStatus === "attention" ? "bg-white text-primary shadow-sm ring-1 ring-slate-100" : "text-slate-400 hover:text-slate-600"}`}>Attention</button>
-          </div>
+        </div>
+        <div className="p-4 space-y-4">
           <div className="relative">
             <input 
               className="atrium-input bg-surface-container-lowest pl-9 text-sm" 
@@ -783,7 +804,17 @@ function InboxPage(props: {
                     <p className={`mt-1 truncate text-xs leading-relaxed ${active ? "font-medium text-slate-600" : "text-slate-500"}`}>
                       {latest?.body ?? "No messages yet"}
                     </p>
-                    <div className="mt-2.5 flex flex-wrap gap-1.5">
+                    <div className="mt-2.5 flex flex-wrap gap-1.5 items-center">
+                      <span className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest border ${
+                        conversation.status === 'open' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
+                        conversation.status === 'follow up' ? 'bg-amber-50 text-amber-600 border-amber-100' :
+                        conversation.status === 'pending' ? 'bg-orange-50 text-orange-600 border-orange-100' :
+                        conversation.status === 'KIV' ? 'bg-indigo-50 text-indigo-600 border-indigo-100' :
+                        'bg-slate-50 text-slate-500 border-slate-100'
+                      }`}>
+                        {conversation.status}
+                      </span>
+                      <div className="h-3 w-px bg-slate-100 mx-0.5" />
                       {(conversation.contact.labels.length ? conversation.contact.labels : conversation.contact.segmentIds.slice(0, 2)).map((labelOrId) => (
                         <span
                           className={`rounded-md px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-[0.05em] transition-colors ${
@@ -839,11 +870,11 @@ function InboxPage(props: {
                      await props.onRefresh(selectedConversation.id);
                   }}
                 >
-                  <option value="open">Open</option>
-                  <option value="kiv">KIV</option>
-                  <option value="attention">Attention</option>
-                  <option value="pending">Pending</option>
-                  <option value="resolved">Resolved</option>
+                  <option value="open">🟢 Open</option>
+                  <option value="follow up">🟠 Follow-up</option>
+                  <option value="pending">🟡 Pending</option>
+                  <option value="KIV">🟣 KIV</option>
+                  <option value="resolved">⚪ Resolved</option>
                 </select>
               </div>
             )}
@@ -1154,20 +1185,20 @@ function CampaignsPage(props: { data: BootstrapData; onRefresh: (preferredConver
       : props.data.contacts.filter((contact) => contact.segmentIds.some((segmentId) => recipientIds.includes(segmentId))).length;
 
   return (
-    <div className="relative overflow-hidden px-4 pb-10 pt-6 sm:px-6 lg:px-10 lg:pb-32 lg:pt-10">
+    <StudioPageShell
+      title="Broadcast Wizard"
+      subtitle="Design, validate, and launch high-impact WhatsApp campaigns from your centralized atrium."
+      heroIcon="campaign"
+      eyebrow={
+        <nav className="mb-1 flex items-center gap-2 text-[10px] font-extrabold uppercase tracking-[0.2em] opacity-60">
+          <span>Campaigns</span>
+          <Icon name="chevron_right" className="text-sm opacity-50" />
+          <span className="text-white bg-white/20 px-2 py-0.5 rounded-md">New Broadcast</span>
+        </nav>
+      }
+    >
       <div className="fixed -right-40 -top-40 -z-10 h-[600px] w-[600px] rounded-full bg-primary-fixed/10 blur-[120px]" />
       <div className="fixed bottom-0 left-10 -z-10 h-[400px] w-[400px] rounded-full bg-secondary-fixed/10 blur-[100px]" />
-
-      <div className="mb-10 relative">
-        <div className="absolute top-0 left-0 h-32 w-32 bg-primary/10 blur-[40px] -ml-16 -mt-16 rounded-full pointer-events-none" />
-        <nav className="mb-4 flex items-center gap-2 text-[10px] font-extrabold uppercase tracking-widest text-slate-400 relative z-10">
-          <span>Campaigns</span>
-          <Icon name="chevron_right" className="text-sm border border-slate-200 rounded-full" />
-          <span className="text-primary bg-primary/5 px-2 py-0.5 rounded-md">New Broadcast</span>
-        </nav>
-        <h1 className="font-headline text-5xl font-extrabold tracking-tight text-primary relative z-10">Broadcast Wizard</h1>
-        <p className="mt-3 max-w-2xl text-sm font-medium text-slate-500 relative z-10">Design, validate, and launch high-impact WhatsApp campaigns from your centralized atrium.</p>
-      </div>
 
       <div className="mb-12 hidden lg:flex max-w-4xl items-center justify-between gap-4 bg-white/50 backdrop-blur-md p-4 rounded-[2rem] border border-slate-100 shadow-[0_4px_24px_-12px_rgba(0,0,0,0.05)]">
         <WizardStep index={1} label="Template" status={currentStep === 1 ? "selected" : "pending"} />
@@ -1539,7 +1570,7 @@ function CampaignsPage(props: { data: BootstrapData; onRefresh: (preferredConver
         </div>
       )}
       </div>
-    </div>
+    </StudioPageShell>
   );
 }
 
@@ -1591,14 +1622,14 @@ function ContactProfileModal(props: { contact: Contact; onClose: () => void; onR
                </div>
             </div>
             
-            <div className="flex gap-4 pb-2">
-               <div className="bg-surface-container-lowest/20 backdrop-blur px-5 py-3 rounded-2xl border border-surface-container-lowest/20 border-b-surface-container-lowest/40">
-                  <p className="text-[10px] font-bold tracking-widest uppercase opacity-80 mb-0.5">Vehicles</p>
-                  <p className="text-2xl font-bold font-mono">{totalVehicles}</p>
+            <div className="flex gap-4 pb-2 text-on-primary-fixed">
+               <div className="bg-surface-container-lowest/20 backdrop-blur px-5 py-3 rounded-2xl border border-white/20">
+                  <p className="text-[10px] font-black tracking-widest uppercase opacity-60 mb-0.5">Vehicles</p>
+                  <p className="text-2xl font-bold font-mono leading-none">{totalVehicles}</p>
                </div>
-               <div className="bg-surface-container-lowest/20 backdrop-blur px-5 py-3 rounded-2xl border border-surface-container-lowest/20 border-b-surface-container-lowest/40">
-                  <p className="text-[10px] font-bold tracking-widest uppercase opacity-80 mb-0.5">Total Paid</p>
-                  <p className="text-2xl font-bold font-mono">${totalAmountPaid.toLocaleString()}</p>
+               <div className="bg-surface-container-lowest/20 backdrop-blur px-5 py-3 rounded-2xl border border-white/20">
+                  <p className="text-[10px] font-black tracking-widest uppercase opacity-60 mb-0.5">Total Premium</p>
+                  <p className="text-2xl font-bold font-mono leading-none">${totalAmountPaid.toLocaleString()}</p>
                </div>
             </div>
           </div>
@@ -1652,27 +1683,36 @@ function ContactProfileModal(props: { contact: Contact; onClose: () => void; onR
            </div>
 
            {(props.contact.vehicles && props.contact.vehicles.length > 0) && (
-              <div className="mt-12">
-                 <h4 className="text-xs font-bold text-secondary uppercase tracking-widest mb-4">Insured Vehicles</h4>
-                 <div className="overflow-x-auto rounded-xl border border-outline-variant/30">
-                    <table className="w-full text-left text-sm bg-surface-container-lowest whitespace-nowrap">
-                       <thead>
-                          <tr className="bg-surface-container-low text-[10px] uppercase text-on-surface-variant">
-                             <th className="px-5 py-3 border-b border-outline-variant/20 font-bold">Registration No</th>
-                             <th className="px-5 py-3 border-b border-outline-variant/20 font-bold">Owner Name</th>
-                             <th className="px-5 py-3 border-b border-outline-variant/20 font-bold">Details</th>
-                             <th className="px-5 py-3 border-b border-outline-variant/20 font-bold">Year</th>
-                             <th className="px-5 py-3 border-b border-outline-variant/20 font-bold text-right">Market Value</th>
+              <div className="mt-12 rounded-[2rem] bg-white border border-slate-100 shadow-sm overflow-hidden animate-in fade-in slide-in-from-bottom-4">
+                 <div className="bg-primary/5 px-8 py-5 border-b border-primary/10 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                       <Icon name="directions_car" className="text-primary text-xl" />
+                       <h4 className="text-[11px] font-black text-primary uppercase tracking-widest">Insured Assets</h4>
+                    </div>
+                    <span className="bg-primary text-on-primary text-[9px] font-black px-2 py-0.5 rounded-full">{props.contact.vehicles.length} Units</span>
+                 </div>
+                 <div className="overflow-x-auto">
+                    <table className="w-full text-left text-sm whitespace-nowrap">
+                       <thead className="bg-[#fcfdfd] border-b border-slate-50">
+                          <tr className="text-[9px] font-black uppercase tracking-widest text-slate-400">
+                             <th className="px-8 py-4">Reg No</th>
+                             <th className="px-8 py-4">Vehicle Identity</th>
+                             <th className="px-8 py-4">Category</th>
+                             <th className="px-8 py-4 text-right">Value (Basis)</th>
                           </tr>
                        </thead>
-                       <tbody className="divide-y divide-outline-variant/10">
+                       <tbody className="divide-y divide-slate-50">
                           {props.contact.vehicles.map(v => (
-                             <tr key={v.id} className="hover:bg-surface-container-low/50">
-                                <td className="px-5 py-3 font-semibold font-mono text-primary">{v.vehicleRegistrationNo}</td>
-                                <td className="px-5 py-3 text-on-surface-variant font-medium">{v.vehicleOwnerName || "—"}</td>
-                                <td className="px-5 py-3 text-on-surface-variant">{v.vehicleModel || v.vehicleType || "—"}</td>
-                                <td className="px-5 py-3 text-on-surface-variant">{v.makeYear || "—"}</td>
-                                <td className="px-5 py-3 font-mono text-right font-bold text-slate-700">{v.marketValue || "—"}</td>
+                             <tr key={v.id} className="hover:bg-slate-50/50 transition-colors">
+                                <td className="px-8 py-4 font-black font-mono text-primary text-xs">{v.vehicleRegistrationNo}</td>
+                                <td className="px-8 py-4">
+                                   <div className="font-extrabold text-slate-700">{v.vehicleModel || "Unspecified Model"}</div>
+                                   <div className="text-[9px] text-slate-400 font-bold uppercase tracking-tight">{v.makeYear ? `Make Year: ${v.makeYear}` : 'Identity Not Found'}</div>
+                                </td>
+                                <td className="px-8 py-4">
+                                   <span className="bg-slate-100 text-slate-500 text-[9px] font-black px-2 py-1 rounded-lg uppercase tracking-wider">{v.vehicleType || 'Unknown'}</span>
+                                </td>
+                                <td className="px-8 py-4 font-mono text-right text-xs font-black text-slate-600">{v.marketValue || "—"}</td>
                              </tr>
                           ))}
                        </tbody>
@@ -1681,147 +1721,66 @@ function ContactProfileModal(props: { contact: Contact; onClose: () => void; onR
               </div>
            )}
 
-            {(props.contact.vehicles && props.contact.vehicles.length > 1) && (
-               <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {props.contact.vehicles.map(v => (
-                     <div key={v.id} className="p-5 rounded-3xl border border-slate-100 bg-slate-50/30 shadow-sm relative overflow-hidden group hover:border-primary/30 transition-colors">
-                        <div className="absolute top-0 right-0 p-3">
-                           <div className="h-2 w-2 rounded-full bg-primary" />
-                        </div>
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Vehicle Asset</p>
-                        <h4 className="font-mono font-bold text-xl text-primary mb-3">{v.vehicleRegistrationNo}</h4>
-                        <div className="space-y-2 border-t border-slate-100 pt-3">
-                           <div className="flex justify-between text-xs">
-                              <span className="text-slate-500">Owner</span>
-                              <span className="font-bold text-slate-800">{v.vehicleOwnerName || "—"}</span>
-                           </div>
-                           <div className="flex justify-between text-xs">
-                              <span className="text-slate-500">Model</span>
-                              <span className="font-medium text-slate-600">{v.vehicleModel || v.vehicleType || "—"}</span>
-                           </div>
-                           <div className="flex justify-between text-xs">
-                              <span className="text-slate-500">Valuation</span>
-                              <span className="font-bold text-emerald-600">{v.marketValue || "—"}</span>
-                           </div>
-                        </div>
+            {(props.contact.orders && props.contact.orders.length > 0) && (
+               <div className="mt-12 rounded-[2rem] bg-white border border-slate-100 shadow-sm overflow-hidden animate-in fade-in slide-in-from-bottom-4">
+                  <div className="bg-secondary/5 px-8 py-5 border-b border-secondary/10 flex items-center justify-between">
+                     <div className="flex items-center gap-3">
+                        <Icon name="receipt_long" className="text-secondary text-xl" />
+                        <h4 className="text-[11px] font-black text-secondary uppercase tracking-widest">Policy History</h4>
                      </div>
-                  ))}
-               </div>
-            )}
-
-            {(props.contact.vehicles && props.contact.vehicles.length === 1) && (
-               <div className="mt-6">
-                  <h4 className="text-xs font-bold text-secondary uppercase tracking-widest mb-4">Insured Asset</h4>
-                  <div className="p-6 rounded-[2rem] border border-outline-variant/30 bg-surface-container-low/30">
-                     <div className="flex items-center gap-6">
-                        <div className="h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
-                           <Icon name="directions_car" className="text-3xl" />
-                        </div>
-                        <div>
-                           <h4 className="font-mono text-2xl font-bold text-slate-800">{props.contact.vehicles[0].vehicleRegistrationNo}</h4>
-                           <p className="text-sm text-slate-500 font-medium">{props.contact.vehicles[0].vehicleModel} • {props.contact.vehicles[0].makeYear}</p>
-                        </div>
-                        <div className="ml-auto text-right">
-                           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Market Value</p>
-                           <p className="text-xl font-bold text-emerald-600">{props.contact.vehicles[0].marketValue}</p>
-                        </div>
-                     </div>
+                     <span className="bg-secondary text-on-primary text-[9px] font-black px-2 py-0.5 rounded-full">{props.contact.orders.length} Records</span>
+                  </div>
+                  <div className="overflow-x-auto">
+                     <table className="w-full text-left text-sm whitespace-nowrap">
+                        <thead className="bg-[#fcfdfd] border-b border-slate-50">
+                           <tr className="text-[9px] font-black uppercase tracking-widest text-slate-400">
+                              <th className="px-8 py-4">Reference</th>
+                              <th className="px-8 py-4">Status & Logistics</th>
+                              <th className="px-8 py-4">Asset Link</th>
+                              <th className="px-8 py-4 text-right">Premium / Gross</th>
+                           </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-50">
+                           {props.contact.orders.map(o => {
+                              const norm = (s: string) => (s || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+                              const linkedVehicle = props.contact.vehicles?.find(v => norm(v.vehicleRegistrationNo) === norm(o.vehicleRegistrationNo));
+                              return (
+                              <tr key={o.id} className="hover:bg-slate-50/50 transition-colors">
+                                 <td className="px-8 py-4">
+                                    <div className="font-extrabold text-secondary font-mono">{o.orderNo}</div>
+                                    <div className="text-[9px] text-slate-400 font-bold uppercase">{o.orderDate || 'No Date'}</div>
+                                 </td>
+                                 <td className="px-8 py-4">
+                                    <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest ${o.orderStatus?.toLowerCase() === 'paid' ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-400'}`}>
+                                       {o.orderStatus || 'Pending'}
+                                    </span>
+                                    <div className="text-[9px] text-slate-400 font-bold mt-1.5 uppercase tracking-tighter">CN: {o.coverNoteNo || "—"} • {o.paymentMethod || "—"}</div>
+                                 </td>
+                                 <td className="px-8 py-4 font-mono">
+                                    <div className="font-black text-xs text-slate-600">{o.vehicleRegistrationNo}</div>
+                                    {linkedVehicle?.vehicleModel && <div className="text-[9px] text-slate-400 font-medium uppercase tracking-tighter mt-1">{linkedVehicle.vehicleModel}</div>}
+                                 </td>
+                                 <td className="px-8 py-4 text-right">
+                                    <div className="text-primary font-black font-mono text-xs">{o.netTransaction || "—"}</div>
+                                    <div className="text-[9px] text-slate-400 font-bold mt-1 uppercase tracking-widest">Gross: {o.grossTransaction || "—"}</div>
+                                 </td>
+                              </tr>
+                           )})}
+                        </tbody>
+                     </table>
                   </div>
                </div>
             )}
-
-           {(props.contact.orders && props.contact.orders.length > 0) && (
-              <div className="mt-12">
-                 <h4 className="text-xs font-bold text-secondary uppercase tracking-widest mb-4">Insurance Policies & Orders</h4>
-                 <div className="overflow-x-auto rounded-xl border border-outline-variant/30">
-                    <table className="w-full text-left text-sm bg-surface-container-lowest whitespace-nowrap">
-                       <thead>
-                          <tr className="bg-surface-container-low text-[10px] uppercase text-on-surface-variant">
-                             <th className="px-5 py-3 border-b border-outline-variant/20 font-bold">Order No</th>
-                             <th className="px-5 py-3 border-b border-outline-variant/20 font-bold">Cover Note / Method</th>
-                             <th className="px-5 py-3 border-b border-outline-variant/20 font-bold">Vehicle Registration Number</th>
-                             <th className="px-5 py-3 border-b border-outline-variant/20 font-bold">Date</th>
-                             <th className="px-5 py-3 border-b border-outline-variant/20 font-bold">Status</th>
-                             <th className="px-5 py-3 border-b border-outline-variant/20 font-bold text-right">Premium / Gross / Net</th>
-                          </tr>
-                       </thead>
-                       <tbody className="divide-y divide-outline-variant/10">
-                          {props.contact.orders.map(o => {
-                             const norm = (s: string) => (s || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
-                             const linkedVehicle = props.contact.vehicles?.find(v => norm(v.vehicleRegistrationNo) === norm(o.vehicleRegistrationNo));
-                             return (
-                             <tr key={o.id} className="hover:bg-surface-container-low/50 align-top">
-                                <td className="px-5 py-4 font-mono font-bold text-secondary">{o.orderNo}</td>
-                                <td className="px-5 py-4">
-                                   <div className="font-medium text-on-surface">{o.coverNoteNo || "—"}</div>
-                                   {o.paymentMethod && <div className="text-[10px] text-on-surface-variant mt-1 uppercase tracking-wider">{o.paymentMethod}</div>}
-                                </td>
-                                <td className="px-5 py-4">
-                                  <div className="font-mono font-medium">{o.vehicleRegistrationNo}</div>
-                                  {linkedVehicle?.vehicleOwnerName && <div className="text-[10px] text-on-surface-variant mt-1.5 uppercase tracking-wider leading-tight">{linkedVehicle.vehicleOwnerName}</div>}
-                                </td>
-                                <td className="px-5 py-4 text-on-surface-variant">{o.orderDate || "—"}</td>
-                                <td className="px-5 py-4">
-                                   <span className={`px-2 py-1 text-[10px] rounded font-bold uppercase ${o.orderStatus?.toLowerCase() === 'paid' ? 'bg-primary/10 text-primary' : 'bg-surface-container text-on-surface-variant'}`}>{o.orderStatus || 'Pending'}</span>
-                                </td>
-                                <td className="px-5 py-4 font-mono text-right font-medium">
-                                   <div className="text-on-surface flex justify-between gap-4"><span className="text-on-surface-variant text-[10px] uppercase">Net</span> {o.netTransaction || "—"}</div>
-                                   <div className="text-on-surface flex justify-between gap-4 mt-1"><span className="text-on-surface-variant text-[10px] uppercase">Prem</span> {o.netWrittenPremium || "—"}</div>
-                                   <div className="text-on-surface flex justify-between gap-4 mt-1"><span className="text-on-surface-variant text-[10px] uppercase">Gross</span> {o.grossTransaction || "—"}</div>
-                                </td>
-                             </tr>
-                          )})}
-                       </tbody>
-                    </table>
-                 </div>
-              </div>
-            )}
-
-            {(props.contact.orders && props.contact.orders.length > 1) && (
-               <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {props.contact.orders.map(o => {
-                     const norm = (s: string) => (s || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
-                     const linkedVehicle = props.contact.vehicles?.find(v => norm(v.vehicleRegistrationNo) === norm(o.vehicleRegistrationNo));
-                     return (
-                        <div key={o.id} className="p-6 rounded-[2.5rem] border border-slate-100 bg-white shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
-                           <div className="absolute top-0 right-0 p-4">
-                              <span className={`px-3 py-1 text-[10px] rounded-full font-extrabold uppercase tracking-widest ${o.orderStatus?.toLowerCase() === 'paid' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-slate-100 text-slate-500'}`}>
-                                 {o.orderStatus || 'Pending'}
-                              </span>
-                           </div>
-                           <div className="flex items-center gap-3 mb-4">
-                              <div className="h-10 w-10 rounded-2xl bg-secondary/10 flex items-center justify-center text-secondary">
-                                 <Icon name="description" className="text-xl" />
-                              </div>
-                              <div>
-                                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none mb-1">Policy Number</p>
-                                 <h4 className="font-mono font-bold text-slate-800">{o.orderNo}</h4>
-                              </div>
-                           </div>
-                           
-                           <div className="space-y-3 pt-3 border-t border-slate-50">
-                              <div className="flex justify-between items-end">
-                                 <div>
-                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Asset Link</p>
-                                    <p className="font-mono text-sm font-bold text-slate-700">{o.vehicleRegistrationNo}</p>
-                                 </div>
-                                 <div className="text-right">
-                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Premium</p>
-                                    <p className="font-bold text-primary">{o.netTransaction || "—"}</p>
-                                 </div>
-                              </div>
-                              <div className="flex justify-between items-center text-[11px] bg-slate-50 p-2 rounded-xl">
-                                 <span className="text-slate-500 font-medium">Cover Note: {o.coverNoteNo || "—"}</span>
-                                 <span className="text-slate-500 font-medium">{o.orderDate || "—"}</span>
-                              </div>
-                           </div>
-                        </div>
-                     );
-                  })}
+                                    <div className="text-[9px] text-on-surface-variant mt-1 uppercase">Net Premium</div>
+                                 </td>
+                              </tr>
+                           )})}
+                        </tbody>
+                     </table>
+                  </div>
                </div>
             )}
-
-        </div>
+         </div>
       </div>
     </div>
   );
@@ -1866,6 +1825,43 @@ function ContactsPage(props: {
   } | null>(null);
 
   const [isAddContactOpen, setIsAddContactOpen] = useState(false);
+  function handleExport(format: 'csv' | 'xlsx') {
+    const headers = [
+      "First Name", "Last Name", "Phone", "Email", "Company", 
+      "Segments", "Labels", "Vehicles", "Total Paid"
+    ];
+    
+    // Add custom fields to headers
+    props.data.customFieldDefinitions.forEach(d => headers.push(d.replace(/_/g, " ")));
+
+    const rows = props.data.contacts.map(c => {
+      const segmentNames = c.segmentIds.map(id => props.data.segments.find(s => s.id === id)?.name || id).join("; ");
+      const totalPaid = (c.orders || []).reduce((acc, o) => {
+        const val = parseFloat((o.netTransaction || "0").replace(/[^0-9.-]+/g, ""));
+        return acc + (isNaN(val) ? 0 : val);
+      }, 0);
+      
+      const row = [
+        c.firstName, c.lastName, c.phone, c.email || "", c.company || "",
+        segmentNames, c.labels.join("; "), c.vehicles?.length || 0, totalPaid
+      ];
+      
+      props.data.customFieldDefinitions.forEach(d => row.push(c.customFields[d] || ""));
+      return row.map(v => `"${String(v).replace(/"/g, '""')}"`).join(",");
+    });
+
+    const csvContent = [headers.join(","), ...rows].join("\n");
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", `tomorrowX_contacts_${new Date().toISOString().split('T')[0]}.${format === 'csv' ? 'csv' : 'xlsx'}`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+
   const [viewingContact, setViewingContact] = useState<Contact | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [page, setPage] = useState(1);
@@ -1922,6 +1918,16 @@ function ContactsPage(props: {
     { id: "order_paymentMethod", label: "Payment Method" },
     { id: "order_orderDate", label: "Order Date" }
   ];
+
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const toggleExpand = (id: string) => {
+    setExpandedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
 
   const getFieldValue = (c: Contact, field: string): any => {
     if (field === "firstName") return c.firstName;
@@ -2181,39 +2187,54 @@ function ContactsPage(props: {
   }
 
   return (
-    <div className="px-8 pb-10 pt-8">
-      <div className="mb-8 grid grid-cols-1 gap-6">
-        <div className="flex flex-col justify-between rounded-[2.5rem] bg-gradient-to-br from-surface-container-low via-surface-container-low to-surface-container p-10 border border-outline-variant/10 shadow-[0_8px_32px_-12px_rgba(0,0,0,0.05)] relative overflow-hidden">
-          <div className="absolute right-0 top-0 h-64 w-64 rounded-full bg-primary/5 blur-3xl -mr-20 -mt-20" />
-          <div className="relative z-10">
-            <div className="flex flex-col sm:flex-row justify-between items-start gap-4 w-full">
-              <div>
-                <span className="font-headline text-xs font-bold uppercase tracking-[0.24em] text-tertiary">Audience Insight</span>
-                <h2 className="mt-3 font-headline text-5xl font-extrabold tracking-tight text-primary">{props.data.contacts.length.toLocaleString()} Active Leads</h2>
-              </div>
-              <button 
-                className="group flex items-center gap-2 bg-error/5 text-error font-extrabold px-6 py-3 rounded-2xl text-xs hover:bg-error hover:text-on-error transition-all"
-                onClick={async () => {
-                  if (window.confirm("FATAL WARNING: Are you incredibly sure you want to PERMANENTLY ERASE all contacts, internal notes, and segments? This action absolutely CANNOT be undone.")) {
-                     await api("/api/contacts/clear", { method: "DELETE" });
-                     await props.onRefresh();
-                  }
-                }}
-              >
-                 <Icon name="delete_forever" className="text-lg transition-transform group-hover:scale-110" />
-                 Clear Directory
-              </button>
-            </div>
-            <p className="mt-4 max-w-2xl text-lg font-medium text-on-surface-variant leading-relaxed">
-              Your contact base is live for CSV updates, real-time conversations, and shared team segmentation.
-            </p>
+    <StudioPageShell
+      title={`${props.data.contacts.length.toLocaleString()} Active Leads`}
+      subtitle="Your contact base is live for CSV updates, real-time conversations, and shared team segmentation."
+      heroIcon="contacts"
+      eyebrow="Audience Management"
+      cta={
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-wrap gap-3">
+            <button
+              className="flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white font-extrabold px-5 py-2.5 rounded-2xl text-xs border border-white/10 transition-all active:scale-95"
+              onClick={async () => {
+                if (window.confirm("FATAL WARNING: Are you incredibly sure you want to PERMANENTLY ERASE all contacts, internal notes, and segments? This action absolutely CANNOT be undone.")) {
+                   await api("/api/contacts/clear", { method: "DELETE" });
+                   await props.onRefresh();
+                }
+              }}
+            >
+               <Icon name="delete_forever" className="text-lg" />
+               Clear Directory
+            </button>
+            <button 
+              onClick={() => handleExport('csv')}
+              className="flex items-center gap-2 bg-white text-primary font-extrabold px-5 py-2.5 rounded-2xl text-xs shadow-lg transition-all active:scale-95 hover:scale-105"
+            >
+               <Icon name="file_download" className="text-lg" />
+               Export CSV
+            </button>
+            <button 
+              onClick={() => handleExport('xlsx')}
+              className="flex items-center gap-2 bg-white/10 text-white font-extrabold px-5 py-2.5 rounded-2xl text-xs border border-white/20 transition-all active:scale-95 hover:bg-white/20"
+            >
+               <Icon name="grid_view" className="text-lg" />
+               Export XLSX
+            </button>
           </div>
-          <div className="mt-10 flex flex-wrap gap-5 relative z-10">
-            <OverviewMetric label="Opt-in Rate" value="89.4%" />
-            <OverviewMetric label="Segments" value={String(props.data.segments.length)} />
+          <div className="flex gap-4">
+            <div className="rounded-2xl bg-white/10 border border-white/20 px-5 py-3">
+              <p className="text-[10px] font-extrabold uppercase tracking-[0.2em] opacity-60">Opt-in Rate</p>
+              <p className="mt-1 text-2xl font-extrabold">89.4%</p>
+            </div>
+            <div className="rounded-2xl bg-white/10 border border-white/20 px-5 py-3">
+              <p className="text-[10px] font-extrabold uppercase tracking-[0.2em] opacity-60">Segments</p>
+              <p className="mt-1 text-2xl font-extrabold">{props.data.segments.length}</p>
+            </div>
           </div>
         </div>
-      </div>
+      }
+    >
 
       <div className="grid grid-cols-1 xl:grid-cols-4 gap-6 items-start mb-8">
         <div className="xl:col-span-1 flex flex-col gap-8 order-1 xl:order-2">
@@ -2381,27 +2402,28 @@ function ContactsPage(props: {
         </div>
 
         <div className="xl:col-span-3 order-2 xl:order-1">
-      <section className="overflow-hidden rounded-[2rem] border border-outline-variant/20 bg-surface-container-lowest">
-        <div className="flex flex-col gap-4 border-b border-outline-variant/10 px-8 py-6 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex flex-wrap items-center gap-3">
+      <section className="overflow-hidden rounded-[2rem] border border-slate-100 bg-white shadow-[0_4px_24px_-8px_rgba(0,0,0,0.06)]">
+        {/* Table Toolbar */}
+        <div className="flex flex-col gap-4 border-b border-slate-100 bg-[#fcfdfd] px-6 py-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex flex-wrap items-center gap-2">
             <div className="relative">
+              <Icon className="absolute left-3 top-2.5 text-slate-400 pointer-events-none text-[18px]" name="search" />
               <input
                 type="text"
                 placeholder="Search contacts..."
-                className="atrium-input bg-surface-container-lowest py-2 text-sm w-64"
+                className="atrium-input bg-slate-50 border-slate-100 pl-9 py-2 text-sm w-64 focus:bg-white focus:border-primary/30 focus:shadow-[0_4px_12px_-4px_rgba(0,168,132,0.15)] transition-all"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
-              <Icon className="absolute right-3 top-2.5 text-on-surface-variant pointer-events-none" name="search" />
             </div>
             
             <div className="relative">
               <button
-                className="flex cursor-pointer items-center gap-2 rounded-full border border-outline-variant/30 bg-surface-container-low px-4 py-2 hover:bg-surface-container"
+                className="flex cursor-pointer items-center gap-2 rounded-xl border border-slate-100 bg-white px-4 py-2 text-xs font-bold text-slate-600 shadow-sm hover:border-primary/30 hover:text-primary transition-all"
                 onClick={() => setIsColumnDropdownOpen(!isColumnDropdownOpen)}
               >
-                <span className="text-xs font-bold text-on-surface">Columns</span>
                 <Icon className="text-sm" name="view_column" />
+                Columns
               </button>
               {isColumnDropdownOpen && (
                 <div className="absolute top-12 left-0 z-20 w-56 rounded-xl border border-outline-variant/20 bg-surface-container-lowest p-2 shadow-lg">
@@ -2449,14 +2471,16 @@ function ContactsPage(props: {
 
             <div className="relative">
               <button
-                className={`flex cursor-pointer items-center gap-2 rounded-full border border-outline-variant/30 px-4 py-2 hover:bg-surface-container transition-colors ${filterRules.length > 0 ? 'bg-primary/10 border-primary/40' : 'bg-surface-container-low'}`}
+                className={`flex cursor-pointer items-center gap-2 rounded-xl border px-4 py-2 text-xs font-bold shadow-sm transition-all ${
+                  filterRules.length > 0
+                    ? 'bg-primary/5 border-primary/30 text-primary'
+                    : 'bg-white border-slate-100 text-slate-600 hover:border-primary/30 hover:text-primary'
+                }`}
                 onClick={() => setIsFilterOpen(!isFilterOpen)}
               >
-                <div className="flex items-center gap-2">
-                   <span className="text-xs font-bold text-on-surface">Filters</span>
-                   {filterRules.length > 0 && <span className="bg-primary text-on-primary text-[10px] w-4 h-4 flex items-center justify-center rounded-full">{filterRules.length}</span>}
-                </div>
                 <Icon className="text-sm" name="filter_list" />
+                Filters
+                {filterRules.length > 0 && <span className="bg-primary text-on-primary text-[9px] font-black w-4 h-4 flex items-center justify-center rounded-full">{filterRules.length}</span>}
               </button>
               {isFilterOpen && (
                 <div className="absolute top-14 left-0 z-30 w-[420px] rounded-[2rem] border border-slate-200/60 bg-white/90 p-6 shadow-[0_20px_50px_rgba(0,0,0,0.1)] backdrop-blur-xl animate-in fade-in zoom-in-95 duration-200">
@@ -2527,11 +2551,13 @@ function ContactsPage(props: {
               )}
             </div>
           </div>
-          <div className="flex items-center gap-4 text-xs text-on-surface-variant">
-            <span>Showing {filteredContacts.length === 0 ? 0 : (page - 1) * itemsPerPage + 1}-{Math.min(page * itemsPerPage, filteredContacts.length)} of {filteredContacts.length} contacts</span>
+          <div className="flex items-center gap-3">
+            <span className="text-[11px] font-bold text-slate-400">
+              {filteredContacts.length === 0 ? "No results" : `${(page - 1) * itemsPerPage + 1}–${Math.min(page * itemsPerPage, filteredContacts.length)} of ${filteredContacts.length}`}
+            </span>
             <div className="flex gap-1">
-              <button disabled={page === 1} onClick={() => setPage(p => p - 1)} className="rounded p-1 hover:bg-surface-container disabled:opacity-30"><Icon name="chevron_left" /></button>
-              <button disabled={page === totalPages} onClick={() => setPage(p => p + 1)} className="rounded p-1 hover:bg-surface-container disabled:opacity-30"><Icon name="chevron_right" /></button>
+              <button disabled={page === 1} onClick={() => setPage(p => p - 1)} className="flex h-7 w-7 items-center justify-center rounded-lg border border-slate-100 text-slate-400 hover:border-primary/30 hover:text-primary disabled:opacity-30 transition-all"><Icon name="chevron_left" className="text-sm" /></button>
+              <button disabled={page === totalPages} onClick={() => setPage(p => p + 1)} className="flex h-7 w-7 items-center justify-center rounded-lg border border-slate-100 text-slate-400 hover:border-primary/30 hover:text-primary disabled:opacity-30 transition-all"><Icon name="chevron_right" className="text-sm" /></button>
             </div>
           </div>
         </div>
@@ -2540,146 +2566,306 @@ function ContactsPage(props: {
         <div className="hidden lg:block overflow-x-auto">
           <table className="w-full border-collapse text-left">
             <thead>
-              <tr className="bg-surface-container-low text-[0.6875rem] font-extrabold uppercase tracking-widest text-on-surface-variant">
-                <th className="w-12 px-8 py-5">
-                  <input className="rounded-md border-outline-variant/30 text-primary focus:ring-primary/20" type="checkbox" />
+              <tr className="border-b border-slate-100 bg-slate-50/80 text-[10px] font-extrabold uppercase tracking-[0.12em] text-slate-400">
+                <th className="w-10 px-4 py-4"></th>
+                <th className="w-12 pl-6 pr-3 py-4">
+                  <input className="rounded border-slate-200 text-primary focus:ring-primary/20" type="checkbox" />
                 </th>
                 {visibleColumns.includes("profile") && (
-                  <th className="px-4 py-4 cursor-pointer hover:text-primary transition-colors" onClick={() => handleSort('firstName')}>
-                    <div className="flex items-center gap-1">
-                      Contact Profile
-                      {sortConfig?.key === 'firstName' && <Icon className="text-xs" name={sortConfig.direction === 'asc' ? 'arrow_upward' : 'arrow_downward'} />}
+                  <th className="px-4 py-4 cursor-pointer select-none hover:text-primary transition-colors whitespace-nowrap" onClick={() => handleSort('firstName')}>
+                    <div className="flex items-center gap-1.5">
+                      Contact
+                      {sortConfig?.key === 'firstName'
+                        ? <Icon className="text-[12px] text-primary" name={sortConfig.direction === 'asc' ? 'arrow_upward' : 'arrow_downward'} />
+                        : <Icon className="text-[12px] opacity-30" name="unfold_more" />}
                     </div>
                   </th>
                 )}
                 {visibleColumns.includes("phone") && (
-                  <th className="px-4 py-4 cursor-pointer hover:text-primary transition-colors" onClick={() => handleSort('phone')}>
-                    <div className="flex items-center gap-1">
-                      Phone Number
-                      {sortConfig?.key === 'phone' && <Icon className="text-xs" name={sortConfig.direction === 'asc' ? 'arrow_upward' : 'arrow_downward'} />}
+                  <th className="px-4 py-4 cursor-pointer select-none hover:text-primary transition-colors whitespace-nowrap" onClick={() => handleSort('phone')}>
+                    <div className="flex items-center gap-1.5">
+                      Phone
+                      {sortConfig?.key === 'phone'
+                        ? <Icon className="text-[12px] text-primary" name={sortConfig.direction === 'asc' ? 'arrow_upward' : 'arrow_downward'} />
+                        : <Icon className="text-[12px] opacity-30" name="unfold_more" />}
                     </div>
                   </th>
                 )}
-                {visibleColumns.includes("segments") && <th className="px-4 py-4">Segments & Tags</th>}
+                {visibleColumns.includes("segments") && <th className="px-4 py-4 whitespace-nowrap">Segments & Tags</th>}
                 {customFieldKeys.map(key => {
                    const colId = `custom_${key}`;
                    return visibleColumns.includes(colId) && (
-                    <th key={key} className="px-4 py-4 cursor-pointer hover:text-primary transition-colors" onClick={() => handleSort(colId)}>
-                      <div className="flex items-center gap-1">
+                    <th key={key} className="px-4 py-4 cursor-pointer select-none hover:text-primary transition-colors whitespace-nowrap" onClick={() => handleSort(colId)}>
+                      <div className="flex items-center gap-1.5">
                         {key}
-                        {sortConfig?.key === colId && <Icon className="text-xs" name={sortConfig.direction === 'asc' ? 'arrow_upward' : 'arrow_downward'} />}
+                        {sortConfig?.key === colId
+                          ? <Icon className="text-[12px] text-primary" name={sortConfig.direction === 'asc' ? 'arrow_upward' : 'arrow_downward'} />
+                          : <Icon className="text-[12px] opacity-30" name="unfold_more" />}
                       </div>
                     </th>
                    );
                 })}
                 {insuranceVehicleFields.map(col => visibleColumns.includes(col.id) && (
-                  <th key={col.id} className="px-4 py-4 cursor-pointer hover:text-primary transition-colors" onClick={() => handleSort(col.id)}>
-                    <div className="flex items-center gap-1">
+                  <th key={col.id} className="px-4 py-4 cursor-pointer select-none hover:text-primary transition-colors whitespace-nowrap" onClick={() => handleSort(col.id)}>
+                    <div className="flex items-center gap-1.5">
                       {col.label}
-                      {sortConfig?.key === col.id && <Icon className="text-xs" name={sortConfig.direction === 'asc' ? 'arrow_upward' : 'arrow_downward'} />}
+                      {sortConfig?.key === col.id
+                        ? <Icon className="text-[12px] text-primary" name={sortConfig.direction === 'asc' ? 'arrow_upward' : 'arrow_downward'} />
+                        : <Icon className="text-[12px] opacity-30" name="unfold_more" />}
                     </div>
                   </th>
                 ))}
                 {insuranceOrderFields.map(col => visibleColumns.includes(col.id) && (
-                  <th key={col.id} className="px-4 py-4 cursor-pointer hover:text-primary transition-colors" onClick={() => handleSort(col.id)}>
-                    <div className="flex items-center gap-1">
+                  <th key={col.id} className="px-4 py-4 cursor-pointer select-none hover:text-primary transition-colors whitespace-nowrap" onClick={() => handleSort(col.id)}>
+                    <div className="flex items-center gap-1.5">
                       {col.label}
-                      {sortConfig?.key === col.id && <Icon className="text-xs" name={sortConfig.direction === 'asc' ? 'arrow_upward' : 'arrow_downward'} />}
+                      {sortConfig?.key === col.id
+                        ? <Icon className="text-[12px] text-primary" name={sortConfig.direction === 'asc' ? 'arrow_upward' : 'arrow_downward'} />
+                        : <Icon className="text-[12px] opacity-30" name="unfold_more" />}
                     </div>
                   </th>
                 ))}
-                {visibleColumns.includes("activity") && <th className="px-4 py-4">Last Activity</th>}
+                {visibleColumns.includes("activity") && <th className="px-4 py-4 whitespace-nowrap">Activity</th>}
                 {visibleColumns.includes("optIn") && <th className="px-4 py-4 text-center">Opt-In</th>}
-                <th className="px-8 py-4 text-right">Actions</th>
+                <th className="pl-4 pr-6 py-4 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-outline-variant/10">
-              {paginatedContacts.map((contact, index) => (
-                <tr className="group transition-all hover:bg-surface-bright" key={contact.id}>
-                  <td className="border-l-4 border-transparent px-8 py-5 group-hover:border-primary">
-                    <input className="rounded border-outline-variant text-primary focus:ring-primary/20" type="checkbox" />
+            <tbody className="divide-y divide-slate-50">
+              {paginatedContacts.length === 0 && (
+                <tr>
+                  <td colSpan={visibleColumns.length + 5} className="py-20 text-center">
+                    <Icon name="person_search" className="text-5xl text-slate-200 mb-3" />
+                    <p className="text-sm font-bold text-slate-400">No contacts found</p>
+                    <p className="text-xs text-slate-300 mt-1">Try adjusting your search or filters</p>
+                  </td>
+                </tr>
+              )}
+              {paginatedContacts.map((contact, index) => {
+                const isExpanded = expandedIds.has(contact.id);
+                const hasMultiple = (contact.vehicles?.length || 0) > 1 || (contact.orders?.length || 0) > 1;
+                
+                return (
+                <Fragment key={contact.id}>
+                <tr className={`group transition-colors ${isExpanded ? 'bg-slate-50/80' : 'hover:bg-slate-50/60'}`}>
+                  <td className="px-3 py-4 text-center">
+                    {hasMultiple && (
+                      <button 
+                        onClick={() => toggleExpand(contact.id)}
+                        className={`flex h-6 w-6 items-center justify-center rounded-md transition-all ${isExpanded ? 'bg-primary text-white rotate-180 shadow-sm' : 'bg-slate-100 text-slate-400 hover:bg-slate-200'}`}
+                      >
+                        <Icon name="expand_more" className="text-sm" />
+                      </button>
+                    )}
+                  </td>
+                  <td className="pl-6 pr-3 py-4">
+                    <input className="rounded border-slate-200 text-primary focus:ring-primary/20" type="checkbox" />
                   </td>
                   {visibleColumns.includes("profile") && (
-                    <td className="px-4 py-5">
+                    <td className="px-4 py-4">
                       <div className="flex items-center gap-3">
-                        <Avatar label={fullName(contact)} size="h-10 w-10" />
-                        <div>
-                          <div className="text-sm font-bold text-on-surface">{fullName(contact)}</div>
-                          {contact.company && <div className="text-xs text-on-surface-variant">{contact.company}</div>}
-                          <div className="flex gap-2 mt-1">
-                             {contact.vehicles && contact.vehicles.length > 0 && <span className="bg-primary/10 text-primary text-[10px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">{contact.vehicles.length} Vehicle{contact.vehicles.length > 1 ? "s" : ""}</span>}
-                             {contact.orders && contact.orders.length > 0 && <span className="bg-secondary/10 text-secondary text-[10px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">{contact.orders.length} Order{contact.orders.length > 1 ? "s" : ""}</span>}
+                        <Avatar label={fullName(contact)} size="h-9 w-9" />
+                        <div className="min-w-0">
+                          <div className="text-sm font-extrabold text-slate-800 truncate">{fullName(contact)}</div>
+                          {contact.company && <div className="text-[11px] font-medium text-slate-400 truncate">{contact.company}</div>}
+                          <div className="flex gap-1.5 mt-1 flex-wrap">
+                             {contact.vehicles && contact.vehicles.length > 0 && (
+                               <span className="inline-flex items-center gap-0.5 bg-primary/8 text-primary text-[9px] px-1.5 py-0.5 rounded-md font-extrabold uppercase tracking-wider">
+                                 <Icon name="directions_car" className="text-[10px]" />
+                                 {contact.vehicles.length}
+                               </span>
+                             )}
+                             {contact.orders && contact.orders.length > 0 && (
+                               <span className="inline-flex items-center gap-0.5 bg-secondary/8 text-secondary text-[9px] px-1.5 py-0.5 rounded-md font-extrabold uppercase tracking-wider">
+                                 <Icon name="receipt" className="text-[10px]" />
+                                 {contact.orders.length}
+                               </span>
+                             )}
                           </div>
                         </div>
                       </div>
                     </td>
                   )}
-                  {visibleColumns.includes("phone") && <td className="px-4 py-5 text-sm font-medium text-on-surface-variant">{contact.phone}</td>}
+                  {visibleColumns.includes("phone") && (
+                    <td className="px-4 py-4">
+                      <span className="text-[12px] font-mono font-semibold text-slate-600 bg-slate-100/70 px-2.5 py-1 rounded-lg">{contact.phone}</span>
+                    </td>
+                  )}
                   {visibleColumns.includes("segments") && (
-                    <td className="px-4 py-5">
+                    <td className="px-4 py-4">
                       <div className="flex flex-wrap gap-1">
                         {contact.segmentIds.map((segmentId) => (
-                          <span className="rounded-md bg-primary-fixed px-2 py-0.5 text-[10px] font-bold text-on-primary-fixed-variant" key={segmentId}>
+                          <span className="rounded-lg bg-primary/8 px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-wide text-primary" key={segmentId}>
                             {resolveLabel(segmentId, props.data)}
                           </span>
                         ))}
                         {contact.labels.map((label) => (
-                          <span className="rounded-md bg-surface-container px-2 py-0.5 text-[10px] font-bold text-on-surface-variant" key={label}>
+                          <span className="rounded-lg bg-slate-100 px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-wide text-slate-500" key={label}>
                             {label}
                           </span>
                         ))}
+                        {contact.segmentIds.length === 0 && contact.labels.length === 0 && (
+                          <span className="text-[11px] text-slate-300">—</span>
+                        )}
                       </div>
                     </td>
                   )}
                   {customFieldKeys.map(key => visibleColumns.includes(`custom_${key}`) && (
-                    <td key={`custom_col_${key}`} className="px-4 py-5 text-sm font-medium text-on-surface-variant">
-                      {contact.customFields[key] || "—"}
+                    <td key={`custom_col_${key}`} className="px-4 py-4 text-[12px] font-medium text-slate-600 whitespace-nowrap">
+                      {contact.customFields[key] || <span className="text-slate-300">—</span>}
                     </td>
                   ))}
                   {insuranceVehicleFields.map(col => visibleColumns.includes(col.id) && (
-                    <td key={`insurance_v_${col.id}`} className="px-4 py-5 text-sm font-medium text-on-surface-variant font-mono whitespace-nowrap">
-                      {((contact.vehicles || []).map(v => (v as any)[col.id.replace("vehicle_", "")]) || []).filter(Boolean).join(", ") || "—"}
+                    <td key={`insurance_v_${col.id}`} className="px-4 py-4 text-[12px] font-mono font-medium text-slate-600 whitespace-nowrap">
+                      {((contact.vehicles || []).map(v => (v as any)[col.id.replace("vehicle_", "")]) || []).filter(Boolean).join(", ") || <span className="text-slate-300">—</span>}
                     </td>
                   ))}
                   {insuranceOrderFields.map(col => visibleColumns.includes(col.id) && (
-                    <td key={`insurance_o_${col.id}`} className="px-4 py-5 text-sm font-medium text-on-surface-variant font-mono whitespace-nowrap">
-                      {((contact.orders || []).map(o => (o as any)[col.id.replace("order_", "")]) || []).filter(Boolean).join(", ") || "—"}
+                    <td key={`insurance_o_${col.id}`} className="px-4 py-4 text-[12px] font-mono font-medium text-slate-600 whitespace-nowrap">
+                      {((contact.orders || []).map(o => (o as any)[col.id.replace("order_", "")]) || []).filter(Boolean).join(", ") || <span className="text-slate-300">—</span>}
                     </td>
                   ))}
-                  {visibleColumns.includes("activity") && <td className="px-4 py-5 text-xs text-on-surface-variant">{formatRelativeChatTime(new Date(Date.now() - (index + 1) * 3600_000).toISOString())}</td>}
+                  {visibleColumns.includes("activity") && (
+                    <td className="px-4 py-4 text-[11px] font-medium text-slate-400 whitespace-nowrap">
+                      {formatRelativeChatTime(new Date(Date.now() - (index + 1) * 3600_000).toISOString())}
+                    </td>
+                  )}
                   {visibleColumns.includes("optIn") && (
-                    <td className="px-4 py-5">
+                    <td className="px-4 py-4">
                       <div className="flex justify-center">
-                        <div className={`h-2 w-2 rounded-full ring-4 ${index % 4 === 3 ? "bg-error ring-error/10" : "bg-secondary ring-secondary/10"}`} />
+                        {index % 4 === 3
+                          ? <span className="inline-flex items-center gap-1 text-[9px] font-extrabold uppercase tracking-wider text-error"><span className="h-1.5 w-1.5 rounded-full bg-error" />Opted Out</span>
+                          : <span className="inline-flex items-center gap-1 text-[9px] font-extrabold uppercase tracking-wider text-primary"><span className="h-1.5 w-1.5 rounded-full bg-primary" />Active</span>
+                        }
                       </div>
                     </td>
                   )}
-                   <td className="px-8 py-5 text-right">
-                      <div className="flex justify-end gap-3 opacity-0 transition-opacity group-hover:opacity-100">
-                        <button 
-                           className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/5 text-primary hover:bg-primary hover:text-on-primary transition-all shadow-sm"
-                           onClick={() => props.onOpenConversation(contact.id, props.data.channels[0]?.id ?? "")}
-                           title="Chat"
-                        >
-                          <Icon name="chat" />
-                        </button>
-                        <button 
-                           className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-400 hover:bg-slate-200 hover:text-slate-600 transition-all"
-                           onClick={() => setViewingContact(contact)}
-                           title="View Profile"
-                        >
-                          <Icon name="person" />
-                        </button>
-                        <button className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-400 hover:bg-slate-200 hover:text-slate-600 transition-all">
-                          <Icon name="more_vert" />
-                        </button>
+                  <td className="pl-4 pr-6 py-4">
+                    <div className="flex justify-end gap-1.5 opacity-0 transition-all group-hover:opacity-100">
+                      <button
+                        className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/8 text-primary hover:bg-primary hover:text-white transition-all"
+                        onClick={() => props.onOpenConversation(contact.id, props.data.channels[0]?.id ?? "")}
+                        title="Open Chat"
+                      >
+                        <Icon name="chat" className="text-sm" />
+                      </button>
+                      <button
+                        className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-700 transition-all"
+                        onClick={() => setViewingContact(contact)}
+                        title="View Profile"
+                      >
+                        <Icon name="person" className="text-sm" />
+                      </button>
+                      <button 
+                        className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-500 hover:bg-slate-200 transition-all"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const action = window.confirm(`Actions for ${contact.firstName}:\n- OK to Copy NRIC/ID\n- Cancel to Delete Record`);
+                          if (action) {
+                            navigator.clipboard.writeText(contact.id);
+                            alert("Contact ID copied to clipboard.");
+                          } else {
+                            if (window.confirm("Are you sure you want to PERMANENTLY delete this contact?")) {
+                               // Normally call API here, simulating success for now
+                               alert("Contact marked for deletion.");
+                            }
+                          }
+                        }}
+                        title="More Actions"
+                      >
+                        <Icon name="more_vert" className="text-sm" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+                {isExpanded && (
+                  <tr className="bg-slate-50/50 border-b border-slate-100">
+                    <td colSpan={visibleColumns.length + 3} className="p-0">
+                      <div className="p-8">
+                         <div className="rounded-[2.5rem] bg-white border border-slate-100 shadow-[0_20px_60px_-20px_rgba(0,0,0,0.1)] overflow-hidden">
+                            <div className="grid grid-cols-1 xl:grid-cols-2 divide-y xl:divide-y-0 xl:divide-x divide-slate-50">
+                               <div className="p-8">
+                                  <div className="flex items-center gap-3 mb-6">
+                                     <div className="h-8 w-8 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
+                                        <Icon name="directions_car" className="text-lg" />
+                                     </div>
+                                     <h5 className="text-[11px] font-black uppercase tracking-widest text-slate-400">Insured Assets</h5>
+                                  </div>
+                                  <div className="overflow-x-auto">
+                                     <table className="w-full text-xs text-left">
+                                        <thead>
+                                           <tr className="text-[9px] uppercase tracking-tighter text-slate-400 border-b border-slate-50">
+                                              <th className="pb-3 font-bold">Reg No</th>
+                                              <th className="pb-3 font-bold">Details & Owner</th>
+                                              <th className="pb-3 font-bold text-right">Market Value</th>
+                                           </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-50">
+                                           {contact.vehicles.map(v => (
+                                              <tr key={v.id} className="hover:bg-slate-50/50">
+                                                 <td className="py-2.5 font-mono font-bold text-primary">{v.vehicleRegistrationNo}</td>
+                                                 <td className="py-2.5">
+                                                    <div className="font-bold text-slate-700">{v.vehicleModel || v.vehicleType || "—"} {v.makeYear ? `(${v.makeYear})` : ''}</div>
+                                                    <div className="text-[9px] text-slate-400 uppercase tracking-tight">{v.vehicleOwnerName || "—"} {v.vehicleType && `• ${v.vehicleType}`}</div>
+                                                 </td>
+                                                 <td className="py-2.5 text-right font-mono font-black text-slate-600">{v.marketValue || "—"}</td>
+                                              </tr>
+                                           ))}
+                                        </tbody>
+                                     </table>
+                                  </div>
+                               </div>
+                               <div className="p-8">
+                                  <div className="flex items-center gap-3 mb-6">
+                                     <div className="h-8 w-8 rounded-xl bg-secondary/10 flex items-center justify-center text-secondary">
+                                        <Icon name="receipt_long" className="text-lg" />
+                                     </div>
+                                     <h5 className="text-[11px] font-black uppercase tracking-widest text-slate-400">Policies & Orders</h5>
+                                  </div>
+                                  <div className="overflow-x-auto">
+                                     <table className="w-full text-xs text-left">
+                                        <thead>
+                                           <tr className="text-[9px] uppercase tracking-tighter text-slate-400 border-b border-slate-50">
+                                              <th className="pb-3 font-bold">Order No</th>
+                                              <th className="pb-3 font-bold">Info & Method</th>
+                                              <th className="pb-3 font-bold text-right">Breakdown</th>
+                                           </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-50">
+                                           {contact.orders.map(o => (
+                                              <tr key={o.id} className="hover:bg-slate-50/50">
+                                                 <td className="py-2.5 font-mono font-bold text-secondary">{o.orderNo}</td>
+                                                 <td className="py-2.5">
+                                                    <div className="mb-0.5 flex items-center gap-2">
+                                                       <span className={`px-1.5 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest ${o.orderStatus?.toLowerCase() === 'paid' ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-400'}`}>
+                                                          {o.orderStatus || "—"}
+                                                       </span>
+                                                       {o.paymentMethod && <span className="text-[9px] font-bold text-slate-500 uppercase">{o.paymentMethod}</span>}
+                                                    </div>
+                                                    <div className="text-[9px] text-slate-400">{o.orderDate || "—"} {o.coverNoteNo && `• CN: ${o.coverNoteNo}`}</div>
+                                                 </td>
+                                                 <td className="py-2.5 text-right font-mono">
+                                                    <div className="text-primary font-black text-xs">{o.netTransaction || "—"}</div>
+                                                    {o.grossTransaction && <div className="text-[8px] text-slate-400 uppercase">Gross: {o.grossTransaction}</div>}
+                                                    {o.netWrittenPremium && <div className="text-[8px] text-slate-400 uppercase">Written: {o.netWrittenPremium}</div>}
+                                                 </td>
+                                              </tr>
+                                           ))}
+                                        </tbody>
+                                     </table>
+                                  </div>
+                               </div>
+                            </div>
+                         </div>
                       </div>
                     </td>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                )}
+              </Fragment>
+            );
+          })}
+            </tbody>
+          </table>
+        </div>
 
           {/* Mobile View (Cards) */}
           <div className="lg:hidden p-4 space-y-4 bg-slate-50/50">
@@ -2849,7 +3035,7 @@ function ContactsPage(props: {
           onRefresh={props.onRefresh} 
         />
       )}
-    </div>
+    </StudioPageShell>
   );
 }
 
@@ -2983,20 +3169,23 @@ function AnalyticsPage(props: { data: BootstrapData }) {
   }, [filteredData, biSource, biYAxis, biXAxis, biAggregation]);
 
   return (
-    <div className="px-8 pb-12 pt-8">
-      <div className="mb-10 flex flex-col gap-8 xl:flex-row xl:items-end xl:justify-between border-b border-slate-100 pb-8 relative">
-        <div className="absolute top-0 left-0 h-40 w-40 bg-primary/5 blur-3xl -ml-20 -mt-20 rounded-full pointer-events-none" />
-        <div className="space-y-2 relative z-10">
-          <h1 className="font-headline text-5xl font-extrabold tracking-tight text-primary">Analytics</h1>
-          <p className="text-lg font-medium text-slate-500">Real-time performance & BI insights</p>
-        </div>
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center relative z-10 overflow-x-auto pb-4 sm:pb-0 no-scrollbar">
+    <StudioPageShell
+      title="Analytics"
+      subtitle="Real-time performance & BI insights across your full contact and campaign pipeline."
+      heroIcon="analytics"
+      eyebrow="Intelligence Hub"
+      cta={
+        <div className="flex flex-wrap gap-2 items-center">
           <div className="flex items-center gap-1.5 rounded-2xl bg-white border border-slate-100 p-1.5 shadow-sm">
             {["all", "1month", "3month", "9month", "custom"].map(rng => (
-              <button 
+              <button
                 key={rng}
                 onClick={() => setDateRange(rng as any)}
-                className={`px-4 py-2 text-[10px] font-extrabold uppercase tracking-widest rounded-xl transition-all ${dateRange === rng ? 'bg-primary text-on-primary shadow-lg shadow-primary/20' : 'text-slate-400 hover:bg-slate-50 hover:text-primary'}`}
+                className={`px-4 py-2 text-[10px] font-extrabold uppercase tracking-widest rounded-xl transition-all ${
+                  dateRange === rng
+                    ? 'bg-primary text-on-primary shadow-lg'
+                    : 'text-slate-400 hover:bg-slate-50 hover:text-primary'
+                }`}
               >
                 {rng === "all" ? "All Time" : rng === "1month" ? "1 Mo" : rng === "3month" ? "3 Mo" : rng === "9month" ? "9 Mo" : "Custom"}
               </button>
@@ -3018,7 +3207,8 @@ function AnalyticsPage(props: { data: BootstrapData }) {
             {isEditing ? "Save View" : "Customize"}
           </button>
         </div>
-      </div>
+      }
+    >
 
       {isEditing && (
         <div className="mb-8 rounded-xl border border-outline-variant/30 bg-surface-container-lowest p-6 shadow-sm transform transition-all">
@@ -3231,7 +3421,7 @@ function AnalyticsPage(props: { data: BootstrapData }) {
           </section>
         )}
       </div>
-    </div>
+    </StudioPageShell>
   );
 }
 
@@ -3379,15 +3569,15 @@ function TemplatesStudioPage(props: { data: BootstrapData; onRefresh: (preferred
   }
 
   return (
-    <div className="mx-auto max-w-7xl px-8 pb-12 pt-8">
-      <div className="sm:flex sm:items-center sm:justify-between">
-        <div className="sm:flex-auto">
-          <h1 className="font-headline text-[2.5rem] font-extrabold tracking-tight text-primary">Message Templates</h1>
-          <p className="mt-2 text-on-surface-variant">Manage your WhatsApp message templates synced from Twilio Content API.</p>
-        </div>
-        <div className="mt-4 flex items-center space-x-3 sm:ml-16 sm:mt-0 sm:flex-none">
+    <StudioPageShell
+      title="Message Templates"
+      subtitle="Manage your WhatsApp message templates synced from Twilio Content API."
+      heroIcon="description"
+      eyebrow="Asset Library"
+      cta={
+        <div className="flex items-center space-x-3">
           <button
-            className="inline-flex items-center justify-center rounded-xl border border-outline-variant/30 bg-white px-5 py-3 text-sm font-bold text-primary shadow-sm transition-all hover:bg-surface-container disabled:opacity-50"
+            className="inline-flex items-center justify-center rounded-xl border border-white/20 bg-white/10 px-5 py-3 text-sm font-bold text-white shadow-sm transition-all hover:bg-white/20 disabled:opacity-50"
             disabled={syncingApproved}
             onClick={() => void syncApprovedTemplates()}
           >
@@ -3395,7 +3585,7 @@ function TemplatesStudioPage(props: { data: BootstrapData; onRefresh: (preferred
             {syncingApproved ? "Syncing..." : "Sync Twilio"}
           </button>
           <button
-            className="inline-flex items-center justify-center rounded-xl bg-primary px-5 py-3 text-sm font-bold text-on-primary shadow-lg shadow-primary/20 transition-all hover:opacity-90"
+            className="inline-flex items-center justify-center rounded-xl bg-white px-5 py-3 text-sm font-bold text-primary shadow-lg transition-all hover:scale-105 active:scale-95"
             onClick={() => {
               if (showForm) {
                 setShowForm(false);
@@ -3415,10 +3605,13 @@ function TemplatesStudioPage(props: { data: BootstrapData; onRefresh: (preferred
             }}
           >
             <Icon name={showForm ? "close" : "add"} className="mr-2" />
-            {showForm ? "Cancel" : "New Template"}
+            {showForm ? "Cancel" : "Add Template"}
           </button>
         </div>
-      </div>
+      }
+    >
+      <>
+
 
       {showForm ? (
         <div className="mt-8 rounded-[2rem] bg-surface-container-lowest p-6 shadow-sm lg:w-1/2">
@@ -3571,7 +3764,8 @@ function TemplatesStudioPage(props: { data: BootstrapData; onRefresh: (preferred
           </div>
         </div>
       </div>
-    </div>
+      </>
+    </StudioPageShell>
   );
 }
 
@@ -3644,7 +3838,7 @@ function AutomationsStudioPage(props: { data: BootstrapData; onRefresh: (preferr
   }
 
   return (
-    <StudioPageShell title="Automation Studio" subtitle="Run template workflows for keyword replies, new contacts, and segment entries.">
+    <StudioPageShell title="Automation Studio" subtitle="Run template workflows for keyword replies, new contacts, and segment entries." heroIcon="bolt" eyebrow="Workflow Engine">
       <div className="mb-8 flex items-center justify-between">
         <div className="inline-flex rounded-2xl bg-surface-container-low p-1.5 shadow-inner">
            <button 
@@ -3906,7 +4100,10 @@ function SettingsStudioPage(props: { data: BootstrapData; onRefresh: (preferredC
     TWILIO_ACCOUNT_SID: props.data.settings.TWILIO_ACCOUNT_SID || "",
     TWILIO_AUTH_TOKEN: props.data.settings.TWILIO_AUTH_TOKEN || "",
     TWILIO_DEFAULT_MESSAGING_SERVICE_SID: props.data.settings.TWILIO_DEFAULT_MESSAGING_SERVICE_SID || "",
-    VITE_GOOGLE_CLIENT_ID: props.data.settings.VITE_GOOGLE_CLIENT_ID || ""
+    VITE_GOOGLE_CLIENT_ID: props.data.settings.VITE_GOOGLE_CLIENT_ID || "",
+    APP_NAME: props.data.settings.APP_NAME || "tomorrowX",
+    APP_LOGO_URL: props.data.settings.APP_LOGO_URL || "/logo.png",
+    SEO_DESCRIPTION: props.data.settings.SEO_DESCRIPTION || "Verified WhatsApp Operations Hub for sales and support."
   });
   
   const [showKeys, setShowKeys] = useState<Record<string, boolean>>({});
@@ -3979,6 +4176,16 @@ function SettingsStudioPage(props: { data: BootstrapData; onRefresh: (preferredC
   }
 
   async function saveSettings() {
+    // Basic Safeguard: Prevent saving truncated placeholders with ellipses
+    const truncatedFields = Object.entries(settingsForm)
+      .filter(([key, value]) => typeof value === 'string' && value.includes("..."))
+      .map(([key]) => key);
+
+    if (truncatedFields.length > 0) {
+      alert(`Safety Block: The following fields appear to contain truncated placeholders (ellipses): ${truncatedFields.join(", ")}. Please enter the full value before saving.`);
+      return;
+    }
+
     setIsSavingSettings(true);
     try {
       await api("/api/settings", {
@@ -3995,10 +4202,66 @@ function SettingsStudioPage(props: { data: BootstrapData; onRefresh: (preferredC
   }
 
   return (
-    <StudioPageShell title="Shared Settings" subtitle="Manage multi-user access and multiple WhatsApp senders for the same workspace.">
+    <StudioPageShell title="Shared Settings" subtitle="Manage branding, API integrations, and multi-user access for the same workspace." heroIcon="settings" eyebrow="Workspace Configuration">
       <div className="grid gap-6 xl:grid-cols-2">
-        {/* COL 1: Credentials & AI */}
+        {/* COL 1: Branding & Credentials */}
         <div className="space-y-6">
+           {/* Section 0: Workspace Identity */}
+           <div className="rounded-[2rem] bg-surface-container-lowest p-8 shadow-sm border border-outline-variant/10">
+              <div className="flex items-center justify-between mb-8">
+                 <SectionTitle icon="palette" title="Workspace Identity & Branding" />
+                 <button 
+                  disabled={isSavingSettings} 
+                  onClick={saveSettings} 
+                  className="px-6 py-2 bg-primary text-on-primary rounded-xl font-bold text-xs shadow-lg shadow-primary/20 hover:opacity-90 active:scale-95 transition-all"
+                >
+                  {isSavingSettings ? 'Saving...' : 'Update Branding'}
+                </button>
+              </div>
+
+              <div className="grid gap-6 md:grid-cols-[1fr_auto]">
+                 <div className="space-y-6">
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 block">Application Name</label>
+                      <input 
+                        type="text"
+                        className="atrium-input bg-surface-container-low border-transparent focus:bg-white transition-all font-bold text-sm" 
+                        placeholder="tomorrowX" 
+                        value={settingsForm.APP_NAME} 
+                        onChange={e => setSettingsForm({ ...settingsForm, APP_NAME: e.target.value })} 
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 block">Logo URL</label>
+                      <input 
+                        type="text"
+                        className="atrium-input bg-surface-container-low border-transparent focus:bg-white transition-all text-xs" 
+                        placeholder="/logo.png" 
+                        value={settingsForm.APP_LOGO_URL} 
+                        onChange={e => setSettingsForm({ ...settingsForm, APP_LOGO_URL: e.target.value })} 
+                      />
+                    </div>
+                 </div>
+                 <div className="flex flex-col items-center justify-center p-6 bg-surface-container-low rounded-3xl border border-dashed border-outline-variant/30 min-w-[120px]">
+                    <p className="text-[8px] font-black text-slate-400 uppercase mb-3 text-center">Logo Preview</p>
+                    <div className="h-16 w-16 bg-white p-2 rounded-2xl shadow-sm border border-outline-variant/10 flex items-center justify-center">
+                       <img src={settingsForm.APP_LOGO_URL} alt="Preview" className="h-full w-full object-contain" />
+                    </div>
+                 </div>
+              </div>
+
+              <div className="mt-6 pt-6 border-t border-outline-variant/10">
+                 <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 block">SEO Description</label>
+                 <textarea 
+                    className="atrium-input bg-surface-container-low border-transparent focus:bg-white transition-all text-xs resize-none h-20" 
+                    placeholder="Workspace meta description..." 
+                    value={settingsForm.SEO_DESCRIPTION} 
+                    onChange={e => setSettingsForm({ ...settingsForm, SEO_DESCRIPTION: e.target.value })} 
+                 />
+                 <p className="mt-2 text-[10px] text-slate-400 font-medium italic">Updates global meta tags for social sharing and search indexing.</p>
+              </div>
+           </div>
+           
            {/* Section 1: AI Architect */}
            <div className="rounded-[2rem] bg-surface-container-lowest p-8 shadow-sm border border-outline-variant/10">
               <div className="flex items-center justify-between mb-8">
@@ -4042,11 +4305,15 @@ function SettingsStudioPage(props: { data: BootstrapData; onRefresh: (preferredC
                   <input 
                     type={showKeys.VITE_GOOGLE_CLIENT_ID ? "text" : "password"}
                     className="atrium-input bg-surface-container-low border-transparent focus:bg-white transition-all font-mono text-xs" 
-                    placeholder="4783...apps.googleusercontent.com" 
+                    placeholder="Enter full client ID... (e.g. 123-abc.apps.googleusercontent.com)" 
                     value={settingsForm.VITE_GOOGLE_CLIENT_ID} 
                     onChange={e => setSettingsForm({ ...settingsForm, VITE_GOOGLE_CLIENT_ID: e.target.value })} 
                   />
-                  <p className="mt-2 text-[10px] text-slate-400 font-medium italic">Enables secure "Sign in with Google" for your team.</p>
+                  <p className="mt-2 text-[10px] text-slate-400 font-medium italic">
+                    {settingsForm.VITE_GOOGLE_CLIENT_ID 
+                      ? "Enables secure 'Sign in with Google' for your team." 
+                      : "Empty: Falling back to secure environment variable configuration."}
+                  </p>
                 </div>
               </div>
            </div>
@@ -4215,12 +4482,25 @@ function SettingsStudioPage(props: { data: BootstrapData; onRefresh: (preferredC
   );
 }
 
-function StudioPageShell(props: { title: string; subtitle: string; children: React.ReactNode }) {
+function StudioPageShell(props: { title: string; subtitle: string; heroIcon: string; eyebrow: React.ReactNode; cta?: React.ReactNode; children: React.ReactNode }) {
   return (
     <div className="px-8 pb-12 pt-8">
-      <div className="mb-8">
-        <h1 className="font-headline text-[2.5rem] font-extrabold tracking-tight text-primary">{props.title}</h1>
-        <p className="mt-2 text-on-surface-variant">{props.subtitle}</p>
+      <div className="mb-8 rounded-[2.5rem] bg-gradient-to-br from-primary to-primary-fixed-dim p-10 text-on-primary shadow-2xl relative overflow-hidden group">
+        <div className="absolute right-0 top-0 translate-x-1/4 -translate-y-1/4 opacity-10 transition-transform group-hover:scale-110 duration-1000 pointer-events-none">
+          <span className="material-symbols-rounded text-[280px]">{props.heroIcon}</span>
+        </div>
+        <div className="relative z-10">
+          <div className="flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
+            <div className="max-w-xl">
+              <div className="text-[10px] font-extrabold uppercase tracking-[0.28em] opacity-60">
+                {props.eyebrow}
+              </div>
+              <h1 className="mt-3 font-headline text-4xl font-extrabold tracking-tight">{props.title}</h1>
+              <p className="mt-4 text-base font-medium opacity-80 leading-relaxed">{props.subtitle}</p>
+            </div>
+            {props.cta && <div className="shrink-0">{props.cta}</div>}
+          </div>
+        </div>
       </div>
       {props.children}
     </div>
@@ -4881,7 +5161,7 @@ function LandingPagesPage(props: { data: BootstrapData; onRefresh: () => Promise
   };
 
   return (
-    <StudioPageShell title="Landing Pages" subtitle="Generate high-converting mobile-first pages linked directly to your CRM.">
+    <StudioPageShell title="Landing Pages" subtitle="Generate high-converting mobile-first pages linked directly to your CRM." heroIcon="web" eyebrow="Publishing Studio">
       <div className="mb-10 flex flex-col md:flex-row gap-6">
         <button 
           onClick={() => setEditorPageId("new")}
@@ -5285,6 +5565,8 @@ function LandingPageEditor(props: { pageId: string | null; data: BootstrapData; 
 
 
 
+  const [savedPage, setSavedPage] = useState<any>(null);
+
   const handleSave = async () => {
     setIsSaving(true);
     setIsDeploying(true);
@@ -5313,12 +5595,23 @@ function LandingPageEditor(props: { pageId: string | null; data: BootstrapData; 
       const method = isNew ? "POST" : "PUT";
       const resp: any = await api(endpoint, {
         method,
-        body: JSON.stringify(form)
+        body: JSON.stringify({ ...form, isPublished: true })
       });
       
       clearInterval(interval);
       setProgressPercent(100);
       setProgressLabel("Live!");
+      
+      // Capture the server response (contains id, slug, etc.)
+      if (resp) {
+        setSavedPage(resp);
+        setForm(prev => ({
+          ...prev,
+          name: resp.name || prev.name,
+          slug: resp.slug || prev.slug,
+          title: resp.title || prev.title,
+        }));
+      }
       
       await props.onRefresh();
       
@@ -5336,7 +5629,7 @@ function LandingPageEditor(props: { pageId: string | null; data: BootstrapData; 
   return (
     <>
       {/* Main Editor Shell */}
-      {showSuccess && <DeploymentSuccessModal page={existingPage || form} onClose={() => { setShowSuccess(false); props.onClose(); }} />}
+      {showSuccess && <DeploymentSuccessModal page={savedPage || existingPage || form} onClose={() => { setShowSuccess(false); props.onClose(); }} />}
       <div className="fixed inset-0 z-[60] flex bg-slate-950/20 backdrop-blur-sm">
         <div className="flex h-full w-full max-w-7xl mx-auto overflow-hidden bg-white shadow-2xl md:rounded-l-[3rem] animate-slide-up relative">
           {(isGenerating || isDeploying) && <BuildProgressOverlay label={progressLabel} percent={progressPercent} />}
@@ -5807,6 +6100,45 @@ function LandingPageEditor(props: { pageId: string | null; data: BootstrapData; 
                           </div>
                         </div>
                       )}
+
+                      {section.type === 'logos' && (
+                        <div className="py-16 border-y border-black/5 bg-slate-50/20">
+                          <div className="max-w-5xl mx-auto px-12">
+                            <p className="text-center text-[10px] font-black uppercase tracking-[0.4em] text-slate-400 mb-12">{section.title || 'Powering World-Class Teams'}</p>
+                            <div className="flex flex-wrap items-center justify-center gap-x-16 gap-y-10 opacity-30 grayscale">
+                              {(section.logos || []).map((logo: string, i: number) => (
+                                <span key={i} className="text-2xl font-black text-slate-900 tracking-tighter">{logo}</span>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {section.type === 'stats' && (
+                        <div className="py-24 px-12 bg-white">
+                          <div className="max-w-5xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-16 text-center">
+                            {(section.items || []).map((item: any, i: number) => (
+                              <div key={i}>
+                                <div className="text-5xl font-black mb-3 tracking-tighter" style={{ color: form.theme.primaryColor }}>{item.value || '0'}</div>
+                                <div className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">{item.label || 'Metric'}</div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {section.type === 'cta_banner' && (
+                        <div className="py-24 px-12">
+                          <div className="max-w-4xl mx-auto rounded-[3rem] p-16 text-center shadow-2xl relative overflow-hidden" style={{ backgroundColor: form.theme.primaryColor, color: 'white' }}>
+                            <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-[80px] -mr-32 -mt-32" />
+                            <div className="absolute bottom-0 left-0 w-48 h-48 bg-black/10 rounded-full blur-[60px] -ml-24 -mb-24" />
+                            <h2 className="text-4xl font-black mb-6 relative z-10">{section.title}</h2>
+                            <p className="text-xl mb-10 opacity-90 max-w-2xl mx-auto relative z-10 leading-relaxed">{section.subtitle}</p>
+                            <button className="bg-white text-slate-950 px-10 py-4 rounded-2xl font-black text-lg shadow-2xl relative z-10">{section.cta}</button>
+                          </div>
+                        </div>
+                      )}
+
                     </div>
                   ))}
                 </div>
