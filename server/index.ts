@@ -578,7 +578,7 @@ app.post("/api/contacts/import/evaluate", requireAuth, upload.single("file"), (r
         customFields[targetHeader] = val;
       }
     }
-    const regForMissingPhone = vehicle.registrationNo || order.registrationNo;
+    const regForMissingPhone = vehicle.vehicleRegistrationNo || order.vehicleRegistrationNo;
     if (!translated.phone && regForMissingPhone) {
        const resolved = findContactByRegistrationNo(regForMissingPhone);
        if (resolved) translated.phone = resolved.phone;
@@ -661,10 +661,10 @@ app.post("/api/contacts/import", requireAuth, upload.single("file"), (req: Sessi
     }
 
     // Smart cross-population: If reg number is in either vehicle or order, share it.
-    const rowRegNo = vehicle.registrationNo || order.registrationNo;
+    const rowRegNo = vehicle.vehicleRegistrationNo || order.vehicleRegistrationNo;
     if (rowRegNo) {
-      if (!vehicle.registrationNo) vehicle.registrationNo = rowRegNo;
-      if (!order.registrationNo) order.registrationNo = rowRegNo;
+      if (!vehicle.vehicleRegistrationNo) vehicle.vehicleRegistrationNo = rowRegNo;
+      if (!order.vehicleRegistrationNo) order.vehicleRegistrationNo = rowRegNo;
     }
 
     const regForMissingPhone = rowRegNo;

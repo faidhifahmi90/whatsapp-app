@@ -27,7 +27,7 @@ export type Note = {
 export type Vehicle = {
   id: string;
   contactId: string; // Maps to NRIC owner / Contact User
-  registrationNo: string;
+  vehicleRegistrationNo: string;
   vehicleOwnerName?: string | null;
   vehicleType?: string | null;
   vehicleModel?: string | null;
@@ -39,7 +39,7 @@ export type Vehicle = {
 export type Order = {
   id: string;
   contactId: string;
-  registrationNo: string; // Link to Vehicle
+  vehicleRegistrationNo: string; // Link to Vehicle
   orderNo: string;
   orderStatus?: string | null;
   coverNoteNo?: string | null;

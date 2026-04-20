@@ -152,7 +152,7 @@ function mapContact(row: DbContactRow): Contact {
     vehicles: vehiclesRows.map((v) => ({
       id: v.id,
       contactId: v.contact_id,
-      registrationNo: v.registration_no,
+      vehicleRegistrationNo: v.registration_no,
       vehicleOwnerName: v.vehicle_owner_name,
       vehicleType: v.vehicle_type,
       vehicleModel: v.vehicle_model,
@@ -163,7 +163,7 @@ function mapContact(row: DbContactRow): Contact {
     orders: ordersRows.map((o) => ({
       id: o.id,
       contactId: o.contact_id,
-      registrationNo: o.registration_no,
+      vehicleRegistrationNo: o.registration_no,
       orderNo: o.order_no,
       orderStatus: o.order_status,
       coverNoteNo: o.cover_note_no,
@@ -594,14 +594,14 @@ export function importContacts(
     if (saved) {
       if (contact.vehicles?.length) {
          for (const v of contact.vehicles) {
-            if (v.registrationNo) upsertVehicle({ contactId: saved.id, registrationNo: v.registrationNo, vehicleOwnerName: v.vehicleOwnerName, vehicleType: v.vehicleType, vehicleModel: v.vehicleModel, makeYear: v.makeYear, marketValue: v.marketValue });
+            if (v.vehicleRegistrationNo) upsertVehicle({ contactId: saved.id, vehicleRegistrationNo: v.vehicleRegistrationNo, vehicleOwnerName: v.vehicleOwnerName, vehicleType: v.vehicleType, vehicleModel: v.vehicleModel, makeYear: v.makeYear, marketValue: v.marketValue });
          }
       }
       if (contact.orders?.length) {
          for (const o of contact.orders) {
-            // Smart lookup: if registrationNo is missing on the order object, try to steal it from the vehicle object on the same row
-            const regNo = o.registrationNo || (contact.vehicles && contact.vehicles[0]?.registrationNo);
-            if (o.orderNo && regNo) upsertOrder({ contactId: saved.id, registrationNo: regNo, orderNo: o.orderNo, orderStatus: o.orderStatus, coverNoteNo: o.coverNoteNo, netWrittenPremium: o.netWrittenPremium, grossTransaction: o.grossTransaction, netTransaction: o.netTransaction, paymentMethod: o.paymentMethod, orderDate: o.orderDate });
+            // Smart lookup: if vehicleRegistrationNo is missing on the order object, try to steal it from the vehicle object on the same row
+            const regNo = o.vehicleRegistrationNo || (contact.vehicles && contact.vehicles[0]?.vehicleRegistrationNo);
+            if (o.orderNo && regNo) upsertOrder({ contactId: saved.id, vehicleRegistrationNo: regNo, orderNo: o.orderNo, orderStatus: o.orderStatus, coverNoteNo: o.coverNoteNo, netWrittenPremium: o.netWrittenPremium, grossTransaction: o.grossTransaction, netTransaction: o.netTransaction, paymentMethod: o.paymentMethod, orderDate: o.orderDate });
          }
       }
       imported.push(saved);
@@ -1128,15 +1128,15 @@ export function normalizeRegNo(regNo: string | null | undefined): string {
 
 export function upsertVehicle(data: {
   contactId: string;
-  registrationNo: string;
+  vehicleRegistrationNo: string;
   vehicleOwnerName?: string | null;
   vehicleType?: string | null;
   vehicleModel?: string | null;
   makeYear?: string | null;
   marketValue?: string | null;
 }) {
-  const normalized = normalizeRegNo(data.registrationNo);
-  const existing = db.prepare("select id from vehicles where registration_no = ?").get(data.registrationNo) as { id: string } | undefined;
+  const normalized = normalizeRegNo(data.vehicleRegistrationNo);
+  const existing = db.prepare("select id from vehicles where registration_no = ?").get(data.vehicleRegistrationNo) as { id: string } | undefined;
   
   // Also try searching for normalized if direct match fails
   const idToUpdate = existing?.id || (db.prepare("select id from vehicles where replace(replace(upper(registration_no), ' ', ''), '-', '') = ?").get(normalized) as { id: string } | undefined)?.id;
@@ -1156,15 +1156,15 @@ export function upsertVehicle(data: {
       insert into vehicles (id, contact_id, registration_no, vehicle_owner_name, vehicle_type, vehicle_model, make_year, market_value, created_at)
       values (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
-      id, data.contactId, data.registrationNo, data.vehicleOwnerName || null, data.vehicleType || null, data.vehicleModel || null, data.makeYear || null, data.marketValue || null, now()
+      id, data.contactId, data.vehicleRegistrationNo, data.vehicleOwnerName || null, data.vehicleType || null, data.vehicleModel || null, data.makeYear || null, data.marketValue || null, now()
     );
     return id;
   }
 }
 
-export function findContactByRegistrationNo(registrationNo: string): Contact | null {
-  const normalized = normalizeRegNo(registrationNo);
-  const v = (db.prepare("select contact_id from vehicles where registration_no = ?").get(registrationNo) || 
+export function findContactByRegistrationNo(vehicleRegistrationNo: string): Contact | null {
+  const normalized = normalizeRegNo(vehicleRegistrationNo);
+  const v = (db.prepare("select contact_id from vehicles where registration_no = ?").get(vehicleRegistrationNo) || 
             db.prepare("select contact_id from vehicles where replace(replace(upper(registration_no), ' ', ''), '-', '') = ?").get(normalized)) as { contact_id: string } | undefined;
   
   if (!v) return null;
@@ -1175,7 +1175,7 @@ export function findContactByRegistrationNo(registrationNo: string): Contact | n
 
 export function upsertOrder(data: {
   contactId: string;
-  registrationNo: string;
+  vehicleRegistrationNo: string;
   orderNo: string;
   orderStatus?: string | null;
   coverNoteNo?: string | null;
@@ -1185,7 +1185,7 @@ export function upsertOrder(data: {
   paymentMethod?: string | null;
   orderDate?: string | null;
 }) {
-  const normalized = normalizeRegNo(data.registrationNo);
+  const normalized = normalizeRegNo(data.vehicleRegistrationNo);
   const existing = db.prepare("select id from orders where order_no = ?").get(data.orderNo) as { id: string } | undefined;
   if (existing) {
     db.prepare(`
@@ -1193,7 +1193,7 @@ export function upsertOrder(data: {
         contact_id = ?, registration_no = ?, order_status = ?, cover_note_no = ?, net_written_premium = ?, gross_transaction = ?, net_transaction = ?, payment_method = ?, order_date = ?
       where id = ?
     `).run(
-      data.contactId, data.registrationNo, data.orderStatus || null, data.coverNoteNo || null, data.netWrittenPremium || null, data.grossTransaction || null, data.netTransaction || null, data.paymentMethod || null, data.orderDate || null, existing.id
+      data.contactId, data.vehicleRegistrationNo, data.orderStatus || null, data.coverNoteNo || null, data.netWrittenPremium || null, data.grossTransaction || null, data.netTransaction || null, data.paymentMethod || null, data.orderDate || null, existing.id
     );
     return existing.id;
   } else {
@@ -1202,7 +1202,7 @@ export function upsertOrder(data: {
       insert into orders (id, contact_id, registration_no, order_no, order_status, cover_note_no, net_written_premium, gross_transaction, net_transaction, payment_method, order_date, created_at)
       values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
-      id, data.contactId, data.registrationNo, data.orderNo, data.orderStatus || null, data.coverNoteNo || null, data.netWrittenPremium || null, data.grossTransaction || null, data.netTransaction || null, data.paymentMethod || null, data.orderDate || null, now()
+      id, data.contactId, data.vehicleRegistrationNo, data.orderNo, data.orderStatus || null, data.coverNoteNo || null, data.netWrittenPremium || null, data.grossTransaction || null, data.netTransaction || null, data.paymentMethod || null, data.orderDate || null, now()
     );
     return id;
   }
