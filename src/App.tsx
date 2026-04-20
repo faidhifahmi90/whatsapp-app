@@ -5570,8 +5570,7 @@ function LandingPageEditor(props: { pageId: string | null; data: BootstrapData; 
     const [showGallery, setShowGallery] = useState(false);
 
     // Antigravity Agent Manager states
-    const [phase, setPhase] = useState<'input' | 'planning' | 'executing'>('input');
-    const [implementationPlan, setImplementationPlan] = useState("");
+    const [phase, setPhase] = useState<'input' | 'executing'>('input');
     const [previewMode, setPreviewMode] = useState<'react' | 'sandbox'>('react');
     const [feedbackIndex, setFeedbackIndex] = useState<number | null>(null);
     const [feedbackText, setFeedbackText] = useState("");
@@ -5592,23 +5591,13 @@ function LandingPageEditor(props: { pageId: string | null; data: BootstrapData; 
         setProgressPercent(0);
         let current = 0;
         
-        const planningLabels = [
-          "Analyzing Brand Context...",
-          "Identifying Key Sectors...",
-          "Mapping Information Hierarchy...",
-          "Optimizing User Journey...",
-          "Finalizing Blueprint..."
-        ];
-        
-        const executionLabels = [
+        const labels = [
           "Allocating Design Tokens...",
           "Drafting Persuasive Copy...",
           "Simulating Conversions...",
           "Polishing UI Synergy...",
           "Finalizing Export..."
         ];
-        
-        const labels = phase === 'planning' ? planningLabels : executionLabels;
         setProgressLabel(labels[0]);
 
         interval = setInterval(() => {
@@ -5639,40 +5628,16 @@ function LandingPageEditor(props: { pageId: string | null; data: BootstrapData; 
       return () => clearInterval(interval);
     }, [isGenerating, phase]);
 
-  // Phase 1: Planning
-  const handleGeneratePlan = async () => {
+  // Primary Generation Execution
+  const handleGeneratePage = async () => {
     if (!magicPrompt) return;
-    setPhase('planning');
-    setIsGenerating(true);
-    try {
-      const resp: any = await api("/api/ai/plan", {
-        method: "POST",
-        body: JSON.stringify({
-          rawContent: magicPrompt,
-          name: form.name,
-          description: form.description
-        })
-      });
-      setImplementationPlan(resp.plan);
-      setError(null);
-    } catch (err: any) {
-      console.error("Architect Phase 1 Error:", err);
-      setError(err.message || "Failed to generate plan.");
-      setPhase('input');
-    } finally {
-      setIsGenerating(false);
-    }
-  };
-
-  // Phase 2: Execution
-  const handleExecutePlan = async () => {
     setPhase('executing');
     setIsGenerating(true);
     try {
       const resp: any = await api("/api/ai/execute", {
         method: "POST",
         body: JSON.stringify({
-          plan: implementationPlan,
+          prompt: magicPrompt,
           name: form.name,
           description: form.description,
           sections: form.sections
@@ -5692,9 +5657,9 @@ function LandingPageEditor(props: { pageId: string | null; data: BootstrapData; 
         setError(null);
       }
     } catch (err: any) {
-      console.error("Architect Phase 2 Error:", err);
-      setError(err.message || "Execution failed.");
-      setPhase('planning');
+      console.error("Architect Generation Error:", err);
+      setError(err.message || "Generation failed.");
+      setPhase('input');
     } finally {
       setIsGenerating(false);
     }
@@ -5857,44 +5822,16 @@ function LandingPageEditor(props: { pageId: string | null; data: BootstrapData; 
                       />
                       <button
                         disabled={isGenerating || !magicPrompt}
-                        onClick={handleGeneratePlan}
+                        onClick={handleGeneratePage}
                         className="mt-3 w-full py-4 rounded-2xl bg-primary text-xs font-bold text-on-primary shadow-lg shadow-primary/20 disabled:opacity-50 flex items-center justify-center gap-2 active:scale-95 transition-all"
                       >
-                        {isGenerating ? <span className="animate-spin text-sm">⌛</span> : <Icon name="description" className="text-sm" />}
-                        {isGenerating ? 'Analyzing...' : 'Generate Implementation Plan'}
+                        {isGenerating ? <span className="animate-spin text-sm">⌛</span> : <Icon name="auto_fix_high" className="text-sm" />}
+                        {isGenerating ? 'Architecting...' : 'Generate My Site'}
                       </button>
                     </div>
                   )}
 
-                  {/* Phase 2: Planning */}
-                  {phase === 'planning' && (
-                    <div className="space-y-4 animate-fade-in">
-                      <div className="p-5 rounded-3xl bg-slate-50 border border-slate-100 shadow-sm relative group">
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                           <Icon name="assignment" className="text-sm text-primary" /> Implementation Plan
-                        </p>
-                        <div className="prose prose-slate prose-sm max-h-[400px] overflow-y-auto scrollbar-hide text-[10px] leading-relaxed text-slate-600 font-medium whitespace-pre-wrap">
-                          {implementationPlan}
-                        </div>
-                      </div>
-                      <div className="space-y-2">
-                        <button
-                          disabled={isGenerating}
-                          onClick={handleExecutePlan}
-                          className="w-full py-4 rounded-2xl bg-primary text-xs font-bold text-on-primary shadow-lg shadow-primary/20 flex items-center justify-center gap-2 active:scale-95 transition-all"
-                        >
-                          {isGenerating ? <span className="animate-spin text-sm">⌛</span> : <Icon name="play_arrow" className="text-sm" />}
-                          {isGenerating ? 'Executing Architecture...' : 'Approve & Build Site'}
-                        </button>
-                        <button
-                          onClick={() => setPhase('input')}
-                          className="w-full py-3 rounded-xl border border-slate-200 text-xs font-bold text-slate-400 hover:text-slate-600 transition-all"
-                        >
-                          Cancel / Edit Prompt
-                        </button>
-                      </div>
-                    </div>
-                  )}
+
 
                   {/* Phase 3: Executing (Global Loader) */}
                   {phase === 'executing' && (
@@ -6057,11 +5994,11 @@ function LandingPageEditor(props: { pageId: string | null; data: BootstrapData; 
                               </div>
                               <button 
                                 disabled={isGenerating || !magicPrompt}
-                                onClick={handleGeneratePlan}
+                                onClick={handleGeneratePage}
                                 className="px-8 py-4 bg-primary text-on-primary rounded-2xl font-bold text-sm shadow-xl shadow-primary/30 hover:scale-105 active:scale-95 transition-all flex items-center gap-2"
                               >
                                 {isGenerating ? <span className="animate-spin text-sm">⌛</span> : <Icon name="auto_fix_high" />}
-                                {isGenerating ? 'Analyzing...' : 'Generate Plan'}
+                                {isGenerating ? 'Architecting...' : 'Generate My Site'}
                               </button>
                             </div>
                           </div>

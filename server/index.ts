@@ -1911,9 +1911,9 @@ app.post("/api/ai/plan", async (req, res) => {
 // 2. Execute Plan to JSON
 app.post("/api/ai/execute", async (req, res) => {
   try {
-    const { plan, name, industry, goal, description, sections } = req.body;
+    const { plan, prompt, name, industry, goal, description, sections } = req.body;
     const result = await executeWithSkills({
-      plan,
+      prompt: prompt || plan,
       businessName: name,
       industry,
       goal,

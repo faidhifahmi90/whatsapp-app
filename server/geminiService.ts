@@ -113,7 +113,7 @@ export async function generatePlan(params: {
  * Generates the final JSON structure using injected Skills.
  */
 export async function executeWithSkills(params: {
-  plan: string;
+  prompt: string;
   businessName: string;
   industry?: string;
   goal?: string;
@@ -159,9 +159,9 @@ export async function executeWithSkills(params: {
     required: ["metadata", "sections"]
   };
 
-  const prompt = `
-    IMPLEMENTATION PLAN:
-    ${params.plan}
+  const aiPrompt = `
+    USER PROMPT / VISION:
+    ${params.prompt}
 
     CONTEXT:
     Business Name: ${params.businessName}
@@ -171,15 +171,17 @@ export async function executeWithSkills(params: {
     Current Sections: ${params.currentSections ? JSON.stringify(params.currentSections) : "None"}
 
     INSTRUCTIONS:
-    1. Define the holistic 'metadata' for this page.
-    2. Generate the detailed 'sections' as outlined in the plan.
-    3. Use active, modern, and high-fidelity copy.
+    1. First, architect a mental model of the landing page based on the User Prompt.
+    2. Define the holistic 'metadata' for this page.
+    3. Generate the detailed 'sections' that best fulfill the user's vision.
+    4. Use active, modern, and high-fidelity copy.
+    5. Ensure the structure is optimized for high conversion.
   `;
 
   try {
     const result = await ai.models.generateContent({
       model: MODEL_NAME,
-      contents: prompt,
+      contents: aiPrompt,
       config: {
         systemInstruction: SYSTEM_INSTRUCTION + "\n\nAPPLY THESE SKILLS:\n" + activeSkills,
         responseMimeType: "application/json",
