@@ -1015,7 +1015,7 @@ export function listAutomations(): Automation[] {
     channelId: row.channel_id,
     segmentId: row.segment_id,
     delayMinutes: row.delay_minutes,
-    flowData: parseJson<any[]>(row.flow_data_json, null),
+    flowData: parseJson<any[] | null>(row.flow_data_json, null),
     isActive: Boolean(row.is_active)
   }));
 }
