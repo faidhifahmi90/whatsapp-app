@@ -46,7 +46,7 @@ type DbTemplateRow = {
   twilio_content_sid: string | null;
 };
 
-function now() {
+export function now() {
   return new Date().toISOString();
 }
 
@@ -341,13 +341,25 @@ export function initDb() {
     create table if not exists automations (
       id text primary key,
       name text not null,
-      trigger_type text not null,
+      version text not null default 'simple',
+      trigger_type text,
       trigger_value text,
-      template_id text not null,
-      channel_id text not null,
+      template_id text,
+      channel_id text,
       segment_id text,
-      delay_minutes integer not null default 0,
+      delay_minutes integer,
+      flow_data_json text,
       is_active integer not null default 1,
+      created_at text not null
+    );
+
+    create table if not exists journey_instances (
+      id text primary key,
+      automation_id text not null,
+      contact_id text not null,
+      current_node_id text not null,
+      next_execution_at text not null,
+      status text not null,
       created_at text not null
     );
 
@@ -379,6 +391,14 @@ export function initDb() {
   
   try { db.prepare(`alter table users add column preferred_name text`).run(); } catch (e) {}
   try { db.prepare(`alter table users add column last_login_at text`).run(); } catch (e) {}
+  
+  // Automations V2 Migrations
+  try { db.prepare(`alter table automations add column version text not null default 'simple'`).run(); } catch (e) {}
+  try { db.prepare(`alter table automations add column flow_data_json text`).run(); } catch (e) {}
+  try { db.prepare(`alter table automations modify column trigger_type text`).run(); } catch (e) {}
+  try { db.prepare(`alter table automations modify column template_id text`).run(); } catch (e) {}
+  try { db.prepare(`alter table automations modify column channel_id text`).run(); } catch (e) {}
+  try { db.prepare(`alter table automations modify column delay_minutes integer`).run(); } catch (e) {}
 
   seedIfEmpty();
   cleanupDummyData();
@@ -988,43 +1008,49 @@ export function listAutomations(): Automation[] {
   return (db.prepare("select * from automations order by created_at desc").all() as any[]).map((row) => ({
     id: row.id,
     name: row.name,
+    version: row.version || "simple",
     triggerType: row.trigger_type,
     triggerValue: row.trigger_value,
     templateId: row.template_id,
     channelId: row.channel_id,
     segmentId: row.segment_id,
     delayMinutes: row.delay_minutes,
+    flowData: parseJson<any[]>(row.flow_data_json, null),
     isActive: Boolean(row.is_active)
   }));
 }
 
 export function createAutomation(input: {
   name: string;
-  triggerType: "incoming_keyword" | "new_contact" | "segment_joined";
+  version: "simple" | "journey";
+  triggerType?: string | null;
   triggerValue?: string | null;
-  templateId: string;
-  channelId: string;
+  templateId?: string | null;
+  channelId?: string | null;
   segmentId?: string | null;
-  delayMinutes: number;
+  delayMinutes?: number | null;
+  flowData?: any[] | null;
 }) {
   const id = randomUUID();
   db.prepare(
     `insert into automations
-      (id, name, trigger_type, trigger_value, template_id, channel_id, segment_id, delay_minutes, is_active, created_at)
-     values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      (id, name, version, trigger_type, trigger_value, template_id, channel_id, segment_id, delay_minutes, flow_data_json, is_active, created_at)
+     values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).run(
     id,
     input.name,
-    input.triggerType,
+    input.version,
+    input.triggerType ?? "",
     input.triggerValue ?? null,
-    input.templateId,
-    input.channelId,
+    input.templateId ?? "",
+    input.channelId ?? "",
     input.segmentId ?? null,
-    input.delayMinutes,
+    input.delayMinutes ?? 0,
+    input.flowData ? JSON.stringify(input.flowData) : null,
     1,
     now()
   );
-  return listAutomations()[0];
+  return listAutomations().find(a => a.id === id);
 }
 
 export function enqueueAutomationJob(input: {

@@ -68,6 +68,7 @@ import {
 } from "./twilio.js";
 import { SqliteSessionStore } from "./session-store.js";
 import { OAuth2Client } from "google-auth-library";
+import { processJourneys, enrollContact } from "./journeyEngine.js";
 
 type SessionRequest = Request & {
   session: session.Session &
@@ -272,7 +273,7 @@ async function sendManualMessage(input: {
 function queueAutomationIfNeeded(input: {
   eventType: "incoming_keyword" | "new_contact" | "segment_joined";
   contactId: string;
-  channelId: string;
+  channelId?: string;
   body?: string;
   segmentIds?: string[];
 }) {
@@ -292,41 +293,43 @@ function queueAutomationIfNeeded(input: {
       }
     }
 
-    const runAt = dayjs().add(automation.delayMinutes, "minute").toISOString();
-    enqueueAutomationJob({
-      automationId: automation.id,
-      contactId: input.contactId,
-      channelId: automation.channelId || input.channelId,
-      runAt,
-      payload: {
-        triggerBody: input.body ?? null
-      }
-    });
+    if (automation.version === "journey") {
+      enrollContact(automation.id, input.contactId);
+    } else {
+      const runAt = dayjs().add(automation.delayMinutes || 0, "minute").toISOString();
+      enqueueAutomationJob({
+        automationId: automation.id,
+        contactId: input.contactId,
+        channelId: automation.channelId || input.channelId || "",
+        runAt,
+        payload: {
+          templateId: automation.templateId,
+          triggerBody: input.body ?? null
+        }
+      });
+    }
   }
 }
 
 async function processAutomationJobs() {
+  // Simple Automations
   const jobs = listDueAutomationJobs();
   for (const job of jobs) {
     try {
-      markAutomationJob(job.id, "processing");
-      const automation = getAutomation(job.automation_id);
-      if (!automation) {
-        markAutomationJob(job.id, "cancelled");
-        continue;
+      const template = findTemplate(job.payload?.templateId);
+      const channel = findChannel(job.channelId);
+      const contact = findContact(job.contactId);
+      if (template && channel && contact) {
+        await sendWhatsAppMessage({ channel, contact, body: renderTemplate(template, contact, job.payload?.variables || []), mediaUrl: template.mediaUrl });
       }
-      await sendTemplateMessage({
-        contactId: job.contact_id,
-        channelId: job.channel_id,
-        templateId: automation.templateId,
-        source: `automation:${automation.triggerType}`
-      });
       markAutomationJob(job.id, "sent");
-    } catch (error) {
-      console.error("Automation job failed", error);
+    } catch (err) {
       markAutomationJob(job.id, "failed");
     }
   }
+
+  // Journey Automations
+  await processJourneys().catch(err => console.error("Journey Engine Error:", err));
 }
 
 async function processQueuedCampaigns() {
@@ -717,11 +720,20 @@ app.post("/api/contacts/import", requireAuth, upload.single("file"), (req: Sessi
   const fallbackChannel = listChannels()[0];
   if (fallbackChannel) {
     for (const contact of imported) {
-      queueAutomationIfNeeded({
-        eventType: "new_contact",
-        contactId: contact.id,
-        channelId: fallbackChannel.id
-      });
+      const newContactAutomations = listAutomations().filter((a) => a.isActive && a.triggerType === "new_contact");
+      for (const auto of newContactAutomations) {
+        if (auto.version === 'journey') {
+           enrollContact(auto.id, contact.id);
+        } else {
+           enqueueAutomationJob({
+             automationId: auto.id,
+             contactId: contact.id,
+             channelId: auto.channelId!,
+             runAt: dayjs().add(auto.delayMinutes || 0, "minute").toISOString(),
+             payload: { templateId: auto.templateId! }
+           });
+        }
+      }
     }
   }
 
@@ -947,12 +959,14 @@ app.post("/api/conversations/:id/messages/template", requireAuth, async (req: Se
 app.post("/api/automations", requireAuth, (req: SessionRequest, res) => {
   const automation = createAutomation({
     name: req.body.name,
+    version: req.body.version || "simple",
     triggerType: req.body.triggerType,
     triggerValue: req.body.triggerValue,
     templateId: req.body.templateId,
     channelId: req.body.channelId,
     segmentId: req.body.segmentId,
-    delayMinutes: Number(req.body.delayMinutes ?? 0)
+    delayMinutes: req.body.delayMinutes !== undefined ? Number(req.body.delayMinutes) : null,
+    flowData: req.body.flowData
   });
   refreshClients("automation");
   res.json({ automation });

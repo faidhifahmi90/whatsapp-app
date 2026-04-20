@@ -137,16 +137,43 @@ export type Campaign = {
   createdAt: string;
 };
 
+export type JourneyNodeCategory = "trigger" | "action" | "condition" | "control";
+
+export type JourneyNode = {
+  id: string;
+  category: JourneyNodeCategory;
+  type: string;
+  config: Record<string, any>;
+  nextId?: string | null;    // For linear actions
+  yesId?: string | null;     // For conditions
+  noId?: string | null;      // For conditions
+  position?: { x: number; y: number };
+};
+
 export type Automation = {
   id: string;
   name: string;
-  triggerType: "incoming_keyword" | "new_contact" | "segment_joined";
+  version: "simple" | "journey";
+  // Simple fields (used if version === "simple")
+  triggerType?: "incoming_keyword" | "new_contact" | "segment_joined" | null;
   triggerValue?: string | null;
-  templateId: string;
-  channelId: string;
+  templateId?: string | null;
+  channelId?: string | null;
   segmentId?: string | null;
-  delayMinutes: number;
+  delayMinutes?: number | null;
+  // Journey fields (used if version === "journey")
+  flowData?: JourneyNode[] | null;
   isActive: boolean;
+};
+
+export type JourneyInstance = {
+  id: string;
+  automationId: string;
+  contactId: string;
+  currentNodeId: string;
+  nextExecutionAt: string;
+  status: "active" | "completed" | "paused";
+  createdAt: string;
 };
 
 export type BootstrapData = {

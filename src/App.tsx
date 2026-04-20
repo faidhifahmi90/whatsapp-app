@@ -11,8 +11,10 @@ import type {
   Conversation,
   Template,
   Vehicle,
-  Order
+  Order,
+  JourneyNode
 } from "./types";
+import JourneyDesigner from "./components/JourneyDesigner";
 
 
 
@@ -83,7 +85,7 @@ export default function App() {
       if (caughtError instanceof ApiError && caughtError.status === 401) {
         setData(null);
       } else {
-        setError(caughtError instanceof Error ? caughtError.message : "Unable to load dashboard");
+        setError(caughtError instanceof Error ? caughtError.message : "Unable to load workspace");
       }
     } finally {
       setLoading(false);
@@ -123,7 +125,7 @@ export default function App() {
   }
 
   if (loading || googleClientId === null) {
-    return <div className="grid min-h-screen place-items-center bg-background text-on-surface">Loading dashboard…</div>;
+    return <div className="grid min-h-screen place-items-center bg-background text-on-surface">Loading workspace…</div>;
   }
 
   if (!data) {
@@ -333,18 +335,20 @@ function DashboardShell(props: {
 
       <aside
         className={[
-          "fixed left-0 top-0 z-40 flex h-screen flex-col gap-y-2 bg-slate-100 py-8 transition-transform duration-200 lg:translate-x-0",
+          "fixed left-0 top-0 z-40 flex h-screen flex-col gap-y-2 bg-[#fcfdfd] border-r border-slate-100/50 py-8 transition-transform duration-300 lg:translate-x-0",
           sidebarCollapsed ? "w-20 px-3" : "w-64 px-4",
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         ].join(" ")}
       >
         <div className={`mb-8 ${sidebarCollapsed ? "px-1" : "px-4"}`}>
           <div className="flex items-center gap-3">
-            <img src="/logo.png" alt="tomorrowX" className="h-10 w-10 rounded-xl object-cover shadow-sm ring-1 ring-primary/20" />
+            <div className={`p-1.5 rounded-xl bg-primary/5 ring-1 ring-primary/10 shadow-inner group-hover:scale-105 transition-transform`}>
+              <img src="/logo.png" alt="tomorrowX" className="h-8 w-8 rounded-lg object-cover" />
+            </div>
             {!sidebarCollapsed ? (
-              <div>
-                <h1 className="font-headline text-sm font-bold leading-tight text-primary">tomorrowX</h1>
-                <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500">Verified API</p>
+              <div className="flex flex-col">
+                <h1 className="font-headline text-lg font-bold leading-none text-primary">tomorrowX</h1>
+                <p className="mt-1 text-[9px] font-bold uppercase tracking-[0.24em] text-slate-400">Verified Platform</p>
               </div>
             ) : null}
             <button
@@ -364,8 +368,10 @@ function DashboardShell(props: {
           ))}
 
           {!sidebarCollapsed ? (
-            <div className="px-4 pb-2 pt-6">
-              <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-slate-400">Studio</p>
+            <div className="px-5 pb-2 pt-6 flex items-center gap-2">
+              <span className="h-px flex-1 bg-slate-100"></span>
+              <p className="text-[9px] font-bold uppercase tracking-[0.3em] text-slate-300">Workspace</p>
+              <span className="h-px flex-1 bg-slate-100"></span>
             </div>
           ) : null}
           {studioNavItems.map((item) => (
@@ -373,54 +379,54 @@ function DashboardShell(props: {
           ))}
         </nav>
 
-        <div className="mt-auto space-y-1 border-t border-slate-200 pt-6">
+        <div className="mt-auto space-y-1.5 border-t border-slate-100 pt-6">
           <button 
-            className="mb-4 flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 font-headline text-sm font-bold text-on-primary shadow-lg shadow-primary/10 transition-all hover:opacity-90"
+            className="mb-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-br from-primary to-primary-dim px-4 py-4 font-headline text-sm font-bold text-on-primary shadow-[0_20px_40px_-20px_rgba(0,168,132,0.3)] transition-all hover:scale-[1.02] active:scale-[0.98]"
             onClick={() => navigate("/campaigns")}
           >
-            <Icon name="add" className="text-base" />
-            {!sidebarCollapsed ? "New Broadcast" : null}
+            <Icon name="add_circle" className="text-xl" />
+            {!sidebarCollapsed ? "Start Broadcast" : null}
           </button>
-          <SidebarUtility collapsed={sidebarCollapsed} label="Support" icon="headset_mic" />
-          <SidebarUtility collapsed={sidebarCollapsed} label="API Docs" icon="terminal" />
+          <SidebarUtility collapsed={sidebarCollapsed} label="System Support" icon="headset_mic" />
+          <SidebarUtility collapsed={sidebarCollapsed} label="Developer API" icon="terminal" />
           <button
-            className={`flex w-full items-center rounded-xl px-4 py-3 text-left text-sm font-medium text-slate-500 transition-all hover:bg-slate-200/50 hover:text-emerald-800 ${
+            className={`flex w-full items-center rounded-xl px-5 py-3.5 text-left text-sm font-bold text-slate-400 transition-all hover:bg-red-50 hover:text-red-500 ${
               sidebarCollapsed ? "justify-center" : "gap-3"
             }`}
             onClick={() => void props.onLogout()}
             title={sidebarCollapsed ? "Log out" : undefined}
             type="button"
           >
-            <Icon name="logout" className="text-lg" />
+            <Icon name="logout" className="text-xl" />
             {!sidebarCollapsed ? "Log out" : null}
           </button>
         </div>
       </aside>
 
-      <main className={`min-h-screen bg-surface transition-[margin] duration-200 ${sidebarCollapsed ? "lg:ml-20" : "lg:ml-64"}`}>
-        <header className="sticky top-0 z-30 flex items-center justify-between bg-slate-50/80 px-6 py-3 backdrop-blur-xl">
-          <div className="flex items-center gap-3 lg:gap-8">
+      <main className={`min-h-screen bg-[#f8f9fa] transition-[margin] duration-300 ${sidebarCollapsed ? "lg:ml-20" : "lg:ml-64"}`}>
+        <header className="sticky top-0 z-30 flex h-20 items-center justify-between bg-white/60 px-8 backdrop-blur-2xl border-b border-slate-100/50">
+          <div className="flex items-center gap-4 lg:gap-10">
             <button
               aria-label="Open navigation"
-              className="rounded-full p-2 text-slate-500 transition-colors hover:bg-slate-200/50 lg:hidden"
+              className="rounded-xl p-2 text-slate-400 transition-all hover:bg-slate-100 lg:hidden"
               onClick={() => setSidebarOpen(true)}
               type="button"
             >
-              <Icon name="menu" />
+              <Icon name="menu" className="text-2xl" />
             </button>
             <button
               aria-label={sidebarCollapsed ? "Expand navigation" : "Collapse navigation"}
-              className="hidden rounded-full p-2 text-slate-500 transition-colors hover:bg-slate-200/50 lg:inline-flex"
+              className="hidden rounded-xl p-2.5 text-slate-400 transition-all hover:bg-slate-100 lg:inline-flex"
               onClick={() => setSidebarCollapsed((current) => !current)}
               type="button"
             >
-              <Icon name={sidebarCollapsed ? "menu_open" : "menu"} />
+              <Icon name={sidebarCollapsed ? "menu_open" : "menu"} className="text-2xl" />
             </button>
-            <span className="font-headline text-xl font-bold tracking-tight text-emerald-900">{currentMeta.title}</span>
-            <div className="hidden w-80 items-center gap-2 rounded-full bg-slate-100/70 px-4 py-2 md:flex">
-              <Icon name="search" className="text-sm text-slate-400" />
+            <span className="font-headline text-2xl font-extrabold tracking-tight text-slate-900">{currentMeta.title}</span>
+            <div className="hidden w-96 items-center gap-3 rounded-full bg-slate-100/50 px-5 py-2.5 md:flex border border-slate-100 group focus-within:bg-white focus-within:border-primary/20 focus-within:shadow-[0_0_0_4px_rgba(0,168,132,0.05)] transition-all">
+              <Icon name="search" className="text-xl text-slate-400 group-focus-within:text-primary transition-colors" />
               <input
-                className="w-full border-none bg-transparent p-0 text-xs focus:ring-0"
+                className="w-full border-none bg-transparent p-0 text-sm font-semibold focus:ring-0 placeholder:text-slate-400"
                 placeholder={currentMeta.searchPlaceholder}
                 type="text"
               />
@@ -667,12 +673,10 @@ function InboxPage(props: {
             <h2 className="font-headline text-lg font-bold text-on-surface">Inbox</h2>
             <span className="rounded-full bg-primary px-2 py-0.5 text-[10px] font-bold text-on-primary">{props.unreadCount} New</span>
           </div>
-          <div className="flex gap-1 rounded-xl bg-surface-container-high p-1">
-            <button onClick={() => setFilterStatus("open")} className={`flex-1 rounded-lg py-2 text-[10px] font-bold shadow-sm transition-colors ${filterStatus === "open" ? "bg-surface-container-lowest text-primary" : "text-slate-500 hover:bg-slate-200/50"}`}>Open</button>
-            <button onClick={() => setFilterStatus("kiv")} className={`flex-1 rounded-lg py-2 text-[10px] font-bold shadow-sm transition-colors ${filterStatus === "kiv" ? "bg-surface-container-lowest text-primary" : "text-slate-500 hover:bg-slate-200/50"}`}>KIV</button>
-            <button onClick={() => setFilterStatus("attention")} className={`flex-1 rounded-lg py-2 text-[10px] font-bold shadow-sm transition-colors ${filterStatus === "attention" ? "bg-surface-container-lowest text-primary" : "text-slate-500 hover:bg-slate-200/50"}`}>Attention</button>
-            <button onClick={() => setFilterStatus("pending")} className={`flex-1 rounded-lg py-2 text-[10px] font-bold shadow-sm transition-colors ${filterStatus === "pending" ? "bg-surface-container-lowest text-primary" : "text-slate-500 hover:bg-slate-200/50"}`}>Pending</button>
-            <button onClick={() => setFilterStatus("resolved")} className={`flex-1 rounded-lg py-2 text-[10px] font-bold shadow-sm transition-colors ${filterStatus === "resolved" ? "bg-surface-container-lowest text-primary" : "text-slate-500 hover:bg-slate-200/50"}`}>Resolved</button>
+          <div className="flex gap-2 rounded-2xl bg-slate-100/50 p-1.5 border border-slate-100">
+            <button onClick={() => setFilterStatus("open")} className={`flex-1 rounded-xl py-2.5 text-[11px] font-extrabold uppercase tracking-wider transition-all ${filterStatus === "open" ? "bg-white text-primary shadow-sm ring-1 ring-slate-100" : "text-slate-400 hover:text-slate-600"}`}>Open</button>
+            <button onClick={() => setFilterStatus("kiv")} className={`flex-1 rounded-xl py-2.5 text-[11px] font-extrabold uppercase tracking-wider transition-all ${filterStatus === "kiv" ? "bg-white text-primary shadow-sm ring-1 ring-slate-100" : "text-slate-400 hover:text-slate-600"}`}>KIV</button>
+            <button onClick={() => setFilterStatus("attention")} className={`flex-1 rounded-xl py-2.5 text-[11px] font-extrabold uppercase tracking-wider transition-all ${filterStatus === "attention" ? "bg-white text-primary shadow-sm ring-1 ring-slate-100" : "text-slate-400 hover:text-slate-600"}`}>Attention</button>
           </div>
           <div className="relative">
             <input 
@@ -737,8 +741,8 @@ function InboxPage(props: {
           <div className="flex items-center gap-4">
             <div className="relative">
               <Avatar label={selectedConversation ? fullName(selectedConversation.contact) : "Contact"} size="h-10 w-10" />
-              <div className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full border-2 border-surface-container-lowest bg-primary text-[8px] text-white">
-                <Icon name="check" className="text-[8px]" fill />
+              <div className={`mt-1 flex h-4 w-4 items-center justify-center rounded-md border border-slate-200 bg-white shadow-inner`}>
+                <Icon name="check" className="text-[10px] font-extrabold text-emerald-500" />
               </div>
             </div>
             <div>
@@ -1038,20 +1042,20 @@ function CampaignsPage(props: { data: BootstrapData; onRefresh: (preferredConver
       setHeaderMediaUrl("");
     }
   }, [selectedTemplate?.id]);
-  const recipientOptions =
+  const recipientOptions = useMemo(() =>
     recipientMode === "contacts"
       ? props.data.contacts.map((contact) => ({ id: contact.id, label: fullName(contact), subtitle: contact.company || contact.phone }))
       : props.data.segments.map((segment) => ({
           id: segment.id,
           label: segment.name,
           subtitle: `${props.data.contacts.filter((contact) => contact.segmentIds.includes(segment.id)).length} contacts`
-        }));
+        })), [recipientMode, props.data.contacts, props.data.segments]);
 
   useEffect(() => {
-    if (!recipientOptions.find((item) => recipientIds.includes(item.id))) {
-      setRecipientIds(recipientOptions[0] ? [recipientOptions[0].id] : []);
+    if (recipientOptions.length > 0 && !recipientOptions.some((item) => recipientIds.includes(item.id))) {
+      setRecipientIds([recipientOptions[0].id]);
     }
-  }, [recipientMode, recipientIds, recipientOptions]);
+  }, [recipientMode, recipientOptions]);
 
   async function launchCampaign() {
     await api("/api/campaigns/send", {
@@ -3300,6 +3304,7 @@ function TemplatesStudioPage(props: { data: BootstrapData; onRefresh: (preferred
 
 
 function AutomationsStudioPage(props: { data: BootstrapData; onRefresh: (preferredConversationId?: string | null) => Promise<void> }) {
+  const [activeTab, setActiveTab] = useState<"simple" | "journey">("simple");
   const [form, setForm] = useState({
     name: "Keyword autoresponder",
     triggerType: "incoming_keyword",
@@ -3310,26 +3315,29 @@ function AutomationsStudioPage(props: { data: BootstrapData; onRefresh: (preferr
     delayMinutes: "0"
   });
 
+  const [isBuilderOpen, setIsBuilderOpen] = useState(false);
+  const [editingJourney, setEditingJourney] = useState<Automation | null>(null);
+
   const [autoSearch, setAutoSearch] = useState("");
   const [autoSort, setAutoSort] = useState<"name" | "type" | "status">("name");
 
   const filteredAutomations = useMemo(() => {
-    let result = [...props.data.automations];
+    let result = props.data.automations.filter(a => (a.version || "simple") === activeTab);
     
     if (autoSearch.trim()) {
       const q = autoSearch.toLowerCase();
-      result = result.filter(a => a.name.toLowerCase().includes(q) || a.triggerType.toLowerCase().includes(q) || a.triggerValue?.toLowerCase().includes(q));
+      result = result.filter(a => a.name.toLowerCase().includes(q) || (a.triggerType || "").toLowerCase().includes(q) || a.triggerValue?.toLowerCase().includes(q));
     }
 
     result.sort((a, b) => {
       if (autoSort === "name") return a.name.localeCompare(b.name);
-      if (autoSort === "type") return a.triggerType.localeCompare(b.triggerType);
+      if (autoSort === "type") return (a.triggerType || "").localeCompare(b.triggerType || "");
       if (autoSort === "status") return (a.isActive === b.isActive) ? 0 : (a.isActive ? -1 : 1);
       return 0;
     });
 
     return result;
-  }, [props.data.automations, autoSearch, autoSort]);
+  }, [props.data.automations, autoSearch, autoSort, activeTab]);
 
   async function saveAutomation(event: FormEvent) {
     event.preventDefault();
@@ -3337,109 +3345,222 @@ function AutomationsStudioPage(props: { data: BootstrapData; onRefresh: (preferr
       method: "POST",
       body: JSON.stringify({
         ...form,
+        version: "simple",
         delayMinutes: Number(form.delayMinutes)
       })
     });
     await props.onRefresh();
   }
 
+  async function saveJourney(nodes: JourneyNode[]) {
+     const startNode = nodes[0];
+     await api("/api/automations", {
+       method: "POST",
+       body: JSON.stringify({
+         name: editingJourney ? editingJourney.name : "New Journey " + new Date().toLocaleDateString(),
+         version: "journey",
+         triggerType: startNode?.type,
+         triggerValue: startNode?.config?.segmentId || startNode?.config?.keyword,
+         flowData: nodes
+       })
+     });
+     setIsBuilderOpen(false);
+     setEditingJourney(null);
+     await props.onRefresh();
+  }
+
   return (
     <StudioPageShell title="Automation Studio" subtitle="Run template workflows for keyword replies, new contacts, and segment entries.">
-      <div className="grid gap-6 xl:grid-cols-[0.85fr_1.15fr]">
-        <div className="rounded-[2rem] bg-surface-container-lowest p-6 shadow-sm">
-          <form className="space-y-4" onSubmit={saveAutomation}>
-            <Field label="Workflow name">
-              <input className="atrium-input" value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} />
-            </Field>
-            <Field label="Trigger type">
-              <select className="atrium-input" value={form.triggerType} onChange={(event) => setForm((current) => ({ ...current, triggerType: event.target.value }))}>
-                <option value="incoming_keyword">Incoming keyword</option>
-                <option value="new_contact">New contact</option>
-                <option value="segment_joined">Segment joined</option>
-              </select>
-            </Field>
-            {form.triggerType === "incoming_keyword" ? (
-              <Field label="Keyword">
-                <input className="atrium-input" value={form.triggerValue} onChange={(event) => setForm((current) => ({ ...current, triggerValue: event.target.value }))} />
+      <div className="mb-8 flex items-center justify-between">
+        <div className="inline-flex rounded-2xl bg-surface-container-low p-1.5 shadow-inner">
+           <button 
+             onClick={() => setActiveTab("simple")}
+             className={`flex h-12 items-center gap-3 rounded-xl px-6 text-sm font-bold transition-all duration-300 ${activeTab === 'simple' ? 'bg-surface-container-lowest text-primary shadow-sm' : 'text-on-surface-variant hover:text-on-surface'}`}
+           >
+              <span className="material-symbols-rounded">bolt</span> Simple Workflows
+           </button>
+           <button 
+             onClick={() => setActiveTab("journey")}
+             className={`flex h-12 items-center gap-3 rounded-xl px-6 text-sm font-bold transition-all duration-300 ${activeTab === 'journey' ? 'bg-surface-container-lowest text-primary shadow-sm' : 'text-on-surface-variant hover:text-on-surface'}`}
+           >
+              <span className="material-symbols-rounded">route</span> Customer Journeys
+           </button>
+        </div>
+
+        <div className="flex items-center gap-3">
+           <div className="relative">
+              <input 
+                type="text" 
+                placeholder="Search automations..." 
+                className="atrium-input bg-surface-container-lowest py-2 text-sm w-64 outline-none border border-outline-variant/10 pl-10"
+                value={autoSearch}
+                onChange={(e) => setAutoSearch(e.target.value)}
+              />
+              <span className="material-symbols-rounded absolute left-3 top-2.5 text-on-surface-variant text-lg">search</span>
+           </div>
+           <select 
+             className="atrium-input bg-surface-container-lowest py-2 text-sm w-40 border border-outline-variant/10"
+             value={autoSort}
+             onChange={(e) => setAutoSort(e.target.value as any)}
+           >
+              <option value="name">Name</option>
+              <option value="type">Type</option>
+              <option value="status">Status</option>
+           </select>
+        </div>
+      </div>
+
+      {activeTab === 'simple' ? (
+        <div className="grid gap-8 lg:grid-cols-[400px_1fr]">
+          <div className="rounded-[2.5rem] bg-surface-container-lowest p-8 shadow-xl shadow-surface-container-low/5 border border-outline-variant/5">
+            <div className="mb-8">
+               <h3 className="font-headline text-2xl font-bold text-primary">New Workflow</h3>
+               <p className="mt-1 text-sm text-outline font-medium">Create a simple trigger-based responder.</p>
+            </div>
+            <form className="space-y-6" onSubmit={saveAutomation}>
+              <Field label="Workflow name">
+                <input className="atrium-input" value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} />
               </Field>
-            ) : null}
-            {form.triggerType === "segment_joined" ? (
-              <Field label="Segment">
-                <select className="atrium-input" value={form.segmentId} onChange={(event) => setForm((current) => ({ ...current, segmentId: event.target.value }))}>
-                  {props.data.segments.map((segment) => (
-                    <option key={segment.id} value={segment.id}>
-                      {segment.name}
+              <Field label="Trigger type">
+                <select className="atrium-input" value={form.triggerType || ""} onChange={(event) => setForm((current) => ({ ...current, triggerType: event.target.value as any }))}>
+                  <option value="incoming_keyword">Incoming keyword</option>
+                  <option value="new_contact">New contact</option>
+                  <option value="segment_joined">Segment joined</option>
+                </select>
+              </Field>
+              {form.triggerType === "incoming_keyword" ? (
+                <Field label="Keyword">
+                  <input className="atrium-input" value={form.triggerValue || ""} onChange={(event) => setForm((current) => ({ ...current, triggerValue: event.target.value }))} />
+                </Field>
+              ) : null}
+              {form.triggerType === "segment_joined" ? (
+                <Field label="Segment">
+                  <select className="atrium-input" value={form.segmentId || ""} onChange={(event) => setForm((current) => ({ ...current, segmentId: event.target.value }))}>
+                    {props.data.segments.map((segment) => (
+                      <option key={segment.id} value={segment.id}>
+                        {segment.name}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+              ) : null}
+              <Field label="Broadcast Template">
+                <select className="atrium-input" value={form.templateId || ""} onChange={(event) => setForm((current) => ({ ...current, templateId: event.target.value }))}>
+                  {props.data.templates.map((template) => (
+                    <option key={template.id} value={template.id}>
+                      {template.name}
                     </option>
                   ))}
                 </select>
               </Field>
-            ) : null}
-            <Field label="Template">
-              <select className="atrium-input" value={form.templateId} onChange={(event) => setForm((current) => ({ ...current, templateId: event.target.value }))}>
-                {props.data.templates.map((template) => (
-                  <option key={template.id} value={template.id}>
-                    {template.name}
-                  </option>
-                ))}
-              </select>
-            </Field>
-            <Field label="Channel">
-              <select className="atrium-input" value={form.channelId} onChange={(event) => setForm((current) => ({ ...current, channelId: event.target.value }))}>
-                {props.data.channels.map((channel) => (
-                  <option key={channel.id} value={channel.id}>
-                    {channel.name}
-                  </option>
-                ))}
-              </select>
-            </Field>
-            <Field label="Delay minutes">
-              <input className="atrium-input" value={form.delayMinutes} onChange={(event) => setForm((current) => ({ ...current, delayMinutes: event.target.value }))} />
-            </Field>
-            <button className="w-full rounded-xl bg-primary px-5 py-3 text-sm font-bold text-on-primary">Save automation</button>
-          </form>
-        </div>
-        <div className="flex flex-col gap-4">
-          <div className="flex items-center gap-3 rounded-[2rem] bg-surface-container-lowest p-4 shadow-sm">
-             <div className="relative flex-1">
-                <input 
-                  type="text" 
-                  placeholder="Search automations..." 
-                  className="atrium-input bg-surface-container-low py-2 text-sm w-full outline-none"
-                  value={autoSearch}
-                  onChange={(e) => setAutoSearch(e.target.value)}
-                />
-                <Icon name="search" className="absolute right-3 top-2.5 text-on-surface-variant" />
-             </div>
-             <select 
-               className="atrium-input bg-surface-container-low py-2 text-sm w-40"
-               value={autoSort}
-               onChange={(e) => setAutoSort(e.target.value as any)}
-             >
-                <option value="name">Sort: Name</option>
-                <option value="type">Sort: Type</option>
-                <option value="status">Sort: Status</option>
-             </select>
+              <Field label="Channel">
+                <select className="atrium-input" value={form.channelId || ""} onChange={(event) => setForm((current) => ({ ...current, channelId: event.target.value }))}>
+                  {props.data.channels.map((channel) => (
+                    <option key={channel.id} value={channel.id}>
+                      {channel.name}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Delay (Minutes)">
+                <input className="atrium-input" value={form.delayMinutes} onChange={(event) => setForm((current) => ({ ...current, delayMinutes: event.target.value }))} />
+              </Field>
+              <button className="w-full rounded-2xl bg-primary px-5 py-4 text-sm font-bold text-on-primary shadow-lg shadow-primary/20 hover:opacity-95 transition-all">Enable automation</button>
+            </form>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-2">
-            {filteredAutomations.map((automation) => (
-            <div className="rounded-[2rem] bg-surface-container-low p-6" key={automation.id}>
-              <p className="text-xs font-bold uppercase tracking-[0.2em] text-outline">{automation.triggerType.replaceAll("_", " ")}</p>
-              <h3 className="mt-2 font-headline text-lg font-bold text-primary">{automation.name}</h3>
-              <p className="mt-2 text-sm text-on-surface-variant">
-                Sends {props.data.templates.find((template) => template.id === automation.templateId)?.name ?? "template"} from {props.data.channels.find((channel) => channel.id === automation.channelId)?.name ?? "selected channel"} after {automation.delayMinutes} minutes.
-              </p>
-              <div className="mt-4 flex flex-wrap gap-2">
-                <span className="rounded-full bg-secondary/10 px-3 py-1 text-xs font-bold text-secondary">{automation.isActive ? "Active" : "Paused"}</span>
-                {automation.triggerValue ? (
-                  <span className="rounded-full bg-primary-fixed/20 px-3 py-1 text-xs font-bold text-primary">{automation.triggerValue}</span>
-                ) : null}
-              </div>
-            </div>
-          ))}
+          <div className="grid gap-4 content-start">
+             {filteredAutomations.map(automation => (
+                <div key={automation.id} className="group relative flex items-center gap-6 rounded-[2.5rem] bg-surface-container-lowest p-6 border border-outline-variant/10 hover:border-primary/40 transition-all duration-300 hover:shadow-xl">
+                   <div className="flex h-16 w-16 items-center justify-center rounded-[1.25rem] bg-primary/5 text-primary group-hover:bg-primary group-hover:text-on-primary transition-all duration-500">
+                      <span className="material-symbols-rounded text-3xl">
+                         {automation.triggerType === 'incoming_keyword' ? 'key' : automation.triggerType === 'new_contact' ? 'person_add' : 'segment'}
+                      </span>
+                   </div>
+                   <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                         <h4 className="font-headline text-lg font-bold text-on-surface group-hover:text-primary transition-colors">{automation.name}</h4>
+                         <span className={`inline-flex rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${automation.isActive ? 'bg-emerald-500/10 text-emerald-600' : 'bg-surface-container-high text-outline'}`}>
+                            {automation.isActive ? 'Active' : 'Paused'}
+                         </span>
+                      </div>
+                      <p className="mt-1 text-sm text-on-surface-variant font-medium">
+                         Sends {props.data.templates.find(t => t.id === automation.templateId)?.name} via {props.data.channels.find(c => c.id === automation.channelId)?.name}
+                      </p>
+                   </div>
+                   <div className="text-right">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-outline">Trigger</p>
+                      <p className="text-sm font-bold text-primary group-hover:scale-105 transition-transform">{automation.triggerValue || 'Auto'}</p>
+                   </div>
+                </div>
+             ))}
+             {filteredAutomations.length === 0 && (
+                <div className="flex flex-col items-center justify-center py-20 opacity-30">
+                   <span className="material-symbols-rounded text-6xl mb-4">bolt</span>
+                   <p className="font-bold">No active workflows found.</p>
+                </div>
+             )}
           </div>
         </div>
-      </div>
+      ) : (
+        <div className="space-y-8">
+           <div className="rounded-[3rem] bg-gradient-to-br from-primary to-primary-fixed-dim p-12 text-on-primary shadow-2xl relative overflow-hidden group">
+              <div className="absolute right-0 top-0 translate-x-1/4 -translate-y-1/4 opacity-10 transition-transform group-hover:scale-110 duration-1000">
+                 <span className="material-symbols-rounded text-[300px]">route</span>
+              </div>
+              <div className="relative z-10 max-w-xl">
+                 <h2 className="font-headline text-4xl font-bold">Build Multi-Stage Journeys</h2>
+                 <p className="mt-4 text-lg font-medium opacity-90 leading-relaxed">Combine branching logic, delays, and cross-channel messaging to guide your customers through personlised conversion paths.</p>
+                 <button 
+                   onClick={() => setIsBuilderOpen(true)}
+                   className="mt-8 inline-flex items-center gap-3 rounded-2xl bg-surface-container-lowest px-8 py-4 text-sm font-bold text-primary shadow-xl hover:scale-105 active:scale-95 transition-all"
+                 >
+                    <span className="material-symbols-rounded">add_circle</span> Create New Journey
+                </button>
+              </div>
+           </div>
+
+           <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+              {filteredAutomations.map(automation => (
+                 <div 
+                   key={automation.id}
+                   onClick={() => { setEditingJourney(automation); setIsBuilderOpen(true); }}
+                   className="group cursor-pointer rounded-[2.5rem] bg-surface-container-lowest p-8 border border-outline-variant/10 shadow-lg shadow-surface-container-low/5 hover:border-primary/40 hover:shadow-2xl transition-all duration-300"
+                 >
+                    <div className="mb-6 flex justify-between items-start">
+                       <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary text-on-primary shadow-lg shadow-primary/20">
+                          <span className="material-symbols-rounded text-2xl">route</span>
+                       </div>
+                       <span className={`rounded-full px-4 py-1 text-xs font-bold ${automation.isActive ? 'bg-emerald-500/10 text-emerald-600' : 'bg-surface-container-high text-outline'}`}>
+                          {automation.isActive ? 'Active' : 'Draft'}
+                       </span>
+                    </div>
+                    <h4 className="font-headline text-xl font-bold text-on-surface group-hover:text-primary transition-colors">{automation.name}</h4>
+                    <p className="mt-3 text-sm text-on-surface-variant font-medium leading-relaxed">
+                       {automation.flowData?.length || 0} automated steps including logic splits and cross-channel delivery.
+                    </p>
+                    <div className="mt-8 flex items-center justify-between pt-6 border-t border-outline-variant/10">
+                       <div className="flex items-center gap-2">
+                          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-sky-500/10 text-sky-600 transition-transform hover:scale-110 shadow-sm border border-sky-500/10"><span className="material-symbols-rounded text-lg font-bold">chat</span></div>
+                          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-500/10 text-amber-600 transition-transform hover:scale-110 shadow-sm border border-amber-500/10"><span className="material-symbols-rounded text-lg font-bold">alternate_email</span></div>
+                       </div>
+                       <div className="rounded-xl bg-primary/5 px-4 py-2 text-xs font-bold text-primary opacity-0 group-hover:opacity-100 transition-all transform translate-x-4 group-hover:translate-x-0 flex items-center gap-2">
+                          Manage Journey <span className="material-symbols-rounded text-sm">arrow_forward</span>
+                       </div>
+                    </div>
+                 </div>
+              ))}
+              {filteredAutomations.length === 0 && (
+                <div className="col-span-full py-20 flex flex-col items-center opacity-30">
+                   <span className="material-symbols-rounded text-6xl mb-4">move_location</span>
+                   <p className="font-bold">No journeys created yet.</p>
+                </div>
+              )}
+           </div>
+        </div>
+      )}
+
+      {isBuilderOpen && <JourneyDesigner nodes={editingJourney?.flowData || []} onSave={saveJourney} onCancel={() => { setIsBuilderOpen(false); setEditingJourney(null); }} data={props.data} />}
     </StudioPageShell>
   );
 }
@@ -3674,7 +3795,7 @@ function MessageBubble(props: { message: Conversation["messages"][number]; previ
           <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary italic">Agent: Sarah</span>
         </div>
       ) : null}
-      <div className={`max-w-[70%] overflow-hidden rounded-xl p-4 shadow-sm ${outgoing ? "rounded-br-sm bg-primary text-on-primary shadow-md" : "rounded-bl-sm bg-surface-container-highest text-on-surface"}`}>
+      <div className={`max-w-[70%] overflow-hidden rounded-2xl px-5 py-3 shadow-sm ${outgoing ? "rounded-br-none bg-primary text-on-primary shadow-primary/20" : "rounded-bl-none bg-white border border-slate-100 text-slate-700"}`}>
         {props.message.mediaUrl ? <img alt="Message attachment" className="mb-3 max-h-64 w-full rounded-lg object-cover" src={props.message.mediaUrl} /> : null}
         <p className="text-sm leading-relaxed">{props.message.body}</p>
       </div>
@@ -3746,19 +3867,22 @@ function AtriumNavLink(props: { to: string; label: string; icon: string; compact
     <NavLink
       className={({ isActive }) =>
         [
-          "relative flex items-center rounded-xl px-4 transition-all duration-200 ease-in-out",
-          props.collapsed ? "justify-center px-3" : "gap-3",
-          props.compact ? "py-2.5 text-xs font-semibold" : "py-3 text-sm font-medium",
+          "group relative flex items-center rounded-2xl px-5 transition-all duration-300 ease-out",
+          props.collapsed ? "justify-center px-4" : "gap-4",
+          props.compact ? "py-2.5 text-[11px] font-bold uppercase tracking-wider" : "py-3.5 text-sm font-bold",
           isActive
-            ? "font-bold text-emerald-900 after:absolute after:right-0 after:h-6 after:w-1 after:rounded-l-full after:bg-orange-900"
-            : "text-slate-500 hover:bg-slate-200/50 hover:text-emerald-800"
+            ? "bg-gradient-to-r from-primary/10 to-primary/[0.04] text-primary shadow-[0_4px_12px_-4px_rgba(0,168,132,0.15)] ring-1 ring-primary/10"
+            : "text-slate-500 hover:bg-slate-100/70 hover:text-slate-900"
         ].join(" ")
       }
       title={props.collapsed ? props.label : undefined}
       to={props.to}
     >
-      <Icon className={props.compact ? "text-base" : ""} name={props.icon} />
+      <Icon className={props.compact ? "text-lg" : "text-xl"} name={props.icon} fill={true} />
       {!props.collapsed ? <span>{props.label}</span> : null}
+      {!props.collapsed && (
+        <span className="absolute right-4 h-1 w-1 rounded-full bg-primary opacity-0 group-hover:opacity-100 transition-opacity"></span>
+      )}
     </NavLink>
   );
 }
@@ -3814,14 +3938,19 @@ function LegendPill(props: { color: string; label: string; textColor: string }) 
   );
 }
 
-function InfoCard(props: { title: string; action?: string; onActionClick?: () => void; children: React.ReactNode }) {
+function InfoCard({ title, children, action, onActionClick }: { title: string; children: React.ReactNode; action?: string; onActionClick?: () => void }) {
   return (
-    <div className="space-y-3 rounded-2xl bg-surface-container-lowest p-4">
-      <div className="flex items-center justify-between">
-        <h5 className="text-[10px] font-bold uppercase tracking-widest text-slate-400">{props.title}</h5>
-        {props.action ? <button onClick={props.onActionClick} className="text-[10px] font-bold text-primary">{props.action}</button> : null}
-      </div>
-      {props.children}
+    <div className="rounded-3xl bg-white p-6 shadow-sm border border-slate-100/50 relative overflow-hidden group hover:shadow-md transition-all">
+       <div className="absolute top-0 left-0 h-1 w-full bg-gradient-to-r from-primary/5 to-transparent"></div>
+       <div className="mb-4 flex items-center justify-between">
+          <h3 className="font-headline text-xs font-bold uppercase tracking-[0.2em] text-slate-400">{title}</h3>
+          {action && (
+            <button onClick={onActionClick} className="text-[10px] font-bold text-primary hover:underline uppercase tracking-wider">{action}</button>
+          )}
+       </div>
+       <div className="space-y-4">
+          {children}
+       </div>
     </div>
   );
 }
@@ -3874,7 +4003,7 @@ function Avatar(props: { label: string; size?: string }) {
 
 function Icon(props: { name: string; className?: string; fill?: boolean }) {
   return (
-    <span className={`material-symbols-outlined ${props.className ?? ""}`} style={props.fill ? { fontVariationSettings: "'FILL' 1, 'wght' 500, 'GRAD' 0, 'opsz' 24" } : undefined}>
+    <span className={`material-symbols-rounded ${props.className ?? ""}`} style={props.fill ? { fontVariationSettings: "'FILL' 1, 'wght' 500, 'GRAD' 0, 'opsz' 24" } : undefined}>
       {props.name}
     </span>
   );
